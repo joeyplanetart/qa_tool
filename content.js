@@ -3105,6 +3105,83 @@ console.log('Current URL:', window.location.href);
                         <div style="color: #fff; font-size: 11px; white-space: nowrap;">Shipping Address:</div>
                         <div style="color: #ffeb3b; font-weight: bold; font-size: 11px; word-break: break-word; text-align: right;">${orderData.shippingAddress}</div>
                     </div>
+                    ${orderData.subtotal && orderData.subtotal !== 'N/A' ? `
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Subtotal:</span>
+                        <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right;">${orderData.subtotal}</span>
+                    </div>` : ''}
+                    ${orderData.shippingHandling && orderData.shippingHandling !== 'N/A' ? `
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">S&H:</span>
+                        <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right;">${orderData.shippingHandling}</span>
+                    </div>` : ''}
+                    ${orderData.salesTax && orderData.salesTax !== 'N/A' ? `
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Sales Tax:</span>
+                        <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right;">${orderData.salesTax}</span>
+                    </div>` : ''}
+                    ${orderData.total && orderData.total !== 'N/A' ? `
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">TOTAL:</span>
+                        <span style="color: #4CAF50; font-weight: bold; font-size: 11px; text-align: right;">${orderData.total}</span>
+                    </div>` : ''}
+                    ${orderData.grandTotal && orderData.grandTotal !== 'N/A' ? `
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">GRAND TOTAL:</span>
+                        <span style="color: #4CAF50; font-weight: bold; font-size: 12px; text-align: right;">${orderData.grandTotal}</span>
+                    </div>` : ''}
+                    ${orderData.promoCode && orderData.promoCode !== 'N/A' ? `
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Promo Code:</span>
+                        <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right;">${orderData.promoCode}</span>
+                    </div>` : ''}
+                    ${orderData.saleDiscount && orderData.saleDiscount !== 'N/A' ? `
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Sale Discount:</span>
+                        <span style="color: #FF9800; font-weight: bold; font-size: 11px; text-align: right;">${orderData.saleDiscount}</span>
+                    </div>` : ''}
                 </div>
                 <div style="
                     background: rgba(255, 255, 255, 0.1);
@@ -3222,7 +3299,15 @@ console.log('Current URL:', window.location.href);
                 items: [],
                 shipTo: null,
                 shipMethod: null,
-                estimatedArrival: null
+                estimatedArrival: null,
+                // New financial fields
+                subtotal: 'N/A',
+                shippingHandling: 'N/A',
+                total: 'N/A',
+                salesTax: 'N/A',
+                grandTotal: 'N/A',
+                promoCode: 'N/A',
+                saleDiscount: 'N/A'
             };
             
             // Debug: Try to find common patterns
@@ -3314,6 +3399,79 @@ console.log('Current URL:', window.location.href);
                     }
                 }
             }
+            
+            // Extract financial fields with specific class names
+            console.log('=== DEBUG: Extracting financial fields ===');
+            
+            // Look for Subtotal (label in previous td)
+            allTds.forEach((td, idx) => {
+                const tdText = td.textContent.trim();
+                
+                if (tdText === 'Subtotal:' || tdText.toLowerCase() === 'subtotal:') {
+                    console.log('✓ Found "Subtotal:" td');
+                    // Look for next td with class "c2 tar"
+                    const nextTd = allTds[idx + 1];
+                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar')) {
+                        orderData.subtotal = nextTd.textContent.trim();
+                        console.log('✓ Extracted Subtotal:', orderData.subtotal);
+                    }
+                }
+                
+                if (tdText === 'S&H:' || tdText.toLowerCase() === 's&h:') {
+                    console.log('✓ Found "S&H:" td');
+                    const nextTd = allTds[idx + 1];
+                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar')) {
+                        orderData.shippingHandling = nextTd.textContent.trim();
+                        console.log('✓ Extracted S&H:', orderData.shippingHandling);
+                    }
+                }
+                
+                if (tdText === 'TOTAL:' || tdText.toLowerCase() === 'total:') {
+                    console.log('✓ Found "TOTAL:" td');
+                    const nextTd = allTds[idx + 1];
+                    if (nextTd && nextTd.classList.contains('c1') && nextTd.classList.contains('tar')) {
+                        // Extract text and remove <b> tags
+                        orderData.total = nextTd.textContent.trim();
+                        console.log('✓ Extracted TOTAL:', orderData.total);
+                    }
+                }
+                
+                if (tdText === 'Sales Tax:' || tdText.toLowerCase() === 'sales tax:') {
+                    console.log('✓ Found "Sales Tax:" td');
+                    const nextTd = allTds[idx + 1];
+                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar')) {
+                        orderData.salesTax = nextTd.textContent.trim();
+                        console.log('✓ Extracted Sales Tax:', orderData.salesTax);
+                    }
+                }
+                
+                if (tdText === 'GRAND TOTAL:' || tdText.toLowerCase() === 'grand total:') {
+                    console.log('✓ Found "GRAND TOTAL:" td');
+                    const nextTd = allTds[idx + 1];
+                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar')) {
+                        orderData.grandTotal = nextTd.textContent.trim();
+                        console.log('✓ Extracted GRAND TOTAL:', orderData.grandTotal);
+                    }
+                }
+                
+                if (tdText === 'Promo Code:' || tdText.toLowerCase() === 'promo code:') {
+                    console.log('✓ Found "Promo Code:" td');
+                    const nextTd = allTds[idx + 1];
+                    if (nextTd && nextTd.classList.contains('c30')) {
+                        orderData.promoCode = nextTd.textContent.trim();
+                        console.log('✓ Extracted Promo Code:', orderData.promoCode);
+                    }
+                }
+                
+                if (tdText === 'Sale Discount:' || tdText.toLowerCase() === 'sale discount:') {
+                    console.log('✓ Found "Sale Discount:" td');
+                    const nextTd = allTds[idx + 1];
+                    if (nextTd && nextTd.classList.contains('c30')) {
+                        orderData.saleDiscount = nextTd.textContent.trim();
+                        console.log('✓ Extracted Sale Discount:', orderData.saleDiscount);
+                    }
+                }
+            });
             
             console.log('✅ Extracted order data:', orderData);
             return orderData;
