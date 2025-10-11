@@ -1870,9 +1870,13 @@ console.log('Current URL:', window.location.href);
             console.log('Floating window - productImageId from storage:', result.productImageId);
             
             let html = '';
+            let productInfoHtml = '';
+            
+            // Add search panel
+            html += createSearchPanel();
             
             // Add environment switcher
-            html += createEnvironmentSwitcher();
+            productInfoHtml += createEnvironmentSwitcher();
             
             if (result && (result.designerName || result.designId || result.cpProductId || result.productsData)) {
                 // Designer
@@ -1880,37 +1884,37 @@ console.log('Current URL:', window.location.href);
                     const designerValue = result.designerLink ? 
                         `<a href="${result.designerLink}" target="_blank" style="color: #ffeb3b; text-decoration: underline;">${result.designerName}</a>` :
                         result.designerName;
-                    html += createInfoItem('Designer:', designerValue);
+                    productInfoHtml += createInfoItem('Designer:', designerValue);
                 } else {
-                    html += createInfoItem('Designer:', 'Not found');
+                    productInfoHtml += createInfoItem('Designer:', 'Not found');
                 }
                 
                 // DesignId
                 if (result.designId) {
-                    html += createInfoItem('DesignId:', result.designId);
+                    productInfoHtml += createInfoItem('DesignId:', result.designId);
                 } else {
-                    html += createInfoItem('DesignId:', 'Not found');
+                    productInfoHtml += createInfoItem('DesignId:', 'Not found');
                 }
                 
                 // Product data
                 if (result.productsData) {
                     if (result.productsData.category_id !== undefined) {
-                        html += createInfoItem('Category ID:', result.productsData.category_id || 'N/A');
+                        productInfoHtml += createInfoItem('Category ID:', result.productsData.category_id || 'N/A');
                     } else {
-                        html += createInfoItem('Category ID:', 'Not found');
+                        productInfoHtml += createInfoItem('Category ID:', 'Not found');
                     }
                     
                     if (result.productsData.is_out_of_stock !== undefined) {
                         const stockStatus = result.productsData.is_out_of_stock ? 'Out of Stock' : 'In Stock';
                         const stockColor = result.productsData.is_out_of_stock ? '#e74c3c' : '#27ae60';
-                        html += createInfoItem('Stock:', `<span style="color: ${stockColor};">${stockStatus}</span>`);
+                        productInfoHtml += createInfoItem('Stock:', `<span style="color: ${stockColor};">${stockStatus}</span>`);
                     } else {
-                        html += createInfoItem('Stock:', 'Not found');
+                        productInfoHtml += createInfoItem('Stock:', 'Not found');
                     }
                     
                 } else {
-                    html += createInfoItem('Category ID:', 'Not found');
-                    html += createInfoItem('Stock:', 'Not found'); 
+                    productInfoHtml += createInfoItem('Category ID:', 'Not found');
+                    productInfoHtml += createInfoItem('Stock:', 'Not found'); 
                 }
                 
                 // CP Product Type - ONLY from default_design path
@@ -1925,7 +1929,7 @@ console.log('Current URL:', window.location.href);
                     console.log('✅ Found CP Product Type from default_design:', cpProductType);
                 }
                 
-                html += createInfoItem('CP Product Type:', cpProductType);
+                productInfoHtml += createInfoItem('CP Product Type:', cpProductType);
                 
                 // Default Overlay ID - ONLY from default_design path
                 let defaultOverlayId = 'Not found';
@@ -1939,7 +1943,7 @@ console.log('Current URL:', window.location.href);
                     console.log('✅ Found Default Overlay ID from default_design:', defaultOverlayId);
                 }
                 
-                html += createInfoItem('Default Overlay ID:', defaultOverlayId);
+                productInfoHtml += createInfoItem('Default Overlay ID:', defaultOverlayId);
                 
                 // Option ID - ONLY from default_sku path
                 let optionId = 'Not found';
@@ -1953,7 +1957,7 @@ console.log('Current URL:', window.location.href);
                     console.log('✅ Found Option ID from default_sku:', optionId);
                 }
                 
-                html += createInfoItem('Option ID:', optionId);
+                productInfoHtml += createInfoItem('Option ID:', optionId);
                 
                 // Site ID - Hardcoded based on site type
                 let siteId = 'Not found';
@@ -1978,7 +1982,7 @@ console.log('Current URL:', window.location.href);
                     console.log('✅ Hardcoded Site ID for AU site:', siteId);
                 }
                 
-                html += createInfoItem('Site ID:', siteId);
+                productInfoHtml += createInfoItem('Site ID:', siteId);
                 
                 // SKU ID - ONLY from default_sku path
                 let skuId = 'Not found';
@@ -1992,7 +1996,7 @@ console.log('Current URL:', window.location.href);
                     console.log('✅ Found SKU ID from default_sku:', skuId);
                 }
                 
-                html += createInfoItem('SKU ID:', skuId);
+                productInfoHtml += createInfoItem('SKU ID:', skuId);
                 
                 // Vendor ID - ONLY from default_sku path
                 let vendorId = 'Not found';
@@ -2006,7 +2010,7 @@ console.log('Current URL:', window.location.href);
                     console.log('✅ Found Vendor ID from default_sku:', vendorId);
                 }
                 
-                html += createInfoItem('Vendor ID:', vendorId);
+                productInfoHtml += createInfoItem('Vendor ID:', vendorId);
                 
                 // Seller ID (Customer ID) - from product_design_objects[designId]
                 let sellerId = 'Not found';
@@ -2024,7 +2028,7 @@ console.log('Current URL:', window.location.href);
                     }
                 }
                 
-                html += createInfoItem('Seller ID (Customer ID):', sellerId);
+                productInfoHtml += createInfoItem('Seller ID (Customer ID):', sellerId);
                 
                 // Store ID - from product_design_objects[designId]
                 let storeId = 'Not found';
@@ -2042,7 +2046,7 @@ console.log('Current URL:', window.location.href);
                     }
                 }
                 
-                html += createInfoItem('Store ID:', storeId);
+                productInfoHtml += createInfoItem('Store ID:', storeId);
                 
                 // SW Product ID - from full_object.product_id
                 let swProductId = 'Not found';
@@ -2055,7 +2059,7 @@ console.log('Current URL:', window.location.href);
                     console.log('✅ Found SW Product ID from full_object:', swProductId);
                 }
                 
-                html += createInfoItem('SW Product ID:', swProductId);
+                productInfoHtml += createInfoItem('SW Product ID:', swProductId);
                 
                 // Is Virtual - from full_object.is_virtual (convert 0/1 to False/True)
                 let isVirtual = 'Not found';
@@ -2074,36 +2078,36 @@ console.log('Current URL:', window.location.href);
                     console.log('✅ Found Is Virtual from full_object:', virtualValue, '→ displaying as:', isVirtual);
                 }
                 
-                html += createInfoItem('Is Virtual:', isVirtual);
+                productInfoHtml += createInfoItem('Is Virtual:', isVirtual);
                 
                 // Product Image ID - extracted from page HTML /dd/number pattern
                 if (result.productImageId) {
-                    html += createInfoItem('Product Image ID:', result.productImageId);
+                    productInfoHtml += createInfoItem('Product Image ID:', result.productImageId);
                     console.log('Displaying Product Image ID from HTML extraction:', result.productImageId);
                 } else {
-                    html += createInfoItem('Product Image ID:', 'Not found');
+                    productInfoHtml += createInfoItem('Product Image ID:', 'Not found');
                 }
                 
                 // CP Product ID - prioritize URL extraction over JavaScript object
                 if (result.cpProductId) {
-                    html += createInfoItem('CP Product ID:', result.cpProductId);
+                    productInfoHtml += createInfoItem('CP Product ID:', result.cpProductId);
                     console.log('Using CP Product ID from URL:', result.cpProductId);
                 } else if (result.productsData && result.productsData.cp_product_id !== undefined) {
-                    html += createInfoItem('CP Product ID:', result.productsData.cp_product_id || 'N/A');
+                    productInfoHtml += createInfoItem('CP Product ID:', result.productsData.cp_product_id || 'N/A');
                     console.log('Using CP Product ID from JavaScript object:', result.productsData.cp_product_id);
                 } else {
-                    html += createInfoItem('CP Product ID:', 'Not found');
+                    productInfoHtml += createInfoItem('CP Product ID:', 'Not found');
                     console.log('CP Product ID not found in URL or JavaScript object');
                 }
                 
                 // URL and timestamp
-                html += `<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">`;
-                html += createInfoRow('Page URL:', result.url || 'Unknown');
-                html += createInfoRow('Extracted Time:', formatTimestamp(result.timestamp));
-                html += `</div>`;
+                productInfoHtml += `<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">`;
+                productInfoHtml += createInfoRow('Page URL:', result.url || 'Unknown');
+                productInfoHtml += createInfoRow('Extracted Time:', formatTimestamp(result.timestamp));
+                productInfoHtml += `</div>`;
                 
                 // Refresh button and debug button
-                html += `
+                productInfoHtml += `
                     <div style="margin-top: 15px; text-align: center;">
                         <button id="cp-refresh-btn" style="
                             background: rgba(255,255,255,0.2);
@@ -2158,6 +2162,37 @@ console.log('Current URL:', window.location.href);
             }
             
             content.innerHTML = html;
+            
+            // Set product info separately
+            const productInfoDiv = content.querySelector('#floating-product-info');
+            if (productInfoDiv) {
+                productInfoDiv.innerHTML = productInfoHtml;
+                productInfoDiv.style.display = 'block';
+            }
+            
+            // Add search functionality event listeners
+            const searchBtn = content.querySelector('#floating-search-btn');
+            const searchInput = content.querySelector('#floating-order-id-input');
+            const pdpBtn = content.querySelector('#floating-pdp-btn');
+            
+            if (searchBtn) {
+                searchBtn.addEventListener('click', searchOrderInFloatingWindow);
+                console.log('✓ Search button event listener added to floating window');
+            }
+            
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        searchOrderInFloatingWindow();
+                    }
+                });
+                console.log('✓ Search input enter key listener added to floating window');
+            }
+            
+            if (pdpBtn) {
+                pdpBtn.addEventListener('click', showPDPInfo);
+                console.log('✓ PDP button event listener added to floating window');
+            }
             
             // Add refresh button event listener
             const refreshBtn = content.querySelector('#cp-refresh-btn');
@@ -2547,6 +2582,338 @@ console.log('Current URL:', window.location.href);
                 });
             }
         });
+    }
+    
+    // Mock order data for demonstration
+    function getMockOrderData(orderId) {
+        const mockOrders = {
+            '12345': {
+                orderId: '12345',
+                customerName: 'John Doe',
+                email: 'john.doe@example.com',
+                orderDate: '2024-01-15',
+                status: 'Shipped',
+                totalAmount: '$29.99',
+                shippingAddress: '123 Main St, New York, NY 10001',
+                items: [
+                    { name: 'Custom T-Shirt', quantity: 1, price: '$19.99' },
+                    { name: 'Mug', quantity: 1, price: '$9.99' }
+                ]
+            },
+            '67890': {
+                orderId: '67890',
+                customerName: 'Jane Smith',
+                email: 'jane.smith@example.com',
+                orderDate: '2024-01-14',
+                status: 'Processing',
+                totalAmount: '$45.50',
+                shippingAddress: '456 Oak Ave, Los Angeles, CA 90210',
+                items: [
+                    { name: 'Hoodie', quantity: 1, price: '$35.50' },
+                    { name: 'Sticker Pack', quantity: 2, price: '$5.00' }
+                ]
+            },
+            '11111': {
+                orderId: '11111',
+                customerName: 'Bob Johnson',
+                email: 'bob.johnson@example.com',
+                orderDate: '2024-01-13',
+                status: 'Delivered',
+                totalAmount: '$15.99',
+                shippingAddress: '789 Pine St, Chicago, IL 60601',
+                items: [
+                    { name: 'Phone Case', quantity: 1, price: '$15.99' }
+                ]
+            }
+        };
+        
+        return mockOrders[orderId] || null;
+    }
+    
+    // Create search panel HTML
+    function createSearchPanel() {
+        return `
+            <div style="
+                margin-bottom: 10px;
+                padding: 0;
+                background: rgba(255,255,255,0.1);
+                border-radius: 10px;
+                border: 1px solid rgba(255,255,255,0.2);
+            ">
+                <div style="display: flex; gap: 8px; align-items: center; padding: 10px;">
+                    <input 
+                        type="text" 
+                        id="floating-order-id-input" 
+                        placeholder="Enter Order ID"
+                        maxlength="11"
+                        autocomplete="off"
+                        style="
+                            width: 140px;
+                            padding: 8px 12px;
+                            border: none;
+                            border-radius: 6px;
+                            background: rgba(0, 0, 0, 0.4);
+                            color: #fff;
+                            font-size: 12px;
+                            font-weight: 500;
+                            outline: none;
+                            transition: background 0.2s ease;
+                        "
+                    />
+                    <style>
+                        #floating-order-id-input::placeholder {
+                            color: rgba(255, 255, 255, 0.6);
+                            opacity: 1;
+                        }
+                    </style>
+                    <button 
+                        id="floating-search-btn"
+                        style="
+                            background: #ffeb3b;
+                            color: #333;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: bold;
+                            transition: all 0.2s ease;
+                            white-space: nowrap;
+                        "
+                    >Search</button>
+                    <button 
+                        id="floating-pdp-btn"
+                        style="
+                            background: rgba(255,255,255,0.2);
+                            color: #fff;
+                            border: 1px solid rgba(255,255,255,0.3);
+                            padding: 8px 14px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: bold;
+                            transition: all 0.2s ease;
+                            white-space: nowrap;
+                            margin-left: auto;
+                        "
+                    >PDP</button>
+                </div>
+            </div>
+            <div id="floating-order-detail" style="display: none;"></div>
+            <div id="floating-product-info"></div>
+        `;
+    }
+    
+    // Display order details in floating window
+    function displayOrderDetails(orderData) {
+        const orderDetailDiv = document.getElementById('floating-order-detail');
+        const productInfoDiv = document.getElementById('floating-product-info');
+        
+        if (!orderDetailDiv) return;
+        
+        // Hide product info when showing order details
+        if (productInfoDiv) {
+            productInfoDiv.style.display = 'none';
+        }
+        
+        if (!orderData) {
+            orderDetailDiv.innerHTML = `
+                <div style="
+                    margin-bottom: 15px;
+                    padding: 15px;
+                    background: rgba(255,255,255,0.1);
+                    border-radius: 10px;
+                    border: 1px solid rgba(255,255,255,0.2);
+                    min-height: 500px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">
+                    <div style="color: #fff; text-align: center; font-weight: bold;">
+                        Order not found
+                    </div>
+                </div>
+            `;
+            orderDetailDiv.style.display = 'block';
+            return;
+        }
+        
+        let itemsHtml = '';
+        orderData.items.forEach(item => {
+            itemsHtml += `
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 6px 12px;
+                    background: rgba(0,0,0,0.3);
+                    border-radius: 4px;
+                    margin-bottom: 4px;
+                    font-size: 11px;
+                ">
+                    <span style="color: #fff;">${item.name} (Qty: ${item.quantity})</span>
+                    <span style="color: #ffeb3b; font-weight: bold;">${item.price}</span>
+                </div>
+            `;
+        });
+        
+        const statusColor = orderData.status === 'Delivered' ? '#4CAF50' : 
+                           orderData.status === 'Shipped' ? '#2196F3' : '#FF9800';
+        
+        orderDetailDiv.innerHTML = `
+            <div style="
+                margin-bottom: 15px;
+                padding: 15px;
+                background: rgba(255,255,255,0.1);
+                border-radius: 10px;
+                border: 1px solid rgba(255,255,255,0.2);
+            ">
+                <div style="
+                    font-size: 14px;
+                    font-weight: bold;
+                    margin-bottom: 10px;
+                    color: #ffeb3b;
+                    text-align: center;
+                ">Order Details</div>
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 6px 12px;
+                    background: rgba(0,0,0,0.3);
+                    border-radius: 4px;
+                    margin-bottom: 4px;
+                    font-size: 11px;
+                ">
+                    <span style="color: #fff;">Order ID:</span>
+                    <span style="color: #ffeb3b; font-weight: bold;">${orderData.orderId}</span>
+                </div>
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 6px 12px;
+                    background: rgba(0,0,0,0.3);
+                    border-radius: 4px;
+                    margin-bottom: 4px;
+                    font-size: 11px;
+                ">
+                    <span style="color: #fff;">Customer:</span>
+                    <span style="color: #ffeb3b; font-weight: bold;">${orderData.customerName}</span>
+                </div>
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 6px 12px;
+                    background: rgba(0,0,0,0.3);
+                    border-radius: 4px;
+                    margin-bottom: 4px;
+                    font-size: 11px;
+                ">
+                    <span style="color: #fff;">Email:</span>
+                    <span style="color: #ffeb3b; font-weight: bold; word-break: break-all; text-align: right; max-width: 60%;">${orderData.email}</span>
+                </div>
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 6px 12px;
+                    background: rgba(0,0,0,0.3);
+                    border-radius: 4px;
+                    margin-bottom: 4px;
+                    font-size: 11px;
+                ">
+                    <span style="color: #fff;">Order Date:</span>
+                    <span style="color: #ffeb3b; font-weight: bold;">${orderData.orderDate}</span>
+                </div>
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 6px 12px;
+                    background: rgba(0,0,0,0.3);
+                    border-radius: 4px;
+                    margin-bottom: 4px;
+                    font-size: 11px;
+                ">
+                    <span style="color: #fff;">Status:</span>
+                    <span style="color: ${statusColor}; font-weight: bold;">${orderData.status}</span>
+                </div>
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 6px 12px;
+                    background: rgba(0,0,0,0.3);
+                    border-radius: 4px;
+                    margin-bottom: 4px;
+                    font-size: 11px;
+                ">
+                    <span style="color: #fff;">Total Amount:</span>
+                    <span style="color: #ffeb3b; font-weight: bold;">${orderData.totalAmount}</span>
+                </div>
+                <div style="
+                    padding: 6px 12px;
+                    background: rgba(0,0,0,0.3);
+                    border-radius: 4px;
+                    margin-bottom: 4px;
+                    font-size: 11px;
+                ">
+                    <div style="color: #fff; margin-bottom: 4px;">Shipping Address:</div>
+                    <div style="color: #ffeb3b; font-weight: bold; word-break: break-word;">${orderData.shippingAddress}</div>
+                </div>
+                <div style="margin-top: 10px; font-weight: bold; color: #ffeb3b; font-size: 12px; margin-bottom: 6px;">Items:</div>
+                ${itemsHtml}
+            </div>
+        `;
+        orderDetailDiv.style.display = 'block';
+    }
+    
+    // Search order function for floating window
+    function searchOrderInFloatingWindow() {
+        const input = document.getElementById('floating-order-id-input');
+        const searchBtn = document.getElementById('floating-search-btn');
+        
+        if (!input || !searchBtn) return;
+        
+        const orderId = input.value.trim();
+        
+        if (!orderId) {
+            alert('Please enter an Order ID');
+            return;
+        }
+        
+        console.log('Searching for order ID:', orderId);
+        
+        // Simulate API call delay
+        searchBtn.textContent = 'Searching...';
+        searchBtn.disabled = true;
+        
+        setTimeout(() => {
+            const orderData = getMockOrderData(orderId);
+            displayOrderDetails(orderData);
+            
+            searchBtn.textContent = 'Search';
+            searchBtn.disabled = false;
+        }, 800);
+    }
+    
+    // Show PDP (Product Detail Page) info - default view
+    function showPDPInfo() {
+        const orderDetailDiv = document.getElementById('floating-order-detail');
+        const productInfoDiv = document.getElementById('floating-product-info');
+        
+        // Hide order details
+        if (orderDetailDiv) {
+            orderDetailDiv.style.display = 'none';
+            orderDetailDiv.innerHTML = '';
+        }
+        
+        // Show product info
+        if (productInfoDiv) {
+            productInfoDiv.style.display = 'block';
+        }
+        
+        // Clear the search input
+        const input = document.getElementById('floating-order-id-input');
+        if (input) {
+            input.value = '';
+        }
     }
     
     function createInfoItem(label, value) {
