@@ -2598,7 +2598,15 @@ console.log('Current URL:', window.location.href);
                 items: [
                     { name: 'Custom T-Shirt', quantity: 1, price: '$19.99' },
                     { name: 'Mug', quantity: 1, price: '$9.99' }
-                ]
+                ],
+                shipTo: {
+                    name: 'Joey zhou',
+                    addressLine1: '23801 Calabasas Rd Ste 2005',
+                    addressLine2: 'Calabasas, CA  91302-3320',
+                    country: 'United States'
+                },
+                shipMethod: 'Standard (2-5 business days)',
+                estimatedArrival: 'Fri, Oct 17 2025 - Sat, Oct 18 2025'
             },
             '67890': {
                 orderId: '67890',
@@ -2739,20 +2747,17 @@ console.log('Current URL:', window.location.href);
         }
         
         let itemsHtml = '';
-        orderData.items.forEach(item => {
+        orderData.items.forEach((item, index) => {
             itemsHtml += `
                 <div style="
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    padding: 6px 12px;
-                    background: rgba(0,0,0,0.3);
-                    border-radius: 4px;
-                    margin-bottom: 4px;
-                    font-size: 11px;
+                    padding: 4px 0;
+                    gap: 10px;
                 ">
-                    <span style="color: #fff;">${item.name} (Qty: ${item.quantity})</span>
-                    <span style="color: #ffeb3b; font-weight: bold;">${item.price}</span>
+                    <span style="color: #fff; font-size: 11px;">${item.name} (Qty: ${item.quantity})</span>
+                    <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right; white-space: nowrap;">${item.price}</span>
                 </div>
             `;
         });
@@ -2761,104 +2766,159 @@ console.log('Current URL:', window.location.href);
                            orderData.status === 'Shipped' ? '#2196F3' : '#FF9800';
         
         orderDetailDiv.innerHTML = `
-            <div style="
-                margin-bottom: 15px;
-                padding: 15px;
-                background: rgba(255,255,255,0.1);
-                border-radius: 10px;
-                border: 1px solid rgba(255,255,255,0.2);
-            ">
+            <div>
                 <div style="
-                    font-size: 14px;
-                    font-weight: bold;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 8px;
+                    overflow: hidden;
                     margin-bottom: 10px;
-                    color: #ffeb3b;
-                    text-align: center;
-                ">Order Details</div>
-                <div style="
-                    display: flex;
-                    justify-content: space-between;
-                    padding: 6px 12px;
-                    background: rgba(0,0,0,0.3);
-                    border-radius: 4px;
-                    margin-bottom: 4px;
-                    font-size: 11px;
+                    padding: 10px 15px;
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
                 ">
-                    <span style="color: #fff;">Order ID:</span>
-                    <span style="color: #ffeb3b; font-weight: bold;">${orderData.orderId}</span>
+                    <div style="
+                        font-size: 14px;
+                        font-weight: bold;
+                        margin-bottom: 8px;
+                        color: #ffeb3b;
+                        text-align: left;
+                    ">Order Summary</div>
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Order ID:</span>
+                        <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right;">${orderData.orderId}</span>
+                    </div>
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Customer:</span>
+                        <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right;">${orderData.customerName}</span>
+                    </div>
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Email:</span>
+                        <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; word-break: break-all; text-align: right;">${orderData.email}</span>
+                    </div>
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Order Date:</span>
+                        <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right;">${orderData.orderDate}</span>
+                    </div>
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Status:</span>
+                        <span style="color: ${statusColor}; font-weight: bold; font-size: 11px; text-align: right;">${orderData.status}</span>
+                    </div>
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Total Amount:</span>
+                        <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right;">${orderData.totalAmount}</span>
+                    </div>
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <div style="color: #fff; font-size: 11px; white-space: nowrap;">Shipping Address:</div>
+                        <div style="color: #ffeb3b; font-weight: bold; font-size: 11px; word-break: break-word; text-align: right;">${orderData.shippingAddress}</div>
+                    </div>
                 </div>
                 <div style="
-                    display: flex;
-                    justify-content: space-between;
-                    padding: 6px 12px;
-                    background: rgba(0,0,0,0.3);
-                    border-radius: 4px;
-                    margin-bottom: 4px;
-                    font-size: 11px;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 8px;
+                    overflow: hidden;
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    padding: 10px 15px;
                 ">
-                    <span style="color: #fff;">Customer:</span>
-                    <span style="color: #ffeb3b; font-weight: bold;">${orderData.customerName}</span>
+                    <div style="
+                        font-size: 14px;
+                        font-weight: bold;
+                        margin-bottom: 8px;
+                        color: #ffeb3b;
+                        text-align: left;
+                    ">Order Items</div>
+                    ${itemsHtml}
                 </div>
                 <div style="
-                    display: flex;
-                    justify-content: space-between;
-                    padding: 6px 12px;
-                    background: rgba(0,0,0,0.3);
-                    border-radius: 4px;
-                    margin-bottom: 4px;
-                    font-size: 11px;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 8px;
+                    overflow: hidden;
+                    margin-top: 10px;
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    padding: 10px 15px;
                 ">
-                    <span style="color: #fff;">Email:</span>
-                    <span style="color: #ffeb3b; font-weight: bold; word-break: break-all; text-align: right; max-width: 60%;">${orderData.email}</span>
+                    <div style="
+                        font-size: 14px;
+                        font-weight: bold;
+                        margin-bottom: 8px;
+                        color: #ffeb3b;
+                        text-align: left;
+                    ">Ship & Payment</div>
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <div style="color: #fff; font-size: 11px; white-space: nowrap;">Ship To:</div>
+                        <div style="color: #ffeb3b; font-weight: bold; font-size: 11px; line-height: 1.5; text-align: right;">
+                            ${orderData.shipTo ? `${orderData.shipTo.name}<br>${orderData.shipTo.addressLine1}<br>${orderData.shipTo.addressLine2}<br>${orderData.shipTo.country}` : 'N/A'}
+                        </div>
+                    </div>
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        margin-top: 4px;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Ship Method:</span>
+                        <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right;">${orderData.shipMethod || 'N/A'}</span>
+                    </div>
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Order should arrive:</span>
+                        <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right; line-height: 1.4;">${orderData.estimatedArrival || 'N/A'}</span>
+                    </div>
                 </div>
-                <div style="
-                    display: flex;
-                    justify-content: space-between;
-                    padding: 6px 12px;
-                    background: rgba(0,0,0,0.3);
-                    border-radius: 4px;
-                    margin-bottom: 4px;
-                    font-size: 11px;
-                ">
-                    <span style="color: #fff;">Order Date:</span>
-                    <span style="color: #ffeb3b; font-weight: bold;">${orderData.orderDate}</span>
-                </div>
-                <div style="
-                    display: flex;
-                    justify-content: space-between;
-                    padding: 6px 12px;
-                    background: rgba(0,0,0,0.3);
-                    border-radius: 4px;
-                    margin-bottom: 4px;
-                    font-size: 11px;
-                ">
-                    <span style="color: #fff;">Status:</span>
-                    <span style="color: ${statusColor}; font-weight: bold;">${orderData.status}</span>
-                </div>
-                <div style="
-                    display: flex;
-                    justify-content: space-between;
-                    padding: 6px 12px;
-                    background: rgba(0,0,0,0.3);
-                    border-radius: 4px;
-                    margin-bottom: 4px;
-                    font-size: 11px;
-                ">
-                    <span style="color: #fff;">Total Amount:</span>
-                    <span style="color: #ffeb3b; font-weight: bold;">${orderData.totalAmount}</span>
-                </div>
-                <div style="
-                    padding: 6px 12px;
-                    background: rgba(0,0,0,0.3);
-                    border-radius: 4px;
-                    margin-bottom: 4px;
-                    font-size: 11px;
-                ">
-                    <div style="color: #fff; margin-bottom: 4px;">Shipping Address:</div>
-                    <div style="color: #ffeb3b; font-weight: bold; word-break: break-word;">${orderData.shippingAddress}</div>
-                </div>
-                <div style="margin-top: 10px; font-weight: bold; color: #ffeb3b; font-size: 12px; margin-bottom: 6px;">Items:</div>
-                ${itemsHtml}
             </div>
         `;
         orderDetailDiv.style.display = 'block';
@@ -2922,9 +2982,9 @@ console.log('Current URL:', window.location.href);
                 justify-content: space-between;
                 align-items: center;
                 padding: 4px 12px;
-                background: rgba(0,0,0,0.3);
+                background: rgba(255,255,255,0.1);
                 border-radius: 4px;
-                margin-bottom: 4px;
+                margin-bottom: 2px;
                 font-size: 10px;
             ">
                 <span style="color: #fff; opacity: 0.9; user-select: text; cursor: text;">${label}</span>
