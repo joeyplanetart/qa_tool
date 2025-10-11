@@ -2858,8 +2858,7 @@ console.log('Current URL:', window.location.href);
                     addressLine2: 'Calabasas, CA  91302-3320',
                     country: 'United States'
                 },
-                shipMethod: 'Standard (2-5 business days)',
-                estimatedArrival: 'Fri, Oct 17 2025 - Sat, Oct 18 2025'
+                shipMethod: 'Standard (2-5 business days)'
             },
             '67890': {
                 orderId: '67890',
@@ -3197,10 +3196,15 @@ console.log('Current URL:', window.location.href);
                         color: #ffeb3b;
                         text-align: left;
                     ">Ship & Payment</div>
-                    <div style="padding: 4px 0;">
-                        <div style="color: #fff; font-size: 11px; margin-bottom: 4px;">Ship To:</div>
-                        <div style="color: #ffeb3b; font-weight: bold; font-size: 11px; line-height: 1.5; white-space: pre-line;">
-                            ${orderData.shipTo || 'N/A'}
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 4px 0;
+                        gap: 10px;
+                    ">
+                        <div style="color: #fff; font-size: 11px; white-space: nowrap; align-self: flex-start;">Ship To:</div>
+                        <div style="color: #ffeb3b; font-weight: bold; font-size: 11px; line-height: 1.5; text-align: right; white-space: pre-line;">
+${orderData.shipTo || 'N/A'}
                         </div>
                     </div>
                     <div style="
@@ -3213,16 +3217,6 @@ console.log('Current URL:', window.location.href);
                     ">
                         <span style="color: #fff; font-size: 11px; white-space: nowrap;">Ship Method:</span>
                         <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right;">${orderData.shipMethod || 'N/A'}</span>
-                    </div>
-                    <div style="
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        padding: 4px 0;
-                        gap: 10px;
-                    ">
-                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Order should arrive:</span>
-                        <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right; line-height: 1.4;">${orderData.estimatedArrival || 'N/A'}</span>
                     </div>
                 </div>
             </div>
@@ -3275,7 +3269,6 @@ console.log('Current URL:', window.location.href);
                 items: [],
                 shipTo: null,
                 shipMethod: null,
-                estimatedArrival: null,
                 // New financial fields
                 subtotal: 'N/A',
                 shippingHandling: 'N/A',
@@ -3488,89 +3481,6 @@ console.log('Current URL:', window.location.href);
                 }
             } else {
                 console.log('⚠️ #ship_method_tab not found');
-            }
-            
-            // 3. Order should arrive - try multiple selectors
-            console.log('DEBUG: Looking for estimated arrival...');
-            let estimatedArrivalSpan = doc.querySelector('#slaQuoteTimeTd');
-            if (estimatedArrivalSpan) {
-                console.log('✓ Found #slaQuoteTimeTd span');
-                console.log('DEBUG: span.textContent:', estimatedArrivalSpan.textContent);
-                console.log('DEBUG: span.innerText:', estimatedArrivalSpan.innerText);
-                console.log('DEBUG: span.innerHTML:', estimatedArrivalSpan.innerHTML);
-                let arrivalText = estimatedArrivalSpan.textContent.trim() || estimatedArrivalSpan.innerText?.trim() || '';
-                if (arrivalText && arrivalText !== '') {
-                    orderData.estimatedArrival = arrivalText;
-                    console.log('✓ Extracted Estimated Arrival:', orderData.estimatedArrival);
-                } else {
-                    console.log('⚠️ #slaQuoteTimeTd found but empty, trying alternatives...');
-                }
-            }
-            
-            // If still not found or empty, try alternative selectors
-            if (!orderData.estimatedArrival || orderData.estimatedArrival === 'N/A') {
-                console.log('DEBUG: Trying alternative selectors for estimated arrival...');
-                // Try alternative: look for "Order should arrive" text in all spans
-                const allSpans = doc.querySelectorAll('span');
-                console.log('DEBUG: Total spans found:', allSpans.length);
-                for (let span of allSpans) {
-                    const spanId = span.id;
-                    const spanText = span.textContent.trim();
-                    if (spanId && spanId.toLowerCase().includes('sla')) {
-                        console.log('DEBUG: Found span with "sla" in id:', spanId, '=', spanText);
-                        if (spanText && spanText !== '' && !orderData.estimatedArrival) {
-                            orderData.estimatedArrival = spanText;
-                            console.log('✓ Using span with sla id:', orderData.estimatedArrival);
-                        }
-                    }
-                    // Only accept spans that look like dates (contain month and year, and dash for date range)
-                    if (spanText.length > 10 && spanText.includes('-') && 
-                        (spanText.match(/\w{3},\s+\w{3}\s+\d{1,2}\s+\d{4}/) || 
-                         (spanText.includes('2025') && (spanText.includes('Oct') || spanText.includes('Nov') || spanText.includes('Dec'))))) {
-                        console.log('DEBUG: Potential date span:', spanId || 'no-id', '=', spanText);
-                        if ((!orderData.estimatedArrival || orderData.estimatedArrival === 'N/A') && 
-                            !spanText.includes('Code') && !spanText.includes('Promo')) {
-                            orderData.estimatedArrival = spanText;
-                            console.log('✓ Using date pattern span:', orderData.estimatedArrival);
-                        }
-                    }
-                }
-                
-                // Try finding by text content containing date pattern in td elements
-                if (!orderData.estimatedArrival || orderData.estimatedArrival === 'N/A') {
-                    allTds.forEach((td, idx) => {
-                        const tdText = td.textContent.trim();
-                        if (tdText.includes('Order should arrive') || tdText.includes('should arrive') || tdText.includes('Estimated Delivery')) {
-                            console.log('✓ Found "Order should arrive" td:', tdText.substring(0, 100));
-                            const nextTd = allTds[idx + 1];
-                            if (nextTd) {
-                                const arrivalValue = nextTd.textContent.trim();
-                                // Validate it looks like a date (contains dash and year)
-                                if (arrivalValue && arrivalValue !== '' && arrivalValue.includes('-') && arrivalValue.match(/\d{4}/)) {
-                                    orderData.estimatedArrival = arrivalValue;
-                                    console.log('✓ Extracted Estimated Arrival from td:', orderData.estimatedArrival);
-                                }
-                            }
-                        }
-                    });
-                }
-                
-                // Last resort: search for any text that looks like a date range in all elements
-                if (!orderData.estimatedArrival || orderData.estimatedArrival === 'N/A') {
-                    console.log('DEBUG: Last resort - searching all text for date range pattern...');
-                    const allElements = doc.querySelectorAll('*');
-                    for (let elem of allElements) {
-                        const text = elem.textContent?.trim() || '';
-                        // Match pattern like "Fri, Oct 17 2025 -Sat, Oct 18 2025"
-                        if (text.length > 20 && text.length < 100 && 
-                            text.match(/\w{3},\s+\w{3}\s+\d{1,2}\s+\d{4}\s*-\s*\w{3},\s+\w{3}\s+\d{1,2}\s+\d{4}/) &&
-                            !text.includes('Code') && !text.includes('Promo')) {
-                            orderData.estimatedArrival = text;
-                            console.log('✓ Found date range pattern:', orderData.estimatedArrival);
-                            break;
-                        }
-                    }
-                }
             }
             
             console.log('✅ Extracted order data:', orderData);
