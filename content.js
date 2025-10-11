@@ -1879,6 +1879,26 @@ console.log('Current URL:', window.location.href);
             productInfoHtml += createEnvironmentSwitcher();
             
             if (result && (result.designerName || result.designId || result.cpProductId || result.productsData)) {
+                // Start product info card
+                productInfoHtml += `
+                    <div style="
+                        background: rgba(255, 255, 255, 0.1);
+                        border-radius: 8px;
+                        overflow: hidden;
+                        margin-bottom: 10px;
+                        padding: 10px 15px;
+                        backdrop-filter: blur(10px);
+                        border: 1px solid rgba(255, 255, 255, 0.2);
+                    ">
+                        <div style="
+                            font-size: 14px;
+                            font-weight: bold;
+                            margin-bottom: 8px;
+                            color: #ffeb3b;
+                            text-align: left;
+                        ">Product Info</div>
+                `;
+                
                 // Designer
                 if (result.designerName) {
                     const designerValue = result.designerLink ? 
@@ -2099,6 +2119,9 @@ console.log('Current URL:', window.location.href);
                     productInfoHtml += createInfoItem('CP Product ID:', 'Not found');
                     console.log('CP Product ID not found in URL or JavaScript object');
                 }
+                
+                // Close product info card
+                productInfoHtml += `</div>`;
                 
                 // URL and timestamp
                 productInfoHtml += `<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">`;
@@ -2981,14 +3004,12 @@ console.log('Current URL:', window.location.href);
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 4px 12px;
-                background: rgba(255,255,255,0.1);
-                border-radius: 4px;
-                margin-bottom: 2px;
-                font-size: 10px;
+                padding: 4px 0;
+                gap: 10px;
+                font-size: 11px;
             ">
-                <span style="color: #fff; opacity: 0.9; user-select: text; cursor: text;">${label}</span>
-                <span style="color: #ffeb3b; user-select: text; cursor: text; word-break: break-all; text-align: right; max-width: 60%;">${value}</span>
+                <span style="color: #fff; user-select: text; cursor: text; white-space: nowrap;">${label}</span>
+                <span style="color: #ffeb3b; font-weight: bold; user-select: text; cursor: text; word-break: break-all; text-align: right;">${value}</span>
             </div>
         `;
     }
