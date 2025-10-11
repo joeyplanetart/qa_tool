@@ -58,6 +58,23 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             console.log('=== CHECKING LOGIN STATUS ===');
             console.log('Starting cookie detection from admin.planetart.com and login.planetart.com...');
+            console.log('Chrome cookies API available:', typeof chrome.cookies !== 'undefined');
+            
+            // List all available cookies to debug
+            try {
+                const allCookies = await chrome.cookies.getAll({});
+                console.log('📋 Total cookies accessible:', allCookies.length);
+                console.log('📋 Cookie domains:', [...new Set(allCookies.map(c => c.domain))]);
+                
+                // Filter cookies for planetart.com domains
+                const planetartCookies = allCookies.filter(c => c.domain.includes('planetart.com'));
+                console.log('🌍 Planetart.com cookies:', planetartCookies.length);
+                planetartCookies.forEach(c => {
+                    console.log(`  - ${c.domain}: ${c.name} = ${c.value.substring(0, 20)}...`);
+                });
+            } catch (error) {
+                console.error('Error listing all cookies:', error);
+            }
             
             // Try to get cookies from both admin.planetart.com and login.planetart.com domains
             let emailCookie = null;
