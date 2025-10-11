@@ -58,19 +58,40 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             console.log('Checking login status...');
             
-            // Get cookies from admin.planetart.com domain
-            const emailCookie = await chrome.cookies.get({
+            // Try to get cookies from both admin.planetart.com and login.planetart.com domains
+            let emailCookie = null;
+            let userIdCookie = null;
+            
+            // Check admin.planetart.com first
+            emailCookie = await chrome.cookies.get({
                 url: 'https://admin.planetart.com',
                 name: 'attntv_mstore_email'
             });
             
-            const userIdCookie = await chrome.cookies.get({
+            userIdCookie = await chrome.cookies.get({
                 url: 'https://admin.planetart.com',
                 name: 'stiadmin_user_id'
             });
             
-            console.log('Email cookie:', emailCookie);
-            console.log('UserId cookie:', userIdCookie);
+            console.log('Admin domain - Email cookie:', emailCookie);
+            console.log('Admin domain - UserId cookie:', userIdCookie);
+            
+            // If not found in admin, try login.planetart.com
+            if (!emailCookie || !emailCookie.value) {
+                emailCookie = await chrome.cookies.get({
+                    url: 'https://login.planetart.com',
+                    name: 'attntv_mstore_email'
+                });
+                console.log('Login domain - Email cookie:', emailCookie);
+            }
+            
+            if (!userIdCookie || !userIdCookie.value) {
+                userIdCookie = await chrome.cookies.get({
+                    url: 'https://login.planetart.com',
+                    name: 'stiadmin_user_id'
+                });
+                console.log('Login domain - UserId cookie:', userIdCookie);
+            }
             
             if (emailCookie && emailCookie.value) {
                 // Extract email (remove :0 suffix if present)
@@ -85,14 +106,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 loginStatusPanel.style.display = 'block';
                 isLoggedIn = true;
                 
-                console.log('Login status: Logged in as', emailValue);
+                console.log('✅ Login status: Logged in as', emailValue);
+                console.log('✅ User ID:', userIdCookie ? userIdCookie.value : 'N/A');
             } else {
-                console.log('Login status: Not logged in');
+                console.log('❌ Login status: Not logged in (no valid cookies found)');
                 loginStatusPanel.style.display = 'none';
                 isLoggedIn = false;
             }
         } catch (error) {
-            console.error('Error checking login status:', error);
+            console.error('❌ Error checking login status:', error);
             loginStatusPanel.style.display = 'none';
             isLoggedIn = false;
         }
