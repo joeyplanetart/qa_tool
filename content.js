@@ -3197,14 +3197,9 @@ console.log('Current URL:', window.location.href);
                         color: #ffeb3b;
                         text-align: left;
                     ">Ship & Payment</div>
-                    <div style="
-                        display: flex;
-                        justify-content: space-between;
-                        padding: 4px 0;
-                        gap: 10px;
-                    ">
-                        <div style="color: #fff; font-size: 11px; white-space: nowrap;">Ship To:</div>
-                        <div style="color: #ffeb3b; font-weight: bold; font-size: 11px; line-height: 1.5; text-align: right; white-space: pre-line;">
+                    <div style="padding: 4px 0;">
+                        <div style="color: #fff; font-size: 11px; margin-bottom: 4px;">Ship To:</div>
+                        <div style="color: #ffeb3b; font-weight: bold; font-size: 11px; line-height: 1.5; white-space: pre-line;">
                             ${orderData.shipTo || 'N/A'}
                         </div>
                     </div>
@@ -3528,9 +3523,13 @@ console.log('Current URL:', window.location.href);
                             console.log('✓ Using span with sla id:', orderData.estimatedArrival);
                         }
                     }
-                    if ((spanText.includes('Oct') || spanText.includes('2025') || spanText.match(/\w{3},\s+\w{3}\s+\d{1,2}/)) && spanText.length > 10) {
+                    // Only accept spans that look like dates (contain month and year, and dash for date range)
+                    if (spanText.length > 10 && spanText.includes('-') && 
+                        (spanText.match(/\w{3},\s+\w{3}\s+\d{1,2}\s+\d{4}/) || 
+                         (spanText.includes('2025') && (spanText.includes('Oct') || spanText.includes('Nov') || spanText.includes('Dec'))))) {
                         console.log('DEBUG: Potential date span:', spanId || 'no-id', '=', spanText);
-                        if (!orderData.estimatedArrival || orderData.estimatedArrival === 'N/A') {
+                        if ((!orderData.estimatedArrival || orderData.estimatedArrival === 'N/A') && 
+                            !spanText.includes('Code') && !spanText.includes('Promo')) {
                             orderData.estimatedArrival = spanText;
                             console.log('✓ Using date pattern span:', orderData.estimatedArrival);
                         }
@@ -3541,18 +3540,36 @@ console.log('Current URL:', window.location.href);
                 if (!orderData.estimatedArrival || orderData.estimatedArrival === 'N/A') {
                     allTds.forEach((td, idx) => {
                         const tdText = td.textContent.trim();
-                        if (tdText.includes('Order should arrive') || tdText.includes('Estimated Delivery')) {
+                        if (tdText.includes('Order should arrive') || tdText.includes('should arrive') || tdText.includes('Estimated Delivery')) {
                             console.log('✓ Found "Order should arrive" td:', tdText.substring(0, 100));
                             const nextTd = allTds[idx + 1];
                             if (nextTd) {
                                 const arrivalValue = nextTd.textContent.trim();
-                                if (arrivalValue && arrivalValue !== '') {
+                                // Validate it looks like a date (contains dash and year)
+                                if (arrivalValue && arrivalValue !== '' && arrivalValue.includes('-') && arrivalValue.match(/\d{4}/)) {
                                     orderData.estimatedArrival = arrivalValue;
                                     console.log('✓ Extracted Estimated Arrival from td:', orderData.estimatedArrival);
                                 }
                             }
                         }
                     });
+                }
+                
+                // Last resort: search for any text that looks like a date range in all elements
+                if (!orderData.estimatedArrival || orderData.estimatedArrival === 'N/A') {
+                    console.log('DEBUG: Last resort - searching all text for date range pattern...');
+                    const allElements = doc.querySelectorAll('*');
+                    for (let elem of allElements) {
+                        const text = elem.textContent?.trim() || '';
+                        // Match pattern like "Fri, Oct 17 2025 -Sat, Oct 18 2025"
+                        if (text.length > 20 && text.length < 100 && 
+                            text.match(/\w{3},\s+\w{3}\s+\d{1,2}\s+\d{4}\s*-\s*\w{3},\s+\w{3}\s+\d{1,2}\s+\d{4}/) &&
+                            !text.includes('Code') && !text.includes('Promo')) {
+                            orderData.estimatedArrival = text;
+                            console.log('✓ Found date range pattern:', orderData.estimatedArrival);
+                            break;
+                        }
+                    }
                 }
             }
             
