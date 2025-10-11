@@ -245,11 +245,158 @@
             word-break: break-all;
         }
         
+        /* Login Status Panel Styles */
+        .login-status-panel {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.4);
+            border-radius: 10px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .login-status-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .login-status-icon {
+            background: #4CAF50;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .login-status-text {
+            font-size: 14px;
+            font-weight: bold;
+            color: #c8e6c9;
+        }
+        
+        .login-info {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .login-info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            padding: 4px 0;
+        }
+        
+        .login-label {
+            color: rgba(255,255,255,0.9);
+            font-weight: normal;
+        }
+        
+        .login-value {
+            color: #ffeb3b;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            user-select: text;
+            cursor: text;
+            word-break: break-all;
+            text-align: right;
+            max-width: 200px;
+        }
+        
+        /* Toast Notification Styles */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(244, 67, 54, 0.95);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 10000;
+            display: none;
+            animation: slideDown 0.3s ease-out;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .toast.show {
+            display: block;
+        }
+        
+        .toast.warning {
+            background: rgba(255, 152, 0, 0.95);
+        }
+        
+        .toast.success {
+            background: rgba(76, 175, 80, 0.95);
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+        }
+        
+        .toast.hiding {
+            animation: slideUp 0.3s ease-out;
+        }
+        
     </style>
 </head>
 <body>
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+    
     <div class="header">
         <h1 class="title">CP Product Info</h1>
+    </div>
+    
+    <!-- Login Status Panel -->
+    <div id="loginStatusPanel" class="login-status-panel" style="display: none;">
+        <div class="login-status-header">
+            <span class="login-status-icon">✓</span>
+            <span class="login-status-text">Logged In</span>
+        </div>
+        <div class="login-info">
+            <div class="login-info-item">
+                <span class="login-label">Email:</span>
+                <span id="loginEmail" class="login-value">-</span>
+            </div>
+            <div class="login-info-item">
+                <span class="login-label">User ID:</span>
+                <span id="loginUserId" class="login-value">-</span>
+            </div>
+        </div>
     </div>
     
     <!-- Search Order ID Panel -->

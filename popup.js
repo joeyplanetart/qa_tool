@@ -16,11 +16,90 @@ document.addEventListener('DOMContentLoaded', function() {
     const refreshBtn = document.getElementById('refreshBtn');
     const refreshBtn2 = document.getElementById('refreshBtn2');
     
+    // Login status elements
+    const loginStatusPanel = document.getElementById('loginStatusPanel');
+    const loginEmail = document.getElementById('loginEmail');
+    const loginUserId = document.getElementById('loginUserId');
+    
+    // Toast element
+    const toast = document.getElementById('toast');
+    
     // Search functionality elements
     const orderIdInput = document.getElementById('orderIdInput');
     const searchBtn = document.getElementById('searchBtn');
     const orderDetailPanel = document.getElementById('orderDetailPanel');
     const orderDetails = document.getElementById('orderDetails');
+    
+    // Show toast notification
+    function showToast(message, type = 'error') {
+        toast.textContent = message;
+        toast.className = 'toast show';
+        
+        if (type === 'warning') {
+            toast.classList.add('warning');
+        } else if (type === 'success') {
+            toast.classList.add('success');
+        }
+        
+        // Auto hide after 3 seconds
+        setTimeout(() => {
+            toast.classList.add('hiding');
+            setTimeout(() => {
+                toast.classList.remove('show', 'hiding', 'warning', 'success');
+            }, 300);
+        }, 3000);
+    }
+    
+    // Store login status globally
+    let isLoggedIn = false;
+    
+    // Check login status
+    async function checkLoginStatus() {
+        try {
+            console.log('Checking login status...');
+            
+            // Get cookies from admin.planetart.com domain
+            const emailCookie = await chrome.cookies.get({
+                url: 'https://admin.planetart.com',
+                name: 'attntv_mstore_email'
+            });
+            
+            const userIdCookie = await chrome.cookies.get({
+                url: 'https://admin.planetart.com',
+                name: 'stiadmin_user_id'
+            });
+            
+            console.log('Email cookie:', emailCookie);
+            console.log('UserId cookie:', userIdCookie);
+            
+            if (emailCookie && emailCookie.value) {
+                // Extract email (remove :0 suffix if present)
+                let emailValue = emailCookie.value;
+                const colonIndex = emailValue.lastIndexOf(':');
+                if (colonIndex !== -1) {
+                    emailValue = emailValue.substring(0, colonIndex);
+                }
+                
+                loginEmail.textContent = emailValue;
+                loginUserId.textContent = userIdCookie && userIdCookie.value ? userIdCookie.value : 'N/A';
+                loginStatusPanel.style.display = 'block';
+                isLoggedIn = true;
+                
+                console.log('Login status: Logged in as', emailValue);
+            } else {
+                console.log('Login status: Not logged in');
+                loginStatusPanel.style.display = 'none';
+                isLoggedIn = false;
+            }
+        } catch (error) {
+            console.error('Error checking login status:', error);
+            loginStatusPanel.style.display = 'none';
+            isLoggedIn = false;
+        }
+    }
+    
+    // Check login status on popup open
+    checkLoginStatus();
     
     // Format timestamp
     function formatTimestamp(isoString) {
@@ -930,7 +1009,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const orderId = orderIdInput.value.trim();
         
         if (!orderId) {
-            alert('Please enter an Order ID');
+            showToast('Please enter an Order ID', 'warning');
+            return;
+        }
+        
+        // Check login status before searching
+        if (!isLoggedIn) {
+            showToast('Please Login First', 'error');
+            console.log('Search blocked: User not logged in');
             return;
         }
         
