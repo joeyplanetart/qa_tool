@@ -135,11 +135,136 @@
             border-radius: 3px;
         }
         
+        /* Search Panel Styles */
+        .search-panel {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .search-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #fff;
+            text-align: center;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 5px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+        
+        .search-input::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+        
+        .search-input:focus {
+            border-color: #ffeb3b;
+            background: rgba(255,255,255,0.15);
+        }
+        
+        .search-btn {
+            background: #ffeb3b;
+            color: #333;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .search-btn:hover {
+            background: #fff;
+            transform: translateY(-1px);
+        }
+        
+        .search-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Order Detail Panel Styles */
+        .order-detail-panel {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            display: none;
+        }
+        
+        .order-detail-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #ffeb3b;
+            text-align: center;
+        }
+        
+        .order-info-item {
+            font-size: 14px;
+            color: #fff;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 15px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .order-info-item .label {
+            font-weight: normal;
+            color: #fff;
+            opacity: 0.9;
+        }
+        
+        .order-info-item .value {
+            font-weight: bold;
+            color: #ffeb3b;
+            user-select: text;
+            cursor: text;
+            word-break: break-all;
+        }
+        
     </style>
 </head>
 <body>
     <div class="header">
         <h1 class="title">CP Product Info</h1>
+    </div>
+    
+    <!-- Search Order ID Panel -->
+    <div class="search-panel">
+        <div class="search-title">Search Order ID</div>
+        <div class="search-form">
+            <input type="text" id="orderIdInput" class="search-input" placeholder="Enter Order ID...">
+            <button id="searchBtn" class="search-btn">Search</button>
+        </div>
+    </div>
+    
+    <!-- Order Detail Panel -->
+    <div id="orderDetailPanel" class="order-detail-panel">
+        <div class="order-detail-title">Order Details</div>
+        <div id="orderDetails"></div>
     </div>
     
     <div id="loading" class="status">

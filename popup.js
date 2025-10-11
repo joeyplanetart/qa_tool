@@ -16,6 +16,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const refreshBtn = document.getElementById('refreshBtn');
     const refreshBtn2 = document.getElementById('refreshBtn2');
     
+    // Search functionality elements
+    const orderIdInput = document.getElementById('orderIdInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const orderDetailPanel = document.getElementById('orderDetailPanel');
+    const orderDetails = document.getElementById('orderDetails');
+    
     // Format timestamp
     function formatTimestamp(isoString) {
         if (!isoString) return 'Unknown';
@@ -819,6 +825,143 @@ document.addEventListener('DOMContentLoaded', function() {
                 setTimeout(loadData, 200);
             }
         });
+    }
+    
+    // Mock order data for demonstration
+    function getMockOrderData(orderId) {
+        const mockOrders = {
+            '12345': {
+                orderId: '12345',
+                customerName: 'John Doe',
+                email: 'john.doe@example.com',
+                orderDate: '2024-01-15',
+                status: 'Shipped',
+                totalAmount: '$29.99',
+                shippingAddress: '123 Main St, New York, NY 10001',
+                items: [
+                    { name: 'Custom T-Shirt', quantity: 1, price: '$19.99' },
+                    { name: 'Mug', quantity: 1, price: '$9.99' }
+                ]
+            },
+            '67890': {
+                orderId: '67890',
+                customerName: 'Jane Smith',
+                email: 'jane.smith@example.com',
+                orderDate: '2024-01-14',
+                status: 'Processing',
+                totalAmount: '$45.50',
+                shippingAddress: '456 Oak Ave, Los Angeles, CA 90210',
+                items: [
+                    { name: 'Hoodie', quantity: 1, price: '$35.50' },
+                    { name: 'Sticker Pack', quantity: 2, price: '$5.00' }
+                ]
+            },
+            '11111': {
+                orderId: '11111',
+                customerName: 'Bob Johnson',
+                email: 'bob.johnson@example.com',
+                orderDate: '2024-01-13',
+                status: 'Delivered',
+                totalAmount: '$15.99',
+                shippingAddress: '789 Pine St, Chicago, IL 60601',
+                items: [
+                    { name: 'Phone Case', quantity: 1, price: '$15.99' }
+                ]
+            }
+        };
+        
+        return mockOrders[orderId] || null;
+    }
+    
+    // Display order details
+    function displayOrderDetails(orderData) {
+        if (!orderData) {
+            orderDetails.innerHTML = '<div class="order-info-item"><span class="label">Error:</span><span class="value">Order not found</span></div>';
+            orderDetailPanel.style.display = 'block';
+            return;
+        }
+        
+        let itemsHtml = '';
+        orderData.items.forEach(item => {
+            itemsHtml += `<div class="order-info-item">
+                <span class="label">${item.name} (Qty: ${item.quantity})</span>
+                <span class="value">${item.price}</span>
+            </div>`;
+        });
+        
+        orderDetails.innerHTML = `
+            <div class="order-info-item">
+                <span class="label">Order ID:</span>
+                <span class="value">${orderData.orderId}</span>
+            </div>
+            <div class="order-info-item">
+                <span class="label">Customer:</span>
+                <span class="value">${orderData.customerName}</span>
+            </div>
+            <div class="order-info-item">
+                <span class="label">Email:</span>
+                <span class="value">${orderData.email}</span>
+            </div>
+            <div class="order-info-item">
+                <span class="label">Order Date:</span>
+                <span class="value">${orderData.orderDate}</span>
+            </div>
+            <div class="order-info-item">
+                <span class="label">Status:</span>
+                <span class="value" style="color: ${orderData.status === 'Delivered' ? '#4CAF50' : orderData.status === 'Shipped' ? '#2196F3' : '#FF9800'};">${orderData.status}</span>
+            </div>
+            <div class="order-info-item">
+                <span class="label">Total Amount:</span>
+                <span class="value">${orderData.totalAmount}</span>
+            </div>
+            <div class="order-info-item">
+                <span class="label">Shipping Address:</span>
+                <span class="value">${orderData.shippingAddress}</span>
+            </div>
+            <div style="margin-top: 10px; font-weight: bold; color: #ffeb3b;">Items:</div>
+            ${itemsHtml}
+        `;
+        
+        orderDetailPanel.style.display = 'block';
+    }
+    
+    // Search order function
+    function searchOrder() {
+        const orderId = orderIdInput.value.trim();
+        
+        if (!orderId) {
+            alert('Please enter an Order ID');
+            return;
+        }
+        
+        console.log('Searching for order ID:', orderId);
+        
+        // Simulate API call delay
+        searchBtn.textContent = 'Searching...';
+        searchBtn.disabled = true;
+        
+        setTimeout(() => {
+            const orderData = getMockOrderData(orderId);
+            displayOrderDetails(orderData);
+            
+            searchBtn.textContent = 'Search';
+            searchBtn.disabled = false;
+        }, 1000);
+    }
+    
+    // Bind search functionality
+    if (searchBtn) {
+        searchBtn.addEventListener('click', searchOrder);
+        console.log('✓ Search button event listener added');
+    }
+    
+    if (orderIdInput) {
+        orderIdInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchOrder();
+            }
+        });
+        console.log('✓ Order ID input enter key listener added');
     }
     
     
