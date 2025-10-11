@@ -3203,9 +3203,7 @@ console.log('Current URL:', window.location.href);
                         gap: 10px;
                     ">
                         <div style="color: #fff; font-size: 11px; white-space: nowrap; align-self: flex-start;">Ship To:</div>
-                        <div style="color: #ffeb3b; font-weight: bold; font-size: 11px; line-height: 1.5; text-align: right; white-space: pre-line;">
-${orderData.shipTo || 'N/A'}
-                        </div>
+                        <div style="color: #ffeb3b; font-weight: bold; font-size: 11px; line-height: 1.5; text-align: right; white-space: pre-line;">${orderData.shipTo || 'N/A'}</div>
                     </div>
                     <div style="
                         display: flex;
@@ -3453,17 +3451,20 @@ ${orderData.shipTo || 'N/A'}
                 // Get innerHTML to preserve <br> tags, then convert <br> to newlines
                 let shipToHTML = shipToSpan.innerHTML;
                 // Replace <br> tags with newlines
-                let shipToText = shipToHTML.replace(/<br\s*\/?>/gi, '\n').trim();
+                let shipToText = shipToHTML.replace(/<br\s*\/?>/gi, '\n');
                 // Remove any HTML tags that might remain
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = shipToText;
                 let rawText = tempDiv.textContent || tempDiv.innerText || '';
                 // Clean up extra whitespace and normalize spaces
-                orderData.shipTo = rawText.split('\n')
+                // Split by newlines, trim each line, filter out empty lines, and join
+                orderData.shipTo = rawText
+                    .split('\n')
                     .map(line => line.trim())
                     .filter(line => line.length > 0)
-                    .join('\n');
-                console.log('✓ Extracted Ship To:', orderData.shipTo);
+                    .join('\n')
+                    .trim(); // Final trim to remove any leading/trailing whitespace
+                console.log('✓ Extracted Ship To:', JSON.stringify(orderData.shipTo));
             } else {
                 console.log('⚠️ #warpshipping not found');
             }
