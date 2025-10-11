@@ -3500,10 +3500,21 @@ console.log('Current URL:', window.location.href);
             let estimatedArrivalSpan = doc.querySelector('#slaQuoteTimeTd');
             if (estimatedArrivalSpan) {
                 console.log('✓ Found #slaQuoteTimeTd span');
-                orderData.estimatedArrival = estimatedArrivalSpan.textContent.trim();
-                console.log('✓ Extracted Estimated Arrival:', orderData.estimatedArrival);
-            } else {
-                console.log('⚠️ #slaQuoteTimeTd not found, trying alternative selectors...');
+                console.log('DEBUG: span.textContent:', estimatedArrivalSpan.textContent);
+                console.log('DEBUG: span.innerText:', estimatedArrivalSpan.innerText);
+                console.log('DEBUG: span.innerHTML:', estimatedArrivalSpan.innerHTML);
+                let arrivalText = estimatedArrivalSpan.textContent.trim() || estimatedArrivalSpan.innerText?.trim() || '';
+                if (arrivalText && arrivalText !== '') {
+                    orderData.estimatedArrival = arrivalText;
+                    console.log('✓ Extracted Estimated Arrival:', orderData.estimatedArrival);
+                } else {
+                    console.log('⚠️ #slaQuoteTimeTd found but empty, trying alternatives...');
+                }
+            }
+            
+            // If still not found or empty, try alternative selectors
+            if (!orderData.estimatedArrival || orderData.estimatedArrival === 'N/A') {
+                console.log('DEBUG: Trying alternative selectors for estimated arrival...');
                 // Try alternative: look for "Order should arrive" text in all spans
                 const allSpans = doc.querySelectorAll('span');
                 console.log('DEBUG: Total spans found:', allSpans.length);
@@ -3512,23 +3523,37 @@ console.log('Current URL:', window.location.href);
                     const spanText = span.textContent.trim();
                     if (spanId && spanId.toLowerCase().includes('sla')) {
                         console.log('DEBUG: Found span with "sla" in id:', spanId, '=', spanText);
-                    }
-                    if (spanText.includes('Oct') || spanText.includes('2025') || spanText.match(/\w{3},\s+\w{3}\s+\d{1,2}/)) {
-                        console.log('DEBUG: Potential date span:', spanId || 'no-id', '=', spanText);
-                    }
-                }
-                // Try finding by text content containing date pattern
-                allTds.forEach((td, idx) => {
-                    const tdText = td.textContent.trim();
-                    if (tdText.includes('Order should arrive') || tdText.includes('Estimated Delivery')) {
-                        console.log('✓ Found "Order should arrive" td:', tdText.substring(0, 100));
-                        const nextTd = allTds[idx + 1];
-                        if (nextTd) {
-                            orderData.estimatedArrival = nextTd.textContent.trim();
-                            console.log('✓ Extracted Estimated Arrival from td:', orderData.estimatedArrival);
+                        if (spanText && spanText !== '' && !orderData.estimatedArrival) {
+                            orderData.estimatedArrival = spanText;
+                            console.log('✓ Using span with sla id:', orderData.estimatedArrival);
                         }
                     }
-                });
+                    if ((spanText.includes('Oct') || spanText.includes('2025') || spanText.match(/\w{3},\s+\w{3}\s+\d{1,2}/)) && spanText.length > 10) {
+                        console.log('DEBUG: Potential date span:', spanId || 'no-id', '=', spanText);
+                        if (!orderData.estimatedArrival || orderData.estimatedArrival === 'N/A') {
+                            orderData.estimatedArrival = spanText;
+                            console.log('✓ Using date pattern span:', orderData.estimatedArrival);
+                        }
+                    }
+                }
+                
+                // Try finding by text content containing date pattern in td elements
+                if (!orderData.estimatedArrival || orderData.estimatedArrival === 'N/A') {
+                    allTds.forEach((td, idx) => {
+                        const tdText = td.textContent.trim();
+                        if (tdText.includes('Order should arrive') || tdText.includes('Estimated Delivery')) {
+                            console.log('✓ Found "Order should arrive" td:', tdText.substring(0, 100));
+                            const nextTd = allTds[idx + 1];
+                            if (nextTd) {
+                                const arrivalValue = nextTd.textContent.trim();
+                                if (arrivalValue && arrivalValue !== '') {
+                                    orderData.estimatedArrival = arrivalValue;
+                                    console.log('✓ Extracted Estimated Arrival from td:', orderData.estimatedArrival);
+                                }
+                            }
+                        }
+                    });
+                }
             }
             
             console.log('✅ Extracted order data:', orderData);
