@@ -3086,6 +3086,7 @@ console.log('Current URL:', window.location.href);
                         <span style="color: #fff; font-size: 11px; white-space: nowrap;">Status:</span>
                         <span style="color: ${statusColor}; font-weight: bold; font-size: 11px; text-align: right;">${orderData.status}</span>
                     </div>
+                    ${orderData.saleDiscount && orderData.saleDiscount !== 'N/A' ? `
                     <div style="
                         display: flex;
                         justify-content: space-between;
@@ -3093,18 +3094,9 @@ console.log('Current URL:', window.location.href);
                         padding: 4px 0;
                         gap: 10px;
                     ">
-                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Total Amount:</span>
-                        <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right;">${orderData.totalAmount}</span>
-                    </div>
-                    <div style="
-                        display: flex;
-                        justify-content: space-between;
-                        padding: 4px 0;
-                        gap: 10px;
-                    ">
-                        <div style="color: #fff; font-size: 11px; white-space: nowrap;">Shipping Address:</div>
-                        <div style="color: #ffeb3b; font-weight: bold; font-size: 11px; word-break: break-word; text-align: right;">${orderData.shippingAddress}</div>
-                    </div>
+                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Sale Discount:</span>
+                        <span style="color: #FF9800; font-weight: bold; font-size: 11px; text-align: right;">${orderData.saleDiscount}</span>
+                    </div>` : ''}
                     ${orderData.subtotal && orderData.subtotal !== 'N/A' ? `
                     <div style="
                         display: flex;
@@ -3170,17 +3162,6 @@ console.log('Current URL:', window.location.href);
                     ">
                         <span style="color: #fff; font-size: 11px; white-space: nowrap;">Promo Code:</span>
                         <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right;">${orderData.promoCode}</span>
-                    </div>` : ''}
-                    ${orderData.saleDiscount && orderData.saleDiscount !== 'N/A' ? `
-                    <div style="
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        padding: 4px 0;
-                        gap: 10px;
-                    ">
-                        <span style="color: #fff; font-size: 11px; white-space: nowrap;">Sale Discount:</span>
-                        <span style="color: #FF9800; font-weight: bold; font-size: 11px; text-align: right;">${orderData.saleDiscount}</span>
                     </div>` : ''}
                 </div>
                 <div style="
@@ -3409,9 +3390,9 @@ console.log('Current URL:', window.location.href);
                 
                 if (tdText === 'Subtotal:' || tdText.toLowerCase() === 'subtotal:') {
                     console.log('✓ Found "Subtotal:" td');
-                    // Look for next td with class "c2 tar"
+                    // Look for next td with class "c2 tar" and colspan="2"
                     const nextTd = allTds[idx + 1];
-                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar')) {
+                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar') && nextTd.getAttribute('colspan') === '2') {
                         orderData.subtotal = nextTd.textContent.trim();
                         console.log('✓ Extracted Subtotal:', orderData.subtotal);
                     }
@@ -3420,7 +3401,7 @@ console.log('Current URL:', window.location.href);
                 if (tdText === 'S&H:' || tdText.toLowerCase() === 's&h:') {
                     console.log('✓ Found "S&H:" td');
                     const nextTd = allTds[idx + 1];
-                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar')) {
+                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar') && nextTd.getAttribute('colspan') === '2') {
                         orderData.shippingHandling = nextTd.textContent.trim();
                         console.log('✓ Extracted S&H:', orderData.shippingHandling);
                     }
@@ -3429,7 +3410,7 @@ console.log('Current URL:', window.location.href);
                 if (tdText === 'TOTAL:' || tdText.toLowerCase() === 'total:') {
                     console.log('✓ Found "TOTAL:" td');
                     const nextTd = allTds[idx + 1];
-                    if (nextTd && nextTd.classList.contains('c1') && nextTd.classList.contains('tar')) {
+                    if (nextTd && nextTd.classList.contains('c1') && nextTd.classList.contains('tar') && nextTd.getAttribute('colspan') === '2') {
                         // Extract text and remove <b> tags
                         orderData.total = nextTd.textContent.trim();
                         console.log('✓ Extracted TOTAL:', orderData.total);
@@ -3439,7 +3420,7 @@ console.log('Current URL:', window.location.href);
                 if (tdText === 'Sales Tax:' || tdText.toLowerCase() === 'sales tax:') {
                     console.log('✓ Found "Sales Tax:" td');
                     const nextTd = allTds[idx + 1];
-                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar')) {
+                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar') && nextTd.getAttribute('colspan') === '2') {
                         orderData.salesTax = nextTd.textContent.trim();
                         console.log('✓ Extracted Sales Tax:', orderData.salesTax);
                     }
@@ -3448,7 +3429,7 @@ console.log('Current URL:', window.location.href);
                 if (tdText === 'GRAND TOTAL:' || tdText.toLowerCase() === 'grand total:') {
                     console.log('✓ Found "GRAND TOTAL:" td');
                     const nextTd = allTds[idx + 1];
-                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar')) {
+                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar') && nextTd.getAttribute('colspan') === '2') {
                         orderData.grandTotal = nextTd.textContent.trim();
                         console.log('✓ Extracted GRAND TOTAL:', orderData.grandTotal);
                     }
