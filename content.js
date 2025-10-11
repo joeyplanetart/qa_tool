@@ -2849,15 +2849,29 @@ console.log('Current URL:', window.location.href);
                 totalAmount: '$29.99',
                 shippingAddress: '123 Main St, New York, NY 10001',
                 items: [
-                    { name: 'Custom T-Shirt', quantity: 1, price: '$19.99' },
-                    { name: 'Mug', quantity: 1, price: '$9.99' }
+                    { 
+                        itemNumber: '51334364400',
+                        totalPrice: '$14.84',
+                        designId: '100861886004',
+                        quantity: '1',
+                        unitPrice: '$14.84'
+                    },
+                    { 
+                        itemNumber: '51334364401',
+                        totalPrice: '$14.84',
+                        designId: '100861886005',
+                        quantity: '1',
+                        unitPrice: '$14.84'
+                    },
+                    { 
+                        itemNumber: '51334364402',
+                        totalPrice: '$29.68',
+                        designId: '100861886006',
+                        quantity: '2',
+                        unitPrice: '$14.84'
+                    }
                 ],
-                shipTo: {
-                    name: 'Joey zhou',
-                    addressLine1: '23801 Calabasas Rd Ste 2005',
-                    addressLine2: 'Calabasas, CA  91302-3320',
-                    country: 'United States'
-                },
+                shipTo: 'Joey zhou\n23801 Calabasas Rd Ste 2005\nCalabasas, CA  91302-3320\nUnited States',
                 shipMethod: 'Standard (2-5 business days)'
             },
             '67890': {
@@ -3002,14 +3016,42 @@ console.log('Current URL:', window.location.href);
         orderData.items.forEach((item, index) => {
             itemsHtml += `
                 <div style="
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 4px 0;
-                    gap: 10px;
+                    padding: ${index > 0 ? '8px 0 4px 0' : '4px 0'};
+                    ${index > 0 ? 'border-top: 1px solid rgba(255,255,255,0.1);' : ''}
                 ">
-                    <span style="color: #fff; font-size: 11px;">${item.name} (Qty: ${item.quantity})</span>
-                    <span style="color: #ffeb3b; font-weight: bold; font-size: 11px; text-align: right; white-space: nowrap;">${item.price}</span>
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 4px;
+                    ">
+                        <span style="color: #fff; font-size: 13px; font-weight: bold;">${item.itemNumber}</span>
+                        <span style="color: #ffeb3b; font-weight: bold; font-size: 13px;">${item.totalPrice}</span>
+                    </div>
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 2px 0;
+                    ">
+                        <span style="color: rgba(255,255,255,0.8); font-size: 11px;">Design:</span>
+                        <span style="color: rgba(255,255,255,0.8); font-size: 11px; text-align: right;">${item.designId}</span>
+                    </div>
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 2px 0;
+                    ">
+                        <span style="color: rgba(255,255,255,0.8); font-size: 11px;">Qty:</span>
+                        <span style="color: rgba(255,255,255,0.8); font-size: 11px; text-align: right;">${item.quantity}</span>
+                    </div>
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 2px 0;
+                    ">
+                        <span style="color: rgba(255,255,255,0.8); font-size: 11px;">Unit Price Paid:</span>
+                        <span style="color: rgba(255,255,255,0.8); font-size: 11px; text-align: right;">${item.unitPrice}</span>
+                    </div>
                 </div>
             `;
         });
@@ -3482,6 +3524,35 @@ console.log('Current URL:', window.location.href);
                 }
             } else {
                 console.log('⚠️ #ship_method_tab not found');
+            }
+            
+            // TODO: Extract items from admin page
+            // For now, add mock items data for UI testing
+            if (orderData.items.length === 0) {
+                console.log('⚠️ No items extracted, using mock data for testing');
+                orderData.items = [
+                    { 
+                        itemNumber: '51334364400',
+                        totalPrice: '$14.84',
+                        designId: '100861886004',
+                        quantity: '1',
+                        unitPrice: '$14.84'
+                    },
+                    { 
+                        itemNumber: '51334364401',
+                        totalPrice: '$14.84',
+                        designId: '100861886005',
+                        quantity: '1',
+                        unitPrice: '$14.84'
+                    },
+                    { 
+                        itemNumber: '51334364402',
+                        totalPrice: '$29.68',
+                        designId: '100861886006',
+                        quantity: '2',
+                        unitPrice: '$14.84'
+                    }
+                ];
             }
             
             console.log('✅ Extracted order data:', orderData);

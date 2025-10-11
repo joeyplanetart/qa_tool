@@ -25,7 +25,9 @@
     "*://cafau-cpsw-web.pre.planetart.com/*",
     "*://cafau-cpsw-web.stage.planetart.com/*",
     "*://www.cafepress.com.au/*",
-    "*://cafepress.com.au/*"
+    "*://cafepress.com.au/*",
+    "*://admin.planetart.com/*",
+    "*://login.planetart.com/*"
   ],
   "content_scripts": [
     {

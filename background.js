@@ -1,6 +1,57 @@
 // Background script for CP Product Info
 console.log('CP Product Info background script loaded');
 
+// Handle order fetch requests from content script
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'FETCH_ORDER_FROM_ADMIN') {
+        console.log('🔍 Background: Fetching order from Admin:', request.orderId);
+        
+        const adminUrl = `https://admin.planetart.com/orders/order_tab_index.php?order_id=${request.orderId}`;
+        console.log('Background: Admin URL:', adminUrl);
+        
+        fetch(adminUrl, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Accept': 'text/html',
+            }
+        })
+        .then(response => {
+            console.log('Background: Response status:', response.status);
+            console.log('Background: Response ok:', response.ok);
+            
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error('Unauthorized - Please login via SSO first');
+                }
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return response.text();
+        })
+        .then(html => {
+            console.log('Background: HTML received, length:', html.length);
+            console.log('Background: HTML preview (first 500 chars):', html.substring(0, 500));
+            
+            // Send HTML back to content script
+            sendResponse({
+                success: true,
+                html: html
+            });
+        })
+        .catch(error => {
+            console.error('Background: Error fetching order:', error);
+            sendResponse({
+                success: false,
+                error: error.message
+            });
+        });
+        
+        // Return true to indicate async response
+        return true;
+    }
+});
+
 // Handle extension icon click
 chrome.action.onClicked.addListener((tab) => {
     console.log('Extension icon clicked on tab:', tab.url);
