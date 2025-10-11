@@ -3243,25 +3243,32 @@ console.log('Current URL:', window.location.href);
                 const td = allTds[i];
                 const tdText = td.textContent.trim();
                 
-                // Look for "Order Date:" in current td
-                if (tdText.includes('Order Date:')) {
+                // Look for "Order Date:" in current td - exact match
+                if (tdText === 'Order Date:' || tdText.toLowerCase() === 'order date:') {
                     console.log('✓ Found "Order Date:" td:', tdText);
                     
                     // Get next td (sibling)
                     const nextTd = td.nextElementSibling;
                     if (nextTd && nextTd.tagName === 'TD') {
-                        orderData.orderDate = nextTd.textContent.trim();
-                        console.log('✓ Extracted Order Date:', orderData.orderDate);
+                        const dateValue = nextTd.textContent.trim();
+                        if (dateValue && dateValue !== '' && dateValue !== 'N/A') {
+                            orderData.orderDate = dateValue;
+                            console.log('✓ Extracted Order Date:', orderData.orderDate);
+                        }
                     }
                 }
                 
-                // Look for "Status:" 
-                if (tdText.includes('Status:')) {
+                // Look for "Status:" - must match exactly to avoid false positives
+                if (tdText === 'Status:' || tdText.toLowerCase() === 'status:') {
                     console.log('✓ Found "Status:" td:', tdText);
                     const nextTd = td.nextElementSibling;
                     if (nextTd && nextTd.tagName === 'TD') {
-                        orderData.status = nextTd.textContent.trim();
-                        console.log('✓ Extracted Status:', orderData.status);
+                        const statusValue = nextTd.textContent.trim();
+                        // Only set if we got a meaningful value
+                        if (statusValue && statusValue !== '' && statusValue !== 'N/A') {
+                            orderData.status = statusValue;
+                            console.log('✓ Extracted Status:', orderData.status);
+                        }
                     }
                 }
                 
