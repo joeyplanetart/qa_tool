@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            width: 350px;
+            min-height: 200px;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid rgba(255,255,255,0.3);
+            padding-bottom: 15px;
+        }
+        
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        .content {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .info-row {
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+        
+        .value {
+            font-size: 14px;
+            font-weight: bold;
+            word-break: break-all;
+            background: rgba(255,255,255,0.2);
+            padding: 8px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .info-item {
+            font-size: 14px;
+            color: #ffeb3b;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 15px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: normal;
+        }
+        
+        .info-item span {
+            font-weight: normal;
+            user-select: text;
+            cursor: text;
+        }
+        
+        .info-item .label {
+            font-weight: normal;
+            color: #fff;
+            opacity: 0.9;
+        }
+        
+        .info-item .value {
+            font-weight: normal;
+            color: #ffeb3b;
+            user-select: text;
+            cursor: text;
+            word-break: break-all;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: rgba(76, 175, 80, 0.3);
+            color: #c8e6c9;
+        }
+        
+        .status.error {
+            background: rgba(244, 67, 54, 0.3);
+            color: #ffcdd2;
+        }
+        
+        .refresh-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+            font-size: 12px;
+        }
+        
+        .refresh-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .designer-link {
+            color: inherit !important;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        
+        .designer-link:hover {
+            color: #fff !important;
+            background: rgba(255,255,255,0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="title">CP Product Info</h1>
+    </div>
+    
+    <div id="loading" class="status">
+        <div>Checking current page...</div>
+    </div>
+    
+    <div id="content" class="content" style="display: none;">
+        <div id="designerDisplay" class="info-item"></div>
+        
+        <div id="designIdDisplay" class="info-item"></div>
+        
+        <div id="categoryIdDisplay" class="info-item"></div>
+        
+        <div id="stockStatusDisplay" class="info-item"></div>
+        
+        <div id="cpProductIdDisplay" class="info-item"></div>
+        
+        <div id="cpProductTypeDisplay" class="info-item"></div>
+        
+        <div class="info-row">
+            <div class="label">Page URL:</div>
+            <div id="urlDisplay" class="value"></div>
+        </div>
+        
+        <div class="info-row">
+            <div class="label">Extracted Time:</div>
+            <div id="timestampDisplay" class="value"></div>
+        </div>
+        
+        <button id="refreshBtn" class="refresh-btn">Refresh Check</button>
+    </div>
+    
+    <div id="noData" class="status error" style="display: none;">
+        <div>No product information found on current page</div>
+        <div style="font-size: 12px; margin-top: 8px; opacity: 0.8;">
+            Please ensure you're on a product page with ProductId or Designer info
+        </div>
+        <button id="refreshBtn2" class="refresh-btn">Refresh Check</button>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>

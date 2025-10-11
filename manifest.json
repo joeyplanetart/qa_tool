@@ -1,0 +1,82 @@
+{
+  "manifest_version": 3,
+  "name": "CP Product Info",
+  "version": "1.0",
+  "description": "Extract productId from specific URLs",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://cafus-cpsw-web.pre.planetart.com/*",
+    "*://cafus-cpsw-web.stage.planetart.com/*",
+    "*://www.cafepress.com/*",
+    "*://cafepress.com/*",
+    "*://cafca-cpsw-web.pre.planetart.com/*",
+    "*://cafca-cpsw-web.stage.planetart.com/*",
+    "*://www.cafepress.ca/*",
+    "*://cafepress.ca/*",
+    "*://cafuk-cpsw-web.pre.planetart.com/*",
+    "*://cafuk-cpsw-web.stage.planetart.com/*",
+    "*://www.cafepress.co.uk/*",
+    "*://cafepress.co.uk/*",
+    "*://cafau-cpsw-web.pre.planetart.com/*",
+    "*://cafau-cpsw-web.stage.planetart.com/*",
+    "*://www.cafepress.com.au/*",
+    "*://cafepress.com.au/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://cafus-cpsw-web.pre.planetart.com/*",
+        "*://cafus-cpsw-web.stage.planetart.com/*",
+        "*://www.cafepress.com/*",
+        "*://cafepress.com/*",
+        "*://cafca-cpsw-web.pre.planetart.com/*",
+        "*://cafca-cpsw-web.stage.planetart.com/*",
+        "*://www.cafepress.ca/*",
+        "*://cafepress.ca/*",
+        "*://cafuk-cpsw-web.pre.planetart.com/*",
+        "*://cafuk-cpsw-web.stage.planetart.com/*",
+        "*://www.cafepress.co.uk/*",
+        "*://cafepress.co.uk/*",
+        "*://cafau-cpsw-web.pre.planetart.com/*",
+        "*://cafau-cpsw-web.stage.planetart.com/*",
+        "*://www.cafepress.com.au/*",
+        "*://cafepress.com.au/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "CP Product Info",
+    "default_icon": {
+      "16": "icon16.png",
+      "24": "icon48.png",
+      "32": "icon48.png",
+      "48": "icon48.png",
+      "64": "icon128.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "24": "icon48.png", 
+    "32": "icon48.png",
+    "48": "icon48.png",
+    "64": "icon128.png",
+    "96": "icon128.png",
+    "128": "icon128.png",
+    "256": "icon256.png",
+    "512": "icon512.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
