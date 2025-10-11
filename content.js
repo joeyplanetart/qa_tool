@@ -2009,11 +2009,11 @@ console.log('Current URL:', window.location.href);
         });
         ssoButton.addEventListener('mouseenter', () => {
             ssoButton.style.background = 'rgba(255,235,59,1)';
-            ssoButton.style.transform = 'translateY(-1px)';
+            ssoButton.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
         });
         ssoButton.addEventListener('mouseleave', () => {
             ssoButton.style.background = 'rgba(255,235,59,0.9)';
-            ssoButton.style.transform = 'translateY(0)';
+            ssoButton.style.boxShadow = 'none';
         });
         
         const closeButton = document.createElement('button');
@@ -2970,7 +2970,7 @@ console.log('Current URL:', window.location.href);
                             white-space: nowrap;
                             margin-left: auto;
                         "
-                    >PDP</button>
+                    >Back</button>
                 </div>
             </div>
             <div id="floating-order-detail" style="display: none;"></div>
