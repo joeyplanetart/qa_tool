@@ -3204,8 +3204,8 @@ console.log('Current URL:', window.location.href);
                         gap: 10px;
                     ">
                         <div style="color: #fff; font-size: 11px; white-space: nowrap;">Ship To:</div>
-                        <div style="color: #ffeb3b; font-weight: bold; font-size: 11px; line-height: 1.5; text-align: right;">
-                            ${orderData.shipTo ? `${orderData.shipTo.name}<br>${orderData.shipTo.addressLine1}<br>${orderData.shipTo.addressLine2}<br>${orderData.shipTo.country}` : 'N/A'}
+                        <div style="color: #ffeb3b; font-weight: bold; font-size: 11px; line-height: 1.5; text-align: right; white-space: pre-line;">
+                            ${orderData.shipTo || 'N/A'}
                         </div>
                     </div>
                     <div style="
@@ -3453,6 +3453,83 @@ console.log('Current URL:', window.location.href);
                     }
                 }
             });
+            
+            // Extract Ship & Payment information
+            console.log('=== DEBUG: Extracting Ship & Payment fields ===');
+            
+            // 1. Ship To - from <span id="warpshipping"> with <br> tags
+            const shipToSpan = doc.querySelector('#warpshipping');
+            if (shipToSpan) {
+                console.log('✓ Found #warpshipping span');
+                console.log('DEBUG: shipToSpan.innerHTML:', shipToSpan.innerHTML);
+                // Get innerHTML to preserve <br> tags, then convert <br> to newlines
+                let shipToHTML = shipToSpan.innerHTML;
+                // Replace <br> tags with newlines
+                let shipToText = shipToHTML.replace(/<br\s*\/?>/gi, '\n').trim();
+                // Remove any HTML tags that might remain
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = shipToText;
+                let rawText = tempDiv.textContent || tempDiv.innerText || '';
+                // Clean up extra whitespace and normalize spaces
+                orderData.shipTo = rawText.split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0)
+                    .join('\n');
+                console.log('✓ Extracted Ship To:', orderData.shipTo);
+            } else {
+                console.log('⚠️ #warpshipping not found');
+            }
+            
+            // 2. Ship Method - from <td id="ship_method_tab"> looking for nearest <a> tag
+            const shipMethodTd = doc.querySelector('#ship_method_tab');
+            if (shipMethodTd) {
+                console.log('✓ Found #ship_method_tab td');
+                const shipMethodLink = shipMethodTd.querySelector('a');
+                if (shipMethodLink) {
+                    orderData.shipMethod = shipMethodLink.textContent.trim();
+                    console.log('✓ Extracted Ship Method:', orderData.shipMethod);
+                } else {
+                    console.log('⚠️ <a> tag not found in #ship_method_tab');
+                }
+            } else {
+                console.log('⚠️ #ship_method_tab not found');
+            }
+            
+            // 3. Order should arrive - try multiple selectors
+            console.log('DEBUG: Looking for estimated arrival...');
+            let estimatedArrivalSpan = doc.querySelector('#slaQuoteTimeTd');
+            if (estimatedArrivalSpan) {
+                console.log('✓ Found #slaQuoteTimeTd span');
+                orderData.estimatedArrival = estimatedArrivalSpan.textContent.trim();
+                console.log('✓ Extracted Estimated Arrival:', orderData.estimatedArrival);
+            } else {
+                console.log('⚠️ #slaQuoteTimeTd not found, trying alternative selectors...');
+                // Try alternative: look for "Order should arrive" text in all spans
+                const allSpans = doc.querySelectorAll('span');
+                console.log('DEBUG: Total spans found:', allSpans.length);
+                for (let span of allSpans) {
+                    const spanId = span.id;
+                    const spanText = span.textContent.trim();
+                    if (spanId && spanId.toLowerCase().includes('sla')) {
+                        console.log('DEBUG: Found span with "sla" in id:', spanId, '=', spanText);
+                    }
+                    if (spanText.includes('Oct') || spanText.includes('2025') || spanText.match(/\w{3},\s+\w{3}\s+\d{1,2}/)) {
+                        console.log('DEBUG: Potential date span:', spanId || 'no-id', '=', spanText);
+                    }
+                }
+                // Try finding by text content containing date pattern
+                allTds.forEach((td, idx) => {
+                    const tdText = td.textContent.trim();
+                    if (tdText.includes('Order should arrive') || tdText.includes('Estimated Delivery')) {
+                        console.log('✓ Found "Order should arrive" td:', tdText.substring(0, 100));
+                        const nextTd = allTds[idx + 1];
+                        if (nextTd) {
+                            orderData.estimatedArrival = nextTd.textContent.trim();
+                            console.log('✓ Extracted Estimated Arrival from td:', orderData.estimatedArrival);
+                        }
+                    }
+                });
+            }
             
             console.log('✅ Extracted order data:', orderData);
             return orderData;
