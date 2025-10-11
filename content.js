@@ -388,6 +388,198 @@ console.log('Current URL:', window.location.href);
         // Extract product_options JavaScript object with enhanced search
         function searchForProductOptions() {
             try {
+                // FIRST: Try injecting a script into the page context to access product_options
+                // This is needed because content scripts run in an isolated context
+                let productOptionsFromPage = null;
+                
+                try {
+                    // Inject script to retrieve product_options from page context
+                    const script = document.createElement('script');
+                    script.id = 'cp-product-options-extractor';
+                    script.textContent = `
+                        (function() {
+                            let dataFound = null;
+                            
+                            // Try multiple variable names and sources
+                            if (typeof product_options !== 'undefined') {
+                                dataFound = product_options;
+                                console.log('✅ Found product_options');
+                            } else if (typeof window.product_options !== 'undefined') {
+                                dataFound = window.product_options;
+                                console.log('✅ Found window.product_options');
+                            } else if (typeof productOptions !== 'undefined') {
+                                dataFound = productOptions;
+                                console.log('✅ Found productOptions (camelCase)');
+                            } else if (typeof window.productOptions !== 'undefined') {
+                                dataFound = window.productOptions;
+                                console.log('✅ Found window.productOptions');
+                            }
+                            
+                            // Try to get from productDetail object
+                            if (!dataFound && typeof productDetail !== 'undefined') {
+                                console.log('🔍 Checking productDetail object...');
+                                console.log('productDetail exists:', typeof productDetail);
+                                
+                                // Check for various method names
+                                if (typeof productDetail.getCurrDesignObject === 'function') {
+                                    try {
+                                        const designObj = productDetail.getCurrDesignObject();
+                                        console.log('✅ Got data from productDetail.getCurrDesignObject()');
+                                        dataFound = designObj;
+                                    } catch (e) {
+                                        console.log('❌ productDetail.getCurrDesignObject() error:', e.message);
+                                    }
+                                } else if (typeof productDetail.getProductData === 'function') {
+                                    try {
+                                        dataFound = productDetail.getProductData();
+                                        console.log('✅ Got data from productDetail.getProductData()');
+                                    } catch (e) {
+                                        console.log('❌ productDetail.getProductData() error:', e.message);
+                                    }
+                                } else if (typeof productDetail.data !== 'undefined') {
+                                    dataFound = productDetail.data;
+                                    console.log('✅ Got data from productDetail.data');
+                                } else if (typeof productDetail.options !== 'undefined') {
+                                    dataFound = productDetail.options;
+                                    console.log('✅ Got data from productDetail.options');
+                                } else {
+                                    // Log productDetail properties for debugging
+                                    console.log('productDetail properties:', Object.keys(productDetail));
+                                    // Try to extract any object that looks like product data
+                                    for (let key in productDetail) {
+                                        if (typeof productDetail[key] === 'object' && productDetail[key] !== null) {
+                                            console.log('Found object property:', key);
+                                            dataFound = productDetail[key];
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Search for data in window object
+                            if (!dataFound) {
+                                console.log('🔍 Searching window object for product data...');
+                                const possibleKeys = ['productData', 'ProductOptions', 'cpProductData', 'productInfo'];
+                                for (let key of possibleKeys) {
+                                    if (typeof window[key] !== 'undefined' && window[key] !== null) {
+                                        dataFound = window[key];
+                                        console.log('✅ Found window.' + key);
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            // If still not found, try to extract from script tags in page context
+                            if (!dataFound) {
+                                console.log('🔍 Trying to extract from script tags in page context...');
+                                const scripts = document.querySelectorAll('script');
+                                for (let i = 0; i < scripts.length; i++) {
+                                    const scriptContent = scripts[i].textContent || scripts[i].innerText || '';
+                                    
+                                    // Look for product_options assignment
+                                    if (scriptContent.includes('product_options') || scriptContent.includes('productOptions')) {
+                                        console.log('Found script tag mentioning product_options, script index:', i);
+                                        
+                                        // Try to extract JSON object
+                                        const patterns = [
+                                            /(?:var|let|const)\\s+product_options\\s*=\\s*(\\{[\\s\\S]*?\\});/,
+                                            /product_options\\s*=\\s*(\\{[\\s\\S]*?\\});/,
+                                            /productOptions\\s*=\\s*(\\{[\\s\\S]*?\\});/
+                                        ];
+                                        
+                                        for (let pattern of patterns) {
+                                            const match = scriptContent.match(pattern);
+                                            if (match && match[1]) {
+                                                try {
+                                                    // Try to parse the extracted JSON
+                                                    dataFound = JSON.parse(match[1]);
+                                                    console.log('✅ Successfully extracted and parsed product_options from script tag');
+                                                    break;
+                                                } catch (e) {
+                                                    console.log('Failed to parse extracted data:', e.message);
+                                                }
+                                            }
+                                        }
+                                        
+                                        if (dataFound) break;
+                                    }
+                                }
+                            }
+                            
+                            if (dataFound) {
+                                // Store in data attribute for content script to read
+                                document.documentElement.setAttribute('data-cp-product-options', JSON.stringify(dataFound));
+                                console.log('✅ Product data injected to data attribute');
+                            } else {
+                                console.log('❌ No product data found in page context');
+                                // Log available window properties containing "product"
+                                const productKeys = Object.keys(window).filter(k => k.toLowerCase().includes('product'));
+                                console.log('Window properties containing "product":', productKeys);
+                                
+                                // Also try to log first few lines of each script for debugging
+                                const scripts = document.querySelectorAll('script');
+                                console.log('Total script tags:', scripts.length);
+                                for (let idx = 0; idx < Math.min(5, scripts.length); idx++) {
+                                    const content = (scripts[idx].textContent || scripts[idx].innerText || '').substring(0, 200);
+                                    if (content.length > 0) {
+                                        console.log('Script ' + idx + ': ' + content + '...');
+                                    }
+                                }
+                            }
+                        })();
+                    `;
+                    document.documentElement.appendChild(script);
+                    script.remove();
+                    
+                    // Read from data attribute
+                    const dataAttr = document.documentElement.getAttribute('data-cp-product-options');
+                    if (dataAttr) {
+                        productOptionsFromPage = JSON.parse(dataAttr);
+                        console.log('✅ Successfully retrieved product_options from injected script');
+                        // Clean up the attribute
+                        document.documentElement.removeAttribute('data-cp-product-options');
+                    }
+                } catch (e) {
+                    console.log('Script injection method failed:', e);
+                }
+                
+                // If injection worked, use that data
+                if (productOptionsFromPage) {
+                    const parsed = productOptionsFromPage;
+                    
+                    // Extract specific fields from product_options
+                    const extractedFields = {
+                        category_id: parsed.category_id,
+                        is_out_of_stock: parsed.is_out_of_stock,
+                        cp_product_id: null,
+                        full_object: parsed
+                    };
+                    
+                    // Extract from product_design_objects using DesignId
+                    try {
+                        if (parsed.product_design_objects && typeof parsed.product_design_objects === 'object') {
+                            const designId = extractedData.designId;
+                            if (designId && parsed.product_design_objects[designId]) {
+                                const designObject = parsed.product_design_objects[designId];
+                                extractedFields.cp_product_id = designObject.cp_product_id;
+                            } else {
+                                // Fallback: use first available design object
+                                const firstKey = Object.keys(parsed.product_design_objects)[0];
+                                if (firstKey) {
+                                    const designObject = parsed.product_design_objects[firstKey];
+                                    extractedFields.cp_product_id = designObject.cp_product_id;
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Error extracting fields from injected script:', e);
+                    }
+                    
+                    extractedData.productsData = extractedFields;
+                    console.log('Found product_options (injected script):', extractedFields);
+                    return true;
+                }
+                
                 // Method 1: Try to access via window object with different approaches
                 const accessMethods = [
                     () => window.product_options,
