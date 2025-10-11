@@ -56,13 +56,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check login status
     async function checkLoginStatus() {
         try {
-            console.log('Checking login status...');
+            console.log('=== CHECKING LOGIN STATUS ===');
+            console.log('Starting cookie detection from admin.planetart.com and login.planetart.com...');
             
             // Try to get cookies from both admin.planetart.com and login.planetart.com domains
             let emailCookie = null;
             let userIdCookie = null;
             
             // Check admin.planetart.com first
+            console.log('🔍 Checking admin.planetart.com domain...');
             emailCookie = await chrome.cookies.get({
                 url: 'https://admin.planetart.com',
                 name: 'attntv_mstore_email'
@@ -73,24 +75,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 name: 'stiadmin_user_id'
             });
             
-            console.log('Admin domain - Email cookie:', emailCookie);
-            console.log('Admin domain - UserId cookie:', userIdCookie);
+            console.log('📧 Admin domain - Email cookie:', emailCookie);
+            console.log('👤 Admin domain - UserId cookie:', userIdCookie);
             
             // If not found in admin, try login.planetart.com
             if (!emailCookie || !emailCookie.value) {
+                console.log('🔍 Email not found in admin domain, checking login.planetart.com...');
                 emailCookie = await chrome.cookies.get({
                     url: 'https://login.planetart.com',
                     name: 'attntv_mstore_email'
                 });
-                console.log('Login domain - Email cookie:', emailCookie);
+                console.log('📧 Login domain - Email cookie:', emailCookie);
             }
             
             if (!userIdCookie || !userIdCookie.value) {
+                console.log('🔍 UserId not found in admin domain, checking login.planetart.com...');
                 userIdCookie = await chrome.cookies.get({
                     url: 'https://login.planetart.com',
                     name: 'stiadmin_user_id'
                 });
-                console.log('Login domain - UserId cookie:', userIdCookie);
+                console.log('👤 Login domain - UserId cookie:', userIdCookie);
             }
             
             if (emailCookie && emailCookie.value) {
