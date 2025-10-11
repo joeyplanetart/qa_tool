@@ -1979,6 +1979,43 @@ console.log('Current URL:', window.location.href);
             color: white;
         `;
         
+        // SSO Login Button
+        const ssoButton = document.createElement('button');
+        ssoButton.textContent = 'SSO Login';
+        ssoButton.style.cssText = `
+            background: rgba(255,235,59,0.9);
+            border: none;
+            color: #333;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 4px;
+            margin-left: auto;
+            margin-right: 10px;
+            transition: all 0.2s;
+        `;
+        ssoButton.addEventListener('click', () => {
+            console.log('SSO Login clicked');
+            // Open SSO login page in new tab
+            const ssoUrl = 'https://login.planetart.com/sso';
+            window.open(ssoUrl, '_blank');
+            
+            // Update button text to show logged in status
+            setTimeout(() => {
+                ssoButton.textContent = 'SSO ✓';
+                ssoButton.style.background = 'rgba(76,175,80,0.9)'; // Green
+            }, 2000);
+        });
+        ssoButton.addEventListener('mouseenter', () => {
+            ssoButton.style.background = 'rgba(255,235,59,1)';
+            ssoButton.style.transform = 'translateY(-1px)';
+        });
+        ssoButton.addEventListener('mouseleave', () => {
+            ssoButton.style.background = 'rgba(255,235,59,0.9)';
+            ssoButton.style.transform = 'translateY(0)';
+        });
+        
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '×';
         closeButton.style.cssText = `
@@ -2005,6 +2042,7 @@ console.log('Current URL:', window.location.href);
         });
         
         header.appendChild(title);
+        header.appendChild(ssoButton);
         header.appendChild(closeButton);
         
         // Create content area
@@ -3140,6 +3178,145 @@ console.log('Current URL:', window.location.href);
     }
     
     // Search order function for floating window
+    // Fetch order data from Admin page via background script
+    async function fetchOrderFromAdmin(orderId) {
+        console.log('🔍 Content: Requesting order from background script:', orderId);
+        
+        try {
+            // Send message to background script to fetch order
+            const response = await chrome.runtime.sendMessage({
+                type: 'FETCH_ORDER_FROM_ADMIN',
+                orderId: orderId
+            });
+            
+            console.log('Content: Received response from background:', response);
+            
+            if (!response.success) {
+                throw new Error(response.error);
+            }
+            
+            const html = response.html;
+            console.log('Content: HTML received, length:', html.length);
+            console.log('Content: HTML preview (first 500 chars):', html.substring(0, 500));
+            
+            // Parse HTML to extract order data
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // Debug: Log all text content
+            console.log('=== DEBUG: Page Structure ===');
+            const allText = doc.body.textContent;
+            console.log('Full text length:', allText.length);
+            console.log('Text preview:', allText.substring(0, 1000));
+            
+            // Try to extract order information
+            // This is a placeholder - you'll need to adjust selectors based on actual HTML structure
+            const orderData = {
+                orderId: orderId,
+                customerName: 'N/A',
+                email: 'N/A',
+                orderDate: 'N/A',
+                status: 'N/A',
+                totalAmount: 'N/A',
+                shippingAddress: 'N/A',
+                items: [],
+                shipTo: null,
+                shipMethod: null,
+                estimatedArrival: null
+            };
+            
+            // Debug: Try to find common patterns
+            console.log('=== DEBUG: Searching for order data ===');
+            
+            // Look for tables (common in admin pages)
+            const tables = doc.querySelectorAll('table');
+            console.log('Found tables:', tables.length);
+            tables.forEach((table, idx) => {
+                console.log(`Table ${idx}:`, table.textContent.substring(0, 200));
+            });
+            
+            // Extract Order Date from <td> tags
+            const allTds = doc.querySelectorAll('td');
+            console.log('Found <td> elements:', allTds.length);
+            
+            for (let i = 0; i < allTds.length; i++) {
+                const td = allTds[i];
+                const tdText = td.textContent.trim();
+                
+                // Look for "Order Date:" in current td
+                if (tdText.includes('Order Date:')) {
+                    console.log('✓ Found "Order Date:" td:', tdText);
+                    
+                    // Get next td (sibling)
+                    const nextTd = td.nextElementSibling;
+                    if (nextTd && nextTd.tagName === 'TD') {
+                        orderData.orderDate = nextTd.textContent.trim();
+                        console.log('✓ Extracted Order Date:', orderData.orderDate);
+                    }
+                }
+                
+                // Look for "Status:" 
+                if (tdText.includes('Status:')) {
+                    console.log('✓ Found "Status:" td:', tdText);
+                    const nextTd = td.nextElementSibling;
+                    if (nextTd && nextTd.tagName === 'TD') {
+                        orderData.status = nextTd.textContent.trim();
+                        console.log('✓ Extracted Status:', orderData.status);
+                    }
+                }
+                
+                // Look for "Customer:" or "Name:"
+                if (tdText.includes('Customer:') || tdText.includes('Name:')) {
+                    console.log('✓ Found customer td:', tdText);
+                    const nextTd = td.nextElementSibling;
+                    if (nextTd && nextTd.tagName === 'TD') {
+                        orderData.customerName = nextTd.textContent.trim();
+                        console.log('✓ Extracted Customer Name:', orderData.customerName);
+                    }
+                }
+                
+                // Look for "Total:" or "Amount:"
+                if (tdText.includes('Total:') || tdText.includes('Amount:')) {
+                    console.log('✓ Found amount td:', tdText);
+                    const nextTd = td.nextElementSibling;
+                    if (nextTd && nextTd.tagName === 'TD') {
+                        const amount = nextTd.textContent.trim();
+                        // Add $ if not present
+                        orderData.totalAmount = amount.startsWith('$') ? amount : '$' + amount;
+                        console.log('✓ Extracted Amount:', orderData.totalAmount);
+                    }
+                }
+                
+                // Look for "Email:"
+                if (tdText.includes('Email:')) {
+                    console.log('✓ Found email td:', tdText);
+                    const nextTd = td.nextElementSibling;
+                    if (nextTd && nextTd.tagName === 'TD') {
+                        orderData.email = nextTd.textContent.trim();
+                        console.log('✓ Extracted Email:', orderData.email);
+                    }
+                }
+                
+                // Look for "Ship To:" or "Shipping Address:"
+                if (tdText.includes('Ship To:') || tdText.includes('Shipping Address:')) {
+                    console.log('✓ Found shipping address td:', tdText);
+                    const nextTd = td.nextElementSibling;
+                    if (nextTd && nextTd.tagName === 'TD') {
+                        orderData.shippingAddress = nextTd.textContent.trim();
+                        console.log('✓ Extracted Shipping Address:', orderData.shippingAddress);
+                    }
+                }
+            }
+            
+            console.log('✅ Extracted order data:', orderData);
+            return orderData;
+            
+        } catch (error) {
+            console.error('❌ Error fetching order:', error);
+            throw error;
+        }
+    }
+    
     function searchOrderInFloatingWindow() {
         const input = document.getElementById('floating-order-id-input');
         const searchBtn = document.getElementById('floating-search-btn');
@@ -3154,17 +3331,30 @@ console.log('Current URL:', window.location.href);
         
         console.log('Searching for order ID:', orderId);
         
-        // Simulate API call delay
+        // Show searching state
         searchBtn.textContent = 'Searching...';
         searchBtn.disabled = true;
         
-        setTimeout(() => {
-            const orderData = getMockOrderData(orderId);
-            displayOrderDetails(orderData);
-            
-            searchBtn.textContent = 'Search';
-            searchBtn.disabled = false;
-        }, 800);
+        // Try to fetch from Admin first, fallback to mock data
+        fetchOrderFromAdmin(orderId)
+            .then(orderData => {
+                console.log('Using Admin data');
+                displayOrderDetails(orderData);
+            })
+            .catch(error => {
+                console.warn('Admin fetch failed, using mock data:', error.message);
+                // Fallback to mock data
+                const orderData = getMockOrderData(orderId);
+                if (!orderData) {
+                    displayOrderDetails(null); // Show "Order not found"
+                } else {
+                    displayOrderDetails(orderData);
+                }
+            })
+            .finally(() => {
+                searchBtn.textContent = 'Search';
+                searchBtn.disabled = false;
+            });
     }
     
     // Show PDP (Product Detail Page) info - default view
