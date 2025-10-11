@@ -2874,7 +2874,6 @@ console.log('Current URL:', window.location.href);
         const orderId = input.value.trim();
         
         if (!orderId) {
-            alert('Please enter an Order ID');
             return;
         }
         
