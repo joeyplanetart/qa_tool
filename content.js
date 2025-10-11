@@ -2640,7 +2640,7 @@ console.log('Current URL:', window.location.href);
                 border-radius: 10px;
                 border: 1px solid rgba(255,255,255,0.2);
             ">
-                <div style="display: flex; gap: 8px; align-items: center; padding: 10px;">
+                <div style="display: flex; gap: 8px; align-items: center; padding: 6px;">
                     <input 
                         type="text" 
                         id="floating-order-id-input" 
