@@ -1956,7 +1956,7 @@ console.log('Current URL:', window.location.href);
             color: white;
             padding: 0;
             display: none;
-            overflow: hidden;
+            overflow: visible;
         `;
         
         // Create header with close button
@@ -1984,7 +1984,7 @@ console.log('Current URL:', window.location.href);
         const pinButton = document.createElement('button');
         pinButton.id = 'cp-pin-button';
         pinButton.innerHTML = '📌';
-        pinButton.title = 'Pin window (keep open across pages)';
+        pinButton.title = 'Pin';
         pinButton.style.cssText = `
             position: absolute;
             top: -8px;
@@ -2013,7 +2013,7 @@ console.log('Current URL:', window.location.href);
             pinButton.style.background = 'rgba(255,235,59,0.15)';
             pinButton.style.borderColor = 'rgba(255,235,59,0.5)';
             pinButton.style.transform = 'rotate(45deg)';
-            pinButton.title = 'Unpin window';
+            pinButton.title = 'Unpin';
         }
         
         pinButton.addEventListener('click', () => {
@@ -2028,7 +2028,7 @@ console.log('Current URL:', window.location.href);
                 pinButton.style.background = 'rgba(255,235,59,0.15)';
                 pinButton.style.borderColor = 'rgba(255,235,59,0.5)';
                 pinButton.style.transform = 'rotate(45deg)';
-                pinButton.title = 'Unpin window';
+                pinButton.title = 'Unpin';
                 console.log('✅ Window pinned - will stay open across pages');
             } else {
                 // Unpinned
@@ -2036,7 +2036,7 @@ console.log('Current URL:', window.location.href);
                 pinButton.style.background = 'rgba(0,0,0,0.3)';
                 pinButton.style.borderColor = 'rgba(255,255,255,0.2)';
                 pinButton.style.transform = 'rotate(0deg)';
-                pinButton.title = 'Pin window (keep open across pages)';
+                pinButton.title = 'Pin';
                 console.log('📌 Window unpinned - will close when navigating');
             }
         });
