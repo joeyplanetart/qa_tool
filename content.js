@@ -2628,8 +2628,49 @@ console.log('Current URL:', window.location.href);
                     }
                     
                     console.log('🔍 Search Store clicked:', { email, customerId });
-                    // TODO: Implement store search logic
-                    showToastNotification('Store search functionality will be implemented', 'info');
+                    
+                    // Mock data for testing UI
+                    const mockStoreData = [
+                        {
+                            email: 'joeyz@planetart.com',
+                            storeName: 'Personal Self Buy',
+                            storeId: '36531761',
+                            cpMemberNo: '148817827',
+                            swCustomerId: '41687808'
+                        },
+                        {
+                            email: 'joeyz@planetart.com',
+                            storeName: 'ADMIN_CP148817827',
+                            storeId: '36532027',
+                            cpMemberNo: '148817827',
+                            swCustomerId: '41687808'
+                        },
+                        {
+                            email: 'joeyz@planetart.com',
+                            storeName: '312shop',
+                            storeId: '36535137',
+                            cpMemberNo: '148817827',
+                            swCustomerId: '41687808'
+                        },
+                        {
+                            email: 'joeyz@planetart.com',
+                            storeName: '521shop',
+                            storeId: '36547217',
+                            cpMemberNo: '148817827',
+                            swCustomerId: '41687808'
+                        },
+                        {
+                            email: 'joeyz@planetart.com',
+                            storeName: '921shop1',
+                            storeId: '36558853',
+                            cpMemberNo: '148817827',
+                            swCustomerId: '41687808'
+                        }
+                    ];
+                    
+                    // Display mock results
+                    displayStoreSearchResults(mockStoreData);
+                    showToastNotification(`✅ Found ${mockStoreData.length} stores`, 'success');
                 });
                 
                 // Hover effects
@@ -3478,10 +3519,10 @@ console.log('Current URL:', window.location.href);
                         <input 
                             type="email" 
                             id="floating-store-email-input" 
-                            placeholder="Enter Email"
+                            placeholder="Email"
                             autocomplete="off"
                             style="
-                                width: 110px;
+                                width: 120px;
                                 padding: 8px 28px 8px 12px;
                                 border: none;
                                 border-radius: 6px;
@@ -3516,7 +3557,7 @@ console.log('Current URL:', window.location.href);
                         <input 
                             type="text" 
                             id="floating-store-customer-id-input" 
-                            placeholder="Enter SW Customer ID"
+                            placeholder="SW Customer ID"
                             autocomplete="off"
                             style="
                                 width: 92px;
@@ -3670,6 +3711,151 @@ console.log('Current URL:', window.location.href);
             <div id="floating-order-detail" style="display: none;"></div>
             <div id="floating-product-info"></div>
         `;
+    }
+    
+    // Display store search results in floating window
+    function displayStoreSearchResults(storesData) {
+        const orderDetailDiv = document.getElementById('floating-order-detail');
+        const productInfoDiv = document.getElementById('floating-product-info');
+        
+        if (!orderDetailDiv) return;
+        
+        // Hide product info, show order detail area for store results
+        if (productInfoDiv) productInfoDiv.style.display = 'none';
+        orderDetailDiv.style.display = 'block';
+        
+        // Group stores by email
+        const storesByEmail = {};
+        storesData.forEach(store => {
+            if (!storesByEmail[store.email]) {
+                storesByEmail[store.email] = [];
+            }
+            storesByEmail[store.email].push(store);
+        });
+        
+        let html = '<div style="padding: 10px;">';
+        
+        // Create a card for each email
+        Object.keys(storesByEmail).forEach(email => {
+            const stores = storesByEmail[email];
+            
+            html += `
+                <div style="
+                    background: rgba(255, 255, 255, 0.08);
+                    border-radius: 12px;
+                    padding: 16px;
+                    margin-bottom: 12px;
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                ">
+                    <!-- Email Header -->
+                    <div style="
+                        margin-bottom: 12px;
+                        padding-bottom: 12px;
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                    ">
+                        <div style="
+                            color: #ffeb3b;
+                            font-size: 14px;
+                            font-weight: bold;
+                            margin-bottom: 4px;
+                        ">📧 ${email}</div>
+                        <div style="
+                            color: rgba(255, 255, 255, 0.6);
+                            font-size: 11px;
+                        ">${stores.length} store${stores.length > 1 ? 's' : ''} found</div>
+                    </div>
+                    
+                    <!-- Stores Table -->
+                    <div style="overflow-x: auto;">
+                        <table style="
+                            width: 100%;
+                            border-collapse: collapse;
+                            font-size: 12px;
+                        ">
+                            <thead>
+                                <tr style="
+                                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                                ">
+                                    <th style="
+                                        color: rgba(255, 255, 255, 0.7);
+                                        font-weight: 600;
+                                        text-align: left;
+                                        padding: 8px 8px 8px 0;
+                                        font-size: 11px;
+                                        text-transform: uppercase;
+                                        letter-spacing: 0.5px;
+                                    ">Store Name</th>
+                                    <th style="
+                                        color: rgba(255, 255, 255, 0.7);
+                                        font-weight: 600;
+                                        text-align: left;
+                                        padding: 8px;
+                                        font-size: 11px;
+                                        text-transform: uppercase;
+                                        letter-spacing: 0.5px;
+                                    ">Store ID</th>
+                                    <th style="
+                                        color: rgba(255, 255, 255, 0.7);
+                                        font-weight: 600;
+                                        text-align: left;
+                                        padding: 8px;
+                                        font-size: 11px;
+                                        text-transform: uppercase;
+                                        letter-spacing: 0.5px;
+                                    ">CP Member No</th>
+                                    <th style="
+                                        color: rgba(255, 255, 255, 0.7);
+                                        font-weight: 600;
+                                        text-align: right;
+                                        padding: 8px 0 8px 8px;
+                                        font-size: 11px;
+                                        text-transform: uppercase;
+                                        letter-spacing: 0.5px;
+                                    ">SW Customer ID</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            stores.forEach((store, index) => {
+                html += `
+                    <tr style="
+                        ${index < stores.length - 1 ? 'border-bottom: 1px solid rgba(255, 255, 255, 0.05);' : ''}
+                    ">
+                        <td style="
+                            color: #fff;
+                            padding: 10px 8px 10px 0;
+                            font-weight: 500;
+                        ">${store.storeName || 'N/A'}</td>
+                        <td style="
+                            color: rgba(255, 255, 255, 0.9);
+                            padding: 10px 8px;
+                        ">${store.storeId || 'N/A'}</td>
+                        <td style="
+                            color: rgba(255, 255, 255, 0.9);
+                            padding: 10px 8px;
+                        ">${store.cpMemberNo || 'N/A'}</td>
+                        <td style="
+                            color: #4caf50;
+                            padding: 10px 0 10px 8px;
+                            text-align: right;
+                            font-weight: 600;
+                        ">${store.swCustomerId || 'N/A'}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        
+        orderDetailDiv.innerHTML = html;
     }
     
     // Display order details in floating window
