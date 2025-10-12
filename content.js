@@ -3270,34 +3270,7 @@ console.log('Current URL:', window.location.href);
         console.log('🔍 Content: Requesting order from background script:', orderId);
         
         try {
-            // Send message to background script to fetch order
-            const response = await chrome.runtime.sendMessage({
-                type: 'FETCH_ORDER_FROM_ADMIN',
-                orderId: orderId
-            });
-            
-            console.log('Content: Received response from background:', response);
-            
-            if (!response.success) {
-                throw new Error(response.error);
-            }
-            
-            const html = response.html;
-            console.log('Content: HTML received, length:', html.length);
-            console.log('Content: HTML preview (first 500 chars):', html.substring(0, 500));
-            
-            // Parse HTML to extract order data
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            
-            // Debug: Log all text content
-            console.log('=== DEBUG: Page Structure ===');
-            const allText = doc.body.textContent;
-            console.log('Full text length:', allText.length);
-            console.log('Text preview:', allText.substring(0, 1000));
-            
-            // Try to extract order information
-            // This is a placeholder - you'll need to adjust selectors based on actual HTML structure
+            // Initialize order data
             const orderData = {
                 orderId: orderId,
                 customerName: 'N/A',
@@ -3319,19 +3292,22 @@ console.log('Current URL:', window.location.href);
                 saleDiscount: 'N/A'
             };
             
-            // Debug: Try to find common patterns
-            console.log('=== DEBUG: Searching for order data ===');
-            
-            // Look for tables (common in admin pages)
-            const tables = doc.querySelectorAll('table');
-            console.log('Found tables:', tables.length);
-            tables.forEach((table, idx) => {
-                console.log(`Table ${idx}:`, table.textContent.substring(0, 200));
+            // ========== STEP 1: Fetch from order_tab_index.php (Order Date, Status, Customer Name) ==========
+            console.log('=== STEP 1: Fetching from order_tab_index.php ===');
+            const indexResponse = await chrome.runtime.sendMessage({
+                type: 'FETCH_ORDER_FROM_ADMIN',
+                orderId: orderId,
+                url: `https://admin.planetart.com/orders/order_tab_index.php?order_id=${orderId}`
             });
             
-            // Extract Order Date from <td> tags
-            const allTds = doc.querySelectorAll('td');
-            console.log('Found <td> elements:', allTds.length);
+            if (indexResponse.success) {
+                console.log('✓ Index page HTML received, length:', indexResponse.html.length);
+                const parser = new DOMParser();
+                const indexDoc = parser.parseFromString(indexResponse.html, 'text/html');
+                
+                // Extract Order Date, Status, Customer Name from index page
+                const allTds = indexDoc.querySelectorAll('td');
+                console.log('Found <td> elements in index page:', allTds.length);
             
             for (let i = 0; i < allTds.length; i++) {
                 const td = allTds[i];
@@ -3375,43 +3351,39 @@ console.log('Current URL:', window.location.href);
                         console.log('✓ Extracted Customer Name:', orderData.customerName);
                     }
                 }
-                
-                // Look for "Total:" or "Amount:"
-                if (tdText.includes('Total:') || tdText.includes('Amount:')) {
-                    console.log('✓ Found amount td:', tdText);
-                    const nextTd = td.nextElementSibling;
-                    if (nextTd && nextTd.tagName === 'TD') {
-                        const amount = nextTd.textContent.trim();
-                        // Add $ if not present
-                        orderData.totalAmount = amount.startsWith('$') ? amount : '$' + amount;
-                        console.log('✓ Extracted Amount:', orderData.totalAmount);
-                    }
-                }
-                
-                // Note: Email is extracted from order_tab_customer.php (see below)
-                
-                // Look for "Ship To:" or "Shipping Address:"
-                if (tdText.includes('Ship To:') || tdText.includes('Shipping Address:')) {
-                    console.log('✓ Found shipping address td:', tdText);
-                    const nextTd = td.nextElementSibling;
-                    if (nextTd && nextTd.tagName === 'TD') {
-                        orderData.shippingAddress = nextTd.textContent.trim();
-                        console.log('✓ Extracted Shipping Address:', orderData.shippingAddress);
-                    }
-                }
+            }
+            } else {
+                console.log('⚠️ Failed to fetch index page:', indexResponse.error);
             }
             
-            // Extract financial fields with specific class names
-            console.log('=== DEBUG: Extracting financial fields ===');
+            // ========== STEP 2: Fetch from order_tab_overview.php (Financial fields & Ship & Payment) ==========
+            console.log('=== STEP 2: Fetching from order_tab_overview.php ===');
+            const overviewResponse = await chrome.runtime.sendMessage({
+                type: 'FETCH_ORDER_FROM_ADMIN',
+                orderId: orderId,
+                url: `https://admin.planetart.com/orders/order_tab_overview.php?order_id=${orderId}`
+            });
+            
+            if (overviewResponse.success) {
+                console.log('✓ Overview page HTML received, length:', overviewResponse.html.length);
+                const overviewParser = new DOMParser();
+                const overviewDoc = overviewParser.parseFromString(overviewResponse.html, 'text/html');
+                
+                // Extract financial fields and Ship & Payment from overview page
+                const overviewTds = overviewDoc.querySelectorAll('td');
+                console.log('Found <td> elements in overview page:', overviewTds.length);
+            
+            // Extract financial fields from overview page
+            console.log('=== DEBUG: Extracting financial fields from overview ===');
             
             // Look for Subtotal (label in previous td)
-            allTds.forEach((td, idx) => {
+            overviewTds.forEach((td, idx) => {
                 const tdText = td.textContent.trim();
                 
                 if (tdText === 'Subtotal:' || tdText.toLowerCase() === 'subtotal:') {
                     console.log('✓ Found "Subtotal:" td');
                     // Look for next td with class "c2 tar" and colspan="2"
-                    const nextTd = allTds[idx + 1];
+                    const nextTd = overviewTds[idx + 1];
                     console.log('DEBUG: Next td after Subtotal:', nextTd);
                     if (nextTd) {
                         console.log('DEBUG: Next td classes:', nextTd.className);
@@ -3429,7 +3401,7 @@ console.log('Current URL:', window.location.href);
                 
                 if (tdText === 'S&H:' || tdText.toLowerCase() === 's&h:') {
                     console.log('✓ Found "S&H:" td');
-                    const nextTd = allTds[idx + 1];
+                    const nextTd = overviewTds[idx + 1];
                     if (nextTd) {
                         const value = nextTd.textContent.trim();
                         if (value && value !== '' && value !== 'N/A') {
@@ -3441,7 +3413,7 @@ console.log('Current URL:', window.location.href);
                 
                 if (tdText === 'TOTAL:' || tdText.toLowerCase() === 'total:') {
                     console.log('✓ Found "TOTAL:" td');
-                    const nextTd = allTds[idx + 1];
+                    const nextTd = overviewTds[idx + 1];
                     if (nextTd) {
                         const value = nextTd.textContent.trim();
                         if (value && value !== '' && value !== 'N/A') {
@@ -3453,7 +3425,7 @@ console.log('Current URL:', window.location.href);
                 
                 if (tdText === 'Sales Tax:' || tdText.toLowerCase() === 'sales tax:') {
                     console.log('✓ Found "Sales Tax:" td');
-                    const nextTd = allTds[idx + 1];
+                    const nextTd = overviewTds[idx + 1];
                     if (nextTd) {
                         const value = nextTd.textContent.trim();
                         if (value && value !== '' && value !== 'N/A') {
@@ -3465,7 +3437,7 @@ console.log('Current URL:', window.location.href);
                 
                 if (tdText === 'GRAND TOTAL:' || tdText.toLowerCase() === 'grand total:') {
                     console.log('✓ Found "GRAND TOTAL:" td');
-                    const nextTd = allTds[idx + 1];
+                    const nextTd = overviewTds[idx + 1];
                     if (nextTd) {
                         const value = nextTd.textContent.trim();
                         if (value && value !== '' && value !== 'N/A') {
@@ -3477,7 +3449,7 @@ console.log('Current URL:', window.location.href);
                 
                 if (tdText === 'Promo Code:' || tdText.toLowerCase() === 'promo code:') {
                     console.log('✓ Found "Promo Code:" td');
-                    const nextTd = allTds[idx + 1];
+                    const nextTd = overviewTds[idx + 1];
                     if (nextTd) {
                         const value = nextTd.textContent.trim();
                         if (value && value !== '' && value !== 'N/A' && value.toLowerCase() !== 'none') {
@@ -3489,7 +3461,7 @@ console.log('Current URL:', window.location.href);
                 
                 if (tdText === 'Sale Discount:' || tdText.toLowerCase() === 'sale discount:') {
                     console.log('✓ Found "Sale Discount:" td');
-                    const nextTd = allTds[idx + 1];
+                    const nextTd = overviewTds[idx + 1];
                     if (nextTd) {
                         const value = nextTd.textContent.trim();
                         if (value && value !== '' && value !== 'N/A') {
@@ -3500,11 +3472,11 @@ console.log('Current URL:', window.location.href);
                 }
             });
             
-            // Extract Ship & Payment information
-            console.log('=== DEBUG: Extracting Ship & Payment fields ===');
+            // Extract Ship & Payment information from overview page
+            console.log('=== DEBUG: Extracting Ship & Payment fields from overview ===');
             
             // 1. Ship To - from <span id="warpshipping"> with <br> tags
-            const shipToSpan = doc.querySelector('#warpshipping');
+            const shipToSpan = overviewDoc.querySelector('#warpshipping');
             if (shipToSpan) {
                 console.log('✓ Found #warpshipping span');
                 console.log('DEBUG: shipToSpan.innerHTML:', shipToSpan.innerHTML);
@@ -3530,7 +3502,7 @@ console.log('Current URL:', window.location.href);
             }
             
             // 2. Ship Method - from <td id="ship_method_tab"> looking for nearest <a> tag
-            const shipMethodTd = doc.querySelector('#ship_method_tab');
+            const shipMethodTd = overviewDoc.querySelector('#ship_method_tab');
             if (shipMethodTd) {
                 console.log('✓ Found #ship_method_tab td');
                 const shipMethodLink = shipMethodTd.querySelector('a');
@@ -3542,6 +3514,9 @@ console.log('Current URL:', window.location.href);
                 }
             } else {
                 console.log('⚠️ #ship_method_tab not found');
+            }
+            } else {
+                console.log('⚠️ Failed to fetch overview page:', overviewResponse.error);
             }
             
             // TODO: Extract items from admin page
@@ -3573,8 +3548,8 @@ console.log('Current URL:', window.location.href);
                 ];
             }
             
-            // Fetch Email from order_tab_customer.php
-            console.log('=== DEBUG: Fetching Email from order_tab_customer.php ===');
+            // ========== STEP 3: Fetch from order_tab_customer.php (Email) ==========
+            console.log('=== STEP 3: Fetching Email from order_tab_customer.php ===');
             console.log('📊 Order data BEFORE email extraction:', JSON.stringify(orderData, null, 2));
             try {
                 const customerResponse = await chrome.runtime.sendMessage({
