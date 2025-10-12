@@ -2585,7 +2585,7 @@ console.log('Current URL:', window.location.href);
                     try {
                         await approveImage(imageId);
                         showToastNotification(`✅ Image ${imageId} approved successfully!`, 'success');
-                        if (imageIdInput) imageIdInput.value = '';
+                        // Keep Image ID in input for user reference
                     } catch (error) {
                         console.error('❌ Approve failed:', error);
                         showToastNotification(`❌ Failed to approve: ${error.message}`, 'error');
@@ -2625,7 +2625,7 @@ console.log('Current URL:', window.location.href);
                     try {
                         await blockImage(imageId);
                         showToastNotification(`🚫 Image ${imageId} blocked successfully!`, 'success');
-                        if (imageIdInput) imageIdInput.value = '';
+                        // Keep Image ID in input for user reference
                     } catch (error) {
                         console.error('❌ Block failed:', error);
                         showToastNotification(`❌ Failed to block: ${error.message}`, 'error');
