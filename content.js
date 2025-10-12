@@ -3597,8 +3597,22 @@ console.log('Current URL:', window.location.href);
                 const itemWrappers = itemsDoc.querySelectorAll('div.item_wrapper');
                 console.log('Found item_wrapper divs:', itemWrappers.length);
                 
+                // Debug: If no item_wrapper found, show what we have
+                if (itemWrappers.length === 0) {
+                    console.log('⚠️ No item_wrapper found!');
+                    console.log('DEBUG: Checking for div with class containing "item"...');
+                    const allDivs = itemsDoc.querySelectorAll('div[class*="item"]');
+                    console.log(`Found ${allDivs.length} divs with "item" in class`);
+                    allDivs.forEach((div, idx) => {
+                        if (idx < 5) {
+                            console.log(`DEBUG: Div ${idx} class="${div.className}"`);
+                        }
+                    });
+                }
+                
                 itemWrappers.forEach((itemWrapper, index) => {
                     console.log(`\n=== Processing Item ${index + 1} ===`);
+                    console.log('DEBUG: itemWrapper className:', itemWrapper.className);
                     
                     const item = {
                         itemNumber: 'N/A',
