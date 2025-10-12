@@ -1987,10 +1987,10 @@ console.log('Current URL:', window.location.href);
         pinButton.title = 'Pin window (keep open across pages)';
         pinButton.style.cssText = `
             position: absolute;
-            top: 8px;
-            right: 8px;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.2);
+            top: -8px;
+            right: -8px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.3);
             color: rgba(255,255,255,0.5);
             font-size: 16px;
             cursor: pointer;
@@ -2003,6 +2003,7 @@ console.log('Current URL:', window.location.href);
             justify-content: center;
             transition: all 0.2s;
             z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         `;
         
         // Check pinned state from storage
