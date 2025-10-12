@@ -2105,10 +2105,24 @@ console.log('Current URL:', window.location.href);
             // Add search panel
             html += createSearchPanel();
             
-            // Add environment switcher
-            productInfoHtml += createEnvironmentSwitcher();
+            // Check if we have valid product data (not just "Not found")
+            const hasValidProductData = result && (
+                (result.designerName && result.designerName !== 'Not found') ||
+                (result.designId && result.designId !== 'Not found') ||
+                (result.cpProductId && result.cpProductId !== 'Not found') ||
+                (result.productsData && Object.keys(result.productsData).length > 0)
+            );
             
-            if (result && (result.designerName || result.designId || result.cpProductId || result.productsData)) {
+            console.log('🔍 Checking if should display Product Info card:');
+            console.log('  - Has designerName:', result?.designerName);
+            console.log('  - Has designId:', result?.designId);
+            console.log('  - Has cpProductId:', result?.cpProductId);
+            console.log('  - Has productsData:', result?.productsData ? 'Yes' : 'No');
+            console.log('  - Decision: hasValidProductData =', hasValidProductData);
+            
+            if (hasValidProductData) {
+                // Add environment switcher (only show on product pages)
+                productInfoHtml += createEnvironmentSwitcher();
                 // Start product info card
                 productInfoHtml += `
                     <div style="
@@ -2386,30 +2400,11 @@ console.log('Current URL:', window.location.href);
                     </div>
                 `;
             } else {
-                html = `
-                    <div style="text-align: center; padding: 20px;">
-                        <div style="color: #ffcdd2; margin-bottom: 15px;">No product information found on current page</div>
-                        <div style="font-size: 12px; margin-bottom: 15px; opacity: 0.8;">
-                            Please ensure you're on a product page with Designer info
-                        </div>
-                        <button id="cp-refresh-btn" style="
-                            background: rgba(255,255,255,0.2);
-                            border: 1px solid rgba(255,255,255,0.3);
-                            color: white;
-                            padding: 8px 16px;
-                            border-radius: 6px;
-                            cursor: pointer;
-                            font-size: 12px;
-                        ">Refresh Check</button>
-                        <button id="cp-debug-btn" style="
-                            background: rgba(255,165,0,0.6);
-                            border: 1px solid rgba(255,165,0,0.8);
-                            color: white;
-                            padding: 8px 16px;
-                            border-radius: 6px;
-                            cursor: pointer;
-                            font-size: 12px;
-                        ">Debug Page</button>
+                // No valid product data - don't show Product Info card or environment switcher
+                console.log('ℹ️ Not on a product page - hiding Product Info card and environment switcher');
+                productInfoHtml = `
+                    <div style="text-align: center; padding: 15px; color: rgba(255,255,255,0.6); font-size: 12px;">
+                        Product Info only available on product pages
                     </div>
                 `;
             }
