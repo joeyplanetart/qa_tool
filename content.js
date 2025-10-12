@@ -3388,27 +3388,7 @@ console.log('Current URL:', window.location.href);
                     }
                 }
                 
-                // Look for "Email:" - extract from first <a> tag in adjacent td
-                if (tdText === 'Email:' || tdText.toLowerCase() === 'email:') {
-                    console.log('✓ Found "Email:" td:', tdText);
-                    const nextTd = td.nextElementSibling;
-                    if (nextTd && nextTd.tagName === 'TD') {
-                        // Find first <a> tag in the td
-                        const firstLink = nextTd.querySelector('a');
-                        if (firstLink) {
-                            const emailValue = firstLink.textContent.trim();
-                            // Validate it's an email format (contains @ and .)
-                            if (emailValue && emailValue.includes('@') && emailValue.includes('.')) {
-                                orderData.email = emailValue;
-                                console.log('✓ Extracted Email from <a> tag:', orderData.email);
-                            } else {
-                                console.log('⚠️ Found <a> tag but value is not email format:', emailValue);
-                            }
-                        } else {
-                            console.log('⚠️ No <a> tag found in Email td');
-                        }
-                    }
-                }
+                // Note: Email is extracted from order_tab_customer.php (see below)
                 
                 // Look for "Ship To:" or "Shipping Address:"
                 if (tdText.includes('Ship To:') || tdText.includes('Shipping Address:')) {
@@ -3565,6 +3545,64 @@ console.log('Current URL:', window.location.href);
                         unitPrice: '$14.84'
                     }
                 ];
+            }
+            
+            // Fetch Email from order_tab_customer.php
+            console.log('=== DEBUG: Fetching Email from order_tab_customer.php ===');
+            try {
+                const customerResponse = await chrome.runtime.sendMessage({
+                    type: 'FETCH_ORDER_FROM_ADMIN',
+                    orderId: orderId,
+                    url: `https://admin.planetart.com/orders/order_tab_customer.php?order_id=${orderId}`
+                });
+                
+                if (customerResponse.success) {
+                    console.log('✓ Customer page HTML received, length:', customerResponse.html.length);
+                    
+                    const customerParser = new DOMParser();
+                    const customerDoc = customerParser.parseFromString(customerResponse.html, 'text/html');
+                    
+                    // Extract Email from customer page
+                    const customerTds = customerDoc.querySelectorAll('td');
+                    for (let i = 0; i < customerTds.length; i++) {
+                        const td = customerTds[i];
+                        const tdText = td.textContent.trim();
+                        
+                        if (tdText === 'Email:' || tdText.toLowerCase() === 'email:') {
+                            console.log('✓ Found "Email:" td in customer page');
+                            const nextTd = td.nextElementSibling;
+                            if (nextTd && nextTd.tagName === 'TD') {
+                                // Find first <a> tag in the td
+                                const firstLink = nextTd.querySelector('a');
+                                if (firstLink) {
+                                    const emailValue = firstLink.textContent.trim();
+                                    // Validate it's an email format (contains @ and .)
+                                    if (emailValue && emailValue.includes('@') && emailValue.includes('.')) {
+                                        orderData.email = emailValue;
+                                        console.log('✓ Extracted Email from customer page:', orderData.email);
+                                        break;
+                                    } else {
+                                        console.log('⚠️ Found <a> tag but value is not email format:', emailValue);
+                                    }
+                                } else {
+                                    // Try to get text content directly
+                                    const emailValue = nextTd.textContent.trim();
+                                    if (emailValue && emailValue.includes('@') && emailValue.includes('.')) {
+                                        orderData.email = emailValue;
+                                        console.log('✓ Extracted Email from text content:', orderData.email);
+                                        break;
+                                    } else {
+                                        console.log('⚠️ No valid email found in td');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    console.log('⚠️ Failed to fetch customer page:', customerResponse.error);
+                }
+            } catch (emailError) {
+                console.log('⚠️ Error fetching email from customer page:', emailError);
             }
             
             console.log('✅ Extracted order data:', orderData);

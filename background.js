@@ -6,7 +6,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'FETCH_ORDER_FROM_ADMIN') {
         console.log('🔍 Background: Fetching order from Admin:', request.orderId);
         
-        const adminUrl = `https://admin.planetart.com/orders/order_tab_index.php?order_id=${request.orderId}`;
+        // Use custom URL if provided, otherwise default to order_tab_index.php
+        const adminUrl = request.url || `https://admin.planetart.com/orders/order_tab_index.php?order_id=${request.orderId}`;
         console.log('Background: Admin URL:', adminUrl);
         
         fetch(adminUrl, {
