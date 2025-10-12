@@ -3592,6 +3592,7 @@ console.log('Current URL:', window.location.href);
                 
                 itemBars.forEach((itemBar, index) => {
                     console.log(`\n=== Processing Item ${index + 1} ===`);
+                    console.log('DEBUG: itemBar HTML:', itemBar.innerHTML.substring(0, 500));
                     
                     const item = {
                         itemNumber: 'N/A',
@@ -3611,62 +3612,63 @@ console.log('Current URL:', window.location.href);
                         }
                     });
                     
-                    // Find all <span class="fl"> labels
-                    const labels = itemBar.querySelectorAll('span.fl');
-                    labels.forEach(label => {
-                        const labelText = label.textContent.trim();
-                        
-                        if (labelText === 'Design:') {
-                            // Get Design from nearest <a> tag
-                            let nextElement = label.nextElementSibling;
-                            while (nextElement) {
-                                if (nextElement.tagName === 'A') {
-                                    item.designId = nextElement.textContent.trim();
-                                    console.log('✓ Extracted Design:', item.designId);
-                                    break;
-                                }
-                                nextElement = nextElement.nextElementSibling;
-                            }
-                        } else if (labelText === 'Qty:') {
-                            // Get Qty from nearest <span class="fr">
-                            let nextElement = label.nextElementSibling;
-                            while (nextElement) {
-                                if (nextElement.tagName === 'SPAN' && nextElement.classList.contains('fr')) {
-                                    item.quantity = nextElement.textContent.trim();
-                                    console.log('✓ Extracted Qty:', item.quantity);
-                                    break;
-                                }
-                                nextElement = nextElement.nextElementSibling;
-                            }
-                        } else if (labelText === 'Unit Price Paid:') {
-                            // Get Unit Price Paid from nearest <span class="fr">
-                            let nextElement = label.nextElementSibling;
-                            while (nextElement) {
-                                if (nextElement.tagName === 'SPAN' && nextElement.classList.contains('fr')) {
-                                    item.unitPrice = nextElement.textContent.trim();
-                                    console.log('✓ Extracted Unit Price:', item.unitPrice);
-                                    break;
-                                }
-                                nextElement = nextElement.nextElementSibling;
-                            }
-                        } else if (labelText === 'Amount:') {
-                            // Get Amount from nearest <span class="fr">
-                            let nextElement = label.nextElementSibling;
-                            while (nextElement) {
-                                if (nextElement.tagName === 'SPAN' && nextElement.classList.contains('fr')) {
-                                    item.totalPrice = nextElement.textContent.trim();
-                                    console.log('✓ Extracted Amount:', item.totalPrice);
-                                    break;
-                                }
-                                nextElement = nextElement.nextElementSibling;
+                    // Try to find Design from <a> tags in the item_bar
+                    const designLinks = itemBar.querySelectorAll('a');
+                    if (designLinks.length > 0) {
+                        // Get the first valid design link (usually contains numbers)
+                        for (let link of designLinks) {
+                            const linkText = link.textContent.trim();
+                            if (linkText && linkText.length > 0 && /\d/.test(linkText)) {
+                                item.designId = linkText;
+                                console.log('✓ Extracted Design from <a>:', item.designId);
+                                break;
                             }
                         }
-                    });
+                    }
+                    
+                    // Find all <span class="fl"> and <span class="fr"> pairs
+                    const allSpans = itemBar.querySelectorAll('span');
+                    console.log(`DEBUG: Found ${allSpans.length} span elements in item`);
+                    
+                    for (let i = 0; i < allSpans.length; i++) {
+                        const span = allSpans[i];
+                        const text = span.textContent.trim();
+                        
+                        // Look for labels and find their corresponding values
+                        if (span.classList.contains('fl')) {
+                            console.log(`DEBUG: Found label span: "${text}"`);
+                            
+                            // Find the next <span class="fr"> after this label
+                            for (let j = i + 1; j < allSpans.length; j++) {
+                                if (allSpans[j].classList.contains('fr')) {
+                                    const value = allSpans[j].textContent.trim();
+                                    console.log(`DEBUG: Found corresponding value: "${value}"`);
+                                    
+                                    if (text === 'Qty:') {
+                                        item.quantity = value;
+                                        console.log('✓ Extracted Qty:', item.quantity);
+                                        break;
+                                    } else if (text === 'Unit Price Paid:') {
+                                        item.unitPrice = value;
+                                        console.log('✓ Extracted Unit Price:', item.unitPrice);
+                                        break;
+                                    } else if (text === 'Amount:') {
+                                        item.totalPrice = value;
+                                        console.log('✓ Extracted Amount:', item.totalPrice);
+                                        break;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
                     
                     // Add item to orderData if we got at least the item number
                     if (item.itemNumber !== 'N/A') {
                         orderData.items.push(item);
                         console.log('✓ Added item to order:', item);
+                    } else {
+                        console.log('⚠️ Skipping item - no Item ID found');
                     }
                 });
                 
