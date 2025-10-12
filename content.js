@@ -2044,10 +2044,10 @@ console.log('Current URL:', window.location.href);
         pinButton.addEventListener('mouseenter', () => {
             const isPinned = localStorage.getItem('cp-window-pinned') === 'true';
             if (isPinned) {
-                pinButton.style.background = 'rgba(255,235,59,1)';
+                pinButton.style.background = 'rgba(255,245,157,0.95)';
                 pinButton.style.boxShadow = '0 4px 15px rgba(255,235,59,0.5)';
             } else {
-                pinButton.style.background = 'rgba(255,255,255,1)';
+                pinButton.style.background = 'rgba(255,255,255,0.95)';
                 pinButton.style.boxShadow = '0 4px 15px rgba(255,255,255,0.5)';
             }
         });
