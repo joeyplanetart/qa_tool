@@ -3844,9 +3844,8 @@ console.log('Current URL:', window.location.href);
                                 font-size: 11px;
                             ">SW Customer ID:</span>
                             <span style="
-                                color: #4caf50;
+                                color: rgba(255, 255, 255, 0.9);
                                 font-size: 12px;
-                                font-weight: 600;
                             ">${store.swCustomerId || 'N/A'}</span>
                         </div>
                     </div>
