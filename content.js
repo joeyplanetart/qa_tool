@@ -3388,13 +3388,25 @@ console.log('Current URL:', window.location.href);
                     }
                 }
                 
-                // Look for "Email:"
-                if (tdText.includes('Email:')) {
-                    console.log('✓ Found email td:', tdText);
+                // Look for "Email:" - extract from first <a> tag in adjacent td
+                if (tdText === 'Email:' || tdText.toLowerCase() === 'email:') {
+                    console.log('✓ Found "Email:" td:', tdText);
                     const nextTd = td.nextElementSibling;
                     if (nextTd && nextTd.tagName === 'TD') {
-                        orderData.email = nextTd.textContent.trim();
-                        console.log('✓ Extracted Email:', orderData.email);
+                        // Find first <a> tag in the td
+                        const firstLink = nextTd.querySelector('a');
+                        if (firstLink) {
+                            const emailValue = firstLink.textContent.trim();
+                            // Validate it's an email format (contains @ and .)
+                            if (emailValue && emailValue.includes('@') && emailValue.includes('.')) {
+                                orderData.email = emailValue;
+                                console.log('✓ Extracted Email from <a> tag:', orderData.email);
+                            } else {
+                                console.log('⚠️ Found <a> tag but value is not email format:', emailValue);
+                            }
+                        } else {
+                            console.log('⚠️ No <a> tag found in Email td');
+                        }
                     }
                 }
                 
