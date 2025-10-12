@@ -136,6 +136,96 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Return true to indicate async response
         return true;
     }
+    
+    if (request.type === 'SEARCH_STORE') {
+        console.log('🔍 Background: Search Store request:', request);
+        
+        const email = request.email || '';
+        const swCustomerId = request.swCustomerId || '';
+        const environment = request.environment || 'pre';
+        
+        // Determine Admin API URL based on environment
+        const apiBaseUrls = {
+            'pre': 'https://admin-cpsw-web.pre.planetart.com',
+            'stage': 'https://admin-cpsw-web.stage.planetart.com',
+            'live': 'https://admin.planetart.com'
+        };
+        
+        const apiBaseUrl = apiBaseUrls[environment] || apiBaseUrls['pre'];
+        const apiUrl = `${apiBaseUrl}/ajax/ajax_cp_seller_store.php`;
+        
+        console.log(`Environment: ${environment}`);
+        console.log(`API URL: ${apiUrl}`);
+        console.log(`Search params: email=${email}, sw_customer_id=${swCustomerId}`);
+        
+        // Construct form data
+        const formData = new URLSearchParams();
+        if (email) formData.append('email', email);
+        if (swCustomerId) formData.append('sw_customer_id', swCustomerId);
+        
+        fetch(apiUrl, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json, text/javascript, */*; q=0.01',
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: formData.toString()
+        })
+        .then(response => {
+            console.log('Background: Response status:', response.status);
+            
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error('Unauthorized - Please login via SSO first');
+                }
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return response.json();
+        })
+        .then(data => {
+            console.log('Background: API response data:', data);
+            
+            // Parse the response data
+            let stores = [];
+            
+            if (data && data.stores && Array.isArray(data.stores)) {
+                stores = data.stores.map(store => ({
+                    email: store.email || email,
+                    storeName: store.store_name || store.storeName || 'N/A',
+                    storeId: store.store_id || store.storeId || 'N/A',
+                    cpMemberNo: store.cp_member_no || store.cpMemberNo || 'N/A',
+                    swCustomerId: store.sw_customer_id || store.swCustomerId || swCustomerId || 'N/A'
+                }));
+            } else if (Array.isArray(data)) {
+                // If data is directly an array
+                stores = data.map(store => ({
+                    email: store.email || email,
+                    storeName: store.store_name || store.storeName || 'N/A',
+                    storeId: store.store_id || store.storeId || 'N/A',
+                    cpMemberNo: store.cp_member_no || store.cpMemberNo || 'N/A',
+                    swCustomerId: store.sw_customer_id || store.swCustomerId || swCustomerId || 'N/A'
+                }));
+            }
+            
+            sendResponse({
+                success: true,
+                data: stores
+            });
+        })
+        .catch(error => {
+            console.error('Background: Error:', error);
+            sendResponse({
+                success: false,
+                error: error.message
+            });
+        });
+        
+        // Return true to indicate async response
+        return true;
+    }
 });
 
 // Handle extension icon click

@@ -2618,7 +2618,7 @@ console.log('Current URL:', window.location.href);
             }
             
             if (searchStoreBtn) {
-                searchStoreBtn.addEventListener('click', function() {
+                searchStoreBtn.addEventListener('click', async function() {
                     const email = storeEmailInput ? storeEmailInput.value.trim() : '';
                     const customerId = storeCustomerIdInput ? storeCustomerIdInput.value.trim() : '';
                     
@@ -2629,48 +2629,58 @@ console.log('Current URL:', window.location.href);
                     
                     console.log('🔍 Search Store clicked:', { email, customerId });
                     
-                    // Mock data for testing UI
-                    const mockStoreData = [
-                        {
-                            email: 'joeyz@planetart.com',
-                            storeName: 'Personal Self Buy',
-                            storeId: '36531761',
-                            cpMemberNo: '148817827',
-                            swCustomerId: '41687808'
-                        },
-                        {
-                            email: 'joeyz@planetart.com',
-                            storeName: 'ADMIN_CP148817827',
-                            storeId: '36532027',
-                            cpMemberNo: '148817827',
-                            swCustomerId: '41687808'
-                        },
-                        {
-                            email: 'joeyz@planetart.com',
-                            storeName: '312shop',
-                            storeId: '36535137',
-                            cpMemberNo: '148817827',
-                            swCustomerId: '41687808'
-                        },
-                        {
-                            email: 'joeyz@planetart.com',
-                            storeName: '521shop',
-                            storeId: '36547217',
-                            cpMemberNo: '148817827',
-                            swCustomerId: '41687808'
-                        },
-                        {
-                            email: 'joeyz@planetart.com',
-                            storeName: '921shop1',
-                            storeId: '36558853',
-                            cpMemberNo: '148817827',
-                            swCustomerId: '41687808'
-                        }
-                    ];
+                    // Disable button and show loading state
+                    searchStoreBtn.disabled = true;
+                    searchStoreBtn.textContent = 'Searching...';
                     
-                    // Display mock results
-                    displayStoreSearchResults(mockStoreData);
-                    showToastNotification(`✅ Found ${mockStoreData.length} stores`, 'success');
+                    try {
+                        const environment = detectEnvironment();
+                        console.log('Current environment:', environment);
+                        
+                        const response = await chrome.runtime.sendMessage({
+                            type: 'SEARCH_STORE',
+                            email: email,
+                            swCustomerId: customerId,
+                            environment: environment
+                        });
+                        
+                        if (!response.success) {
+                            throw new Error(response.error || 'Failed to search stores');
+                        }
+                        
+                        console.log('✅ Store search successful:', response.data);
+                        
+                        if (response.data && response.data.length > 0) {
+                            displayStoreSearchResults(response.data);
+                            showToastNotification(`✅ Found ${response.data.length} store${response.data.length > 1 ? 's' : ''}`, 'success');
+                        } else {
+                            // Show no results message
+                            const orderDetailDiv = document.getElementById('floating-order-detail');
+                            const productInfoDiv = document.getElementById('floating-product-info');
+                            
+                            if (orderDetailDiv) {
+                                if (productInfoDiv) productInfoDiv.style.display = 'none';
+                                orderDetailDiv.style.display = 'block';
+                                orderDetailDiv.innerHTML = `
+                                    <div style="
+                                        padding: 20px;
+                                        text-align: center;
+                                        color: rgba(255, 255, 255, 0.7);
+                                    ">
+                                        <div style="font-size: 48px; margin-bottom: 10px;">🔍</div>
+                                        <div style="font-size: 14px;">No stores found</div>
+                                    </div>
+                                `;
+                            }
+                            showToastNotification('No stores found', 'info');
+                        }
+                    } catch (error) {
+                        console.error('❌ Store search failed:', error);
+                        showToastNotification(`❌ Search failed: ${error.message}`, 'error');
+                    } finally {
+                        searchStoreBtn.disabled = false;
+                        searchStoreBtn.textContent = 'Search Store';
+                    }
                 });
                 
                 // Hover effects
