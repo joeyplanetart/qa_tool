@@ -3575,11 +3575,33 @@ console.log('Current URL:', window.location.href);
             
             // ========== STEP 3: Fetch from order_tab_items.php (Order Items) ==========
             console.log('=== STEP 3: Fetching Order Items from order_tab_items.php ===');
-            const itemsResponse = await chrome.runtime.sendMessage({
+            
+            // First, get the main items page to determine items_count
+            const itemsPageResponse = await chrome.runtime.sendMessage({
                 type: 'FETCH_ORDER_FROM_ADMIN',
                 orderId: orderId,
                 url: `https://admin.planetart.com/orders/order_tab_items.php?order_id=${orderId}`
             });
+            
+            let itemsCount = 2; // Default fallback
+            if (itemsPageResponse.success) {
+                // Try to extract items_count from the page
+                const countMatch = itemsPageResponse.html.match(/items_count=(\d+)/);
+                if (countMatch) {
+                    itemsCount = parseInt(countMatch[1]);
+                    console.log(`✓ Detected ${itemsCount} items in order`);
+                }
+            }
+            
+            // Now fetch each item via AJAX endpoint
+            console.log(`Fetching ${itemsCount} items via AJAX...`);
+            for (let itemNum = 1; itemNum <= itemsCount; itemNum++) {
+                console.log(`\n=== Fetching Item ${itemNum} of ${itemsCount} ===`);
+                const itemsResponse = await chrome.runtime.sendMessage({
+                    type: 'FETCH_ORDER_FROM_ADMIN',
+                    orderId: orderId,
+                    url: `https://admin.planetart.com/orders/order_tab_item_ajax.php?item_number=${itemNum}&items_count=${itemsCount}&fp_only=0&order_id=${orderId}`
+                });
             
             if (itemsResponse.success) {
                 console.log('✓ Items page HTML received, length:', itemsResponse.html.length);
@@ -3688,10 +3710,13 @@ console.log('Current URL:', window.location.href);
                     }
                 });
                 
-                console.log(`✓ Total items extracted: ${orderData.items.length}`);
+                console.log(`✓ Item ${itemNum} processed, total items so far: ${orderData.items.length}`);
             } else {
-                console.log('⚠️ Failed to fetch items page:', itemsResponse.error);
+                console.log(`⚠️ Failed to fetch item ${itemNum}:`, itemsResponse.error);
             }
+            }
+            
+            console.log(`✓ Total items extracted: ${orderData.items.length}`);
             
             // ========== STEP 4: Fetch from order_tab_customer.php (Email) ==========
             console.log('=== STEP 4: Fetching Email from order_tab_customer.php ===');
