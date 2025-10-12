@@ -3481,7 +3481,7 @@ console.log('Current URL:', window.location.href);
                             placeholder="Enter Email"
                             autocomplete="off"
                             style="
-                                width: 140px;
+                                width: 70px;
                                 padding: 8px 28px 8px 12px;
                                 border: none;
                                 border-radius: 6px;
@@ -3519,7 +3519,7 @@ console.log('Current URL:', window.location.href);
                             placeholder="Enter SW Customer ID"
                             autocomplete="off"
                             style="
-                                width: 140px;
+                                width: 70px;
                                 padding: 8px 28px 8px 12px;
                                 border: none;
                                 border-radius: 6px;
