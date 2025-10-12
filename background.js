@@ -57,17 +57,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         
         const imageId = request.imageId;
         const action = request.action; // 'approve' or 'block'
-        const statusNo = action === 'approve' ? 1 : 0; // 1 for approve, 0 for block
+        const statusNo = action === 'approve' ? 1 : -1; // 1 for approve, -1 for block
         
         // Construct form data
         const formData = new URLSearchParams();
         formData.append('image_ids[]', imageId);
         formData.append('status_no', statusNo);
+        
+        // Add reason_no for block action
+        if (action === 'block') {
+            formData.append('reason_no', 1);
+        }
+        
         formData.append('channel', 'MP');
         
         const apiUrl = 'https://admin-cpsw-web.pre.planetart.com/ajax/ajax_cp_cup_tool_approve.php';
         
-        console.log(`Background: ${action === 'approve' ? 'Approving' : 'Blocking'} image ${imageId}, status_no: ${statusNo}`);
+        console.log(`Background: ${action === 'approve' ? 'Approving' : 'Blocking'} image ${imageId}`);
+        console.log('FormData:', {
+            'image_ids[]': imageId,
+            'status_no': statusNo,
+            'reason_no': action === 'block' ? 1 : undefined,
+            'channel': 'MP'
+        });
         
         fetch(apiUrl, {
             method: 'POST',
