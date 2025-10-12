@@ -3545,16 +3545,26 @@ console.log('Current URL:', window.location.href);
                 console.log('⚠️ #warpshipping not found');
             }
             
-            // 2. Ship Method - from <td id="ship_method_tab"> looking for nearest <a> tag
+            // 2. Ship Method - from <td id="ship_method_tab"> looking for <span> or <a> tag
             const shipMethodTd = overviewDoc.querySelector('#ship_method_tab');
             if (shipMethodTd) {
                 console.log('✓ Found #ship_method_tab td');
-                const shipMethodLink = shipMethodTd.querySelector('a');
-                if (shipMethodLink) {
-                    orderData.shipMethod = shipMethodLink.textContent.trim();
-                    console.log('✓ Extracted Ship Method:', orderData.shipMethod);
+                console.log('DEBUG: #ship_method_tab innerHTML:', shipMethodTd.innerHTML);
+                
+                // Try to find <span> tag first (more common)
+                let shipMethodSpan = shipMethodTd.querySelector('span');
+                if (shipMethodSpan) {
+                    orderData.shipMethod = shipMethodSpan.textContent.trim();
+                    console.log('✓ Extracted Ship Method from <span>:', orderData.shipMethod);
                 } else {
-                    console.log('⚠️ <a> tag not found in #ship_method_tab');
+                    // Fallback to <a> tag
+                    const shipMethodLink = shipMethodTd.querySelector('a');
+                    if (shipMethodLink) {
+                        orderData.shipMethod = shipMethodLink.textContent.trim();
+                        console.log('✓ Extracted Ship Method from <a>:', orderData.shipMethod);
+                    } else {
+                        console.log('⚠️ Neither <span> nor <a> tag found in #ship_method_tab');
+                    }
                 }
             } else {
                 console.log('⚠️ #ship_method_tab not found');
