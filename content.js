@@ -2105,8 +2105,12 @@ console.log('Current URL:', window.location.href);
             // Add search panel
             html += createSearchPanel();
             
+            // Check if we're on a product page by URL pattern
+            const currentUrl = window.location.href;
+            const isProductPage = currentUrl.match(/\/\+[^/]+,\d+/) !== null; // Matches pattern like /+product-name,123456
+            
             // Check if we have valid product data (not just "Not found")
-            const hasValidProductData = result && (
+            const hasValidProductData = isProductPage && result && (
                 (result.designerName && result.designerName !== 'Not found') ||
                 (result.designId && result.designId !== 'Not found') ||
                 (result.cpProductId && result.cpProductId !== 'Not found') ||
@@ -2114,6 +2118,8 @@ console.log('Current URL:', window.location.href);
             );
             
             console.log('🔍 Checking if should display Product Info card:');
+            console.log('  - Current URL:', currentUrl);
+            console.log('  - Is product page (by URL):', isProductPage);
             console.log('  - Has designerName:', result?.designerName);
             console.log('  - Has designId:', result?.designId);
             console.log('  - Has cpProductId:', result?.cpProductId);
