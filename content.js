@@ -1987,8 +1987,8 @@ console.log('Current URL:', window.location.href);
         pinButton.title = 'Pin window (keep open across pages)';
         pinButton.style.cssText = `
             position: absolute;
-            top: 5px;
-            right: 40px;
+            top: 8px;
+            right: 8px;
             background: rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.2);
             color: rgba(255,255,255,0.5);
@@ -2002,7 +2002,7 @@ console.log('Current URL:', window.location.href);
             align-items: center;
             justify-content: center;
             transition: all 0.2s;
-            z-index: 10;
+            z-index: 1000;
         `;
         
         // Check pinned state from storage
@@ -2125,7 +2125,6 @@ console.log('Current URL:', window.location.href);
         
         header.appendChild(title);
         header.appendChild(ssoButton);
-        header.appendChild(pinButton);
         header.appendChild(closeButton);
         
         // Create content area
@@ -2139,6 +2138,7 @@ console.log('Current URL:', window.location.href);
         
         floatingWindow.appendChild(header);
         floatingWindow.appendChild(content);
+        floatingWindow.appendChild(pinButton);  // Add pin button to floating window container
         document.body.appendChild(floatingWindow);
         
         return floatingWindow;
