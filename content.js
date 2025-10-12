@@ -3412,64 +3412,90 @@ console.log('Current URL:', window.location.href);
                     console.log('✓ Found "Subtotal:" td');
                     // Look for next td with class "c2 tar" and colspan="2"
                     const nextTd = allTds[idx + 1];
-                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar') && nextTd.getAttribute('colspan') === '2') {
-                        orderData.subtotal = nextTd.textContent.trim();
-                        console.log('✓ Extracted Subtotal:', orderData.subtotal);
+                    console.log('DEBUG: Next td after Subtotal:', nextTd);
+                    if (nextTd) {
+                        console.log('DEBUG: Next td classes:', nextTd.className);
+                        console.log('DEBUG: Next td colspan:', nextTd.getAttribute('colspan'));
+                        console.log('DEBUG: Next td text:', nextTd.textContent.trim());
+                        
+                        // Relaxed condition: just check if next td exists and has content
+                        const value = nextTd.textContent.trim();
+                        if (value && value !== '' && value !== 'N/A') {
+                            orderData.subtotal = value;
+                            console.log('✓ Extracted Subtotal:', orderData.subtotal);
+                        }
                     }
                 }
                 
                 if (tdText === 'S&H:' || tdText.toLowerCase() === 's&h:') {
                     console.log('✓ Found "S&H:" td');
                     const nextTd = allTds[idx + 1];
-                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar') && nextTd.getAttribute('colspan') === '2') {
-                        orderData.shippingHandling = nextTd.textContent.trim();
-                        console.log('✓ Extracted S&H:', orderData.shippingHandling);
+                    if (nextTd) {
+                        const value = nextTd.textContent.trim();
+                        if (value && value !== '' && value !== 'N/A') {
+                            orderData.shippingHandling = value;
+                            console.log('✓ Extracted S&H:', orderData.shippingHandling);
+                        }
                     }
                 }
                 
                 if (tdText === 'TOTAL:' || tdText.toLowerCase() === 'total:') {
                     console.log('✓ Found "TOTAL:" td');
                     const nextTd = allTds[idx + 1];
-                    if (nextTd && nextTd.classList.contains('c1') && nextTd.classList.contains('tar') && nextTd.getAttribute('colspan') === '2') {
-                        // Extract text and remove <b> tags
-                        orderData.total = nextTd.textContent.trim();
-                        console.log('✓ Extracted TOTAL:', orderData.total);
+                    if (nextTd) {
+                        const value = nextTd.textContent.trim();
+                        if (value && value !== '' && value !== 'N/A') {
+                            orderData.total = value;
+                            console.log('✓ Extracted TOTAL:', orderData.total);
+                        }
                     }
                 }
                 
                 if (tdText === 'Sales Tax:' || tdText.toLowerCase() === 'sales tax:') {
                     console.log('✓ Found "Sales Tax:" td');
                     const nextTd = allTds[idx + 1];
-                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar') && nextTd.getAttribute('colspan') === '2') {
-                        orderData.salesTax = nextTd.textContent.trim();
-                        console.log('✓ Extracted Sales Tax:', orderData.salesTax);
+                    if (nextTd) {
+                        const value = nextTd.textContent.trim();
+                        if (value && value !== '' && value !== 'N/A') {
+                            orderData.salesTax = value;
+                            console.log('✓ Extracted Sales Tax:', orderData.salesTax);
+                        }
                     }
                 }
                 
                 if (tdText === 'GRAND TOTAL:' || tdText.toLowerCase() === 'grand total:') {
                     console.log('✓ Found "GRAND TOTAL:" td');
                     const nextTd = allTds[idx + 1];
-                    if (nextTd && nextTd.classList.contains('c2') && nextTd.classList.contains('tar') && nextTd.getAttribute('colspan') === '2') {
-                        orderData.grandTotal = nextTd.textContent.trim();
-                        console.log('✓ Extracted GRAND TOTAL:', orderData.grandTotal);
+                    if (nextTd) {
+                        const value = nextTd.textContent.trim();
+                        if (value && value !== '' && value !== 'N/A') {
+                            orderData.grandTotal = value;
+                            console.log('✓ Extracted GRAND TOTAL:', orderData.grandTotal);
+                        }
                     }
                 }
                 
                 if (tdText === 'Promo Code:' || tdText.toLowerCase() === 'promo code:') {
                     console.log('✓ Found "Promo Code:" td');
                     const nextTd = allTds[idx + 1];
-                    if (nextTd && nextTd.classList.contains('c30')) {
-                        orderData.promoCode = nextTd.textContent.trim();
-                        console.log('✓ Extracted Promo Code:', orderData.promoCode);
+                    if (nextTd) {
+                        const value = nextTd.textContent.trim();
+                        if (value && value !== '' && value !== 'N/A' && value.toLowerCase() !== 'none') {
+                            orderData.promoCode = value;
+                            console.log('✓ Extracted Promo Code:', orderData.promoCode);
+                        }
                     }
                 }
                 
                 if (tdText === 'Sale Discount:' || tdText.toLowerCase() === 'sale discount:') {
                     console.log('✓ Found "Sale Discount:" td');
                     const nextTd = allTds[idx + 1];
-                    if (nextTd && nextTd.classList.contains('c30')) {
-                        orderData.saleDiscount = nextTd.textContent.trim();
-                        console.log('✓ Extracted Sale Discount:', orderData.saleDiscount);
+                    if (nextTd) {
+                        const value = nextTd.textContent.trim();
+                        if (value && value !== '' && value !== 'N/A') {
+                            orderData.saleDiscount = value;
+                            console.log('✓ Extracted Sale Discount:', orderData.saleDiscount);
+                        }
                     }
                 }
             });
