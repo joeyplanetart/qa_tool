@@ -1971,7 +1971,7 @@ console.log('Current URL:', window.location.href);
         `;
         
         const title = document.createElement('h3');
-        title.textContent = 'Cafepress Product Info';
+        title.textContent = 'Cafepress QA Tools';
         title.style.cssText = `
             margin: 0;
             font-size: 16px;

@@ -1,5 +1,5 @@
-// Background script for CP Product Info
-console.log('CP Product Info background script loaded');
+// Background script for Cafepress QA Tools
+console.log('Cafepress QA Tools background script loaded');
 
 // Handle order fetch requests from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

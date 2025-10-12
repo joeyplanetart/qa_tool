@@ -1,13 +1,16 @@
-# CP Product Info Chrome插件
+# Cafepress QA Tools Chrome插件
 
-这是一个轻量级的Chrome插件，用于从特定的URL中自动提取ProductId。
+这是一个为Cafepress QA团队开发的Chrome插件，提供产品信息提取和订单查询功能。
 
 ## 功能特性
 
-- 🔍 自动检测并提取URL中的ProductId
-- 📊 实时显示提取结果
+- 🔍 自动检测并提取产品信息（Designer、DesignId、CP Product ID等）
+- 📦 订单查询功能（通过Admin系统）
+- 🌍 环境切换（Pre/Stage/Live）
+- 📊 实时显示产品和订单数据
 - 💾 自动保存提取历史
 - 🔄 支持SPA页面的URL变化检测
+- 🔐 SSO登录集成
 
 ## 支持的URL格式
 

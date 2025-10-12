@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "CP Product Info",
+  "name": "Cafepress QA Tools",
   "version": "1.0",
-  "description": "Extract productId from specific URLs",
+  "description": "QA tools for Cafepress: product info extraction and order lookup",
   "permissions": [
     "activeTab",
     "storage",
@@ -55,7 +55,7 @@
     }
   ],
   "action": {
-    "default_title": "CP Product Info",
+    "default_title": "Cafepress QA Tools",
     "default_icon": {
       "16": "icon16.png",
       "24": "icon48.png",
