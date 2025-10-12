@@ -3531,6 +3531,9 @@ console.log('Current URL:', window.location.href);
                             id="floating-store-email-input" 
                             placeholder="Email"
                             autocomplete="off"
+                            autocorrect="off"
+                            autocapitalize="off"
+                            spellcheck="false"
                             style="
                                 width: 120px;
                                 padding: 8px 28px 8px 12px;
@@ -3569,6 +3572,9 @@ console.log('Current URL:', window.location.href);
                             id="floating-store-customer-id-input" 
                             placeholder="SW Customer ID"
                             autocomplete="off"
+                            autocorrect="off"
+                            autocapitalize="off"
+                            spellcheck="false"
                             style="
                                 width: 92px;
                                 padding: 8px 28px 8px 12px;
