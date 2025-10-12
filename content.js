@@ -2552,6 +2552,67 @@ console.log('Current URL:', window.location.href);
                 console.log('✓ PDP button event listener added to floating window');
             }
             
+            // Add image approval functionality event listeners
+            const imageIdInput = content.querySelector('#floating-image-id-input');
+            const approveBtn = content.querySelector('#floating-approve-btn');
+            const blockBtn = content.querySelector('#floating-block-btn');
+            
+            if (imageIdInput) {
+                imageIdInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        // Trigger approve by default on Enter
+                        if (approveBtn) {
+                            approveBtn.click();
+                        }
+                    }
+                });
+                console.log('✓ Image ID input enter key listener added');
+            }
+            
+            if (approveBtn) {
+                approveBtn.addEventListener('click', function() {
+                    const imageId = imageIdInput ? imageIdInput.value.trim() : '';
+                    if (!imageId) {
+                        console.log('⚠️ No Image ID entered');
+                        return;
+                    }
+                    console.log('✅ Approve clicked for Image ID:', imageId);
+                    // TODO: Implement approve logic
+                    alert(`Approve functionality will be implemented for Image ID: ${imageId}`);
+                });
+                
+                approveBtn.addEventListener('mouseenter', () => {
+                    approveBtn.style.background = '#66bb6a';
+                });
+                approveBtn.addEventListener('mouseleave', () => {
+                    approveBtn.style.background = '#4caf50';
+                });
+                
+                console.log('✓ Approve button event listener added');
+            }
+            
+            if (blockBtn) {
+                blockBtn.addEventListener('click', function() {
+                    const imageId = imageIdInput ? imageIdInput.value.trim() : '';
+                    if (!imageId) {
+                        console.log('⚠️ No Image ID entered');
+                        return;
+                    }
+                    console.log('🚫 Block clicked for Image ID:', imageId);
+                    // TODO: Implement block logic
+                    alert(`Block functionality will be implemented for Image ID: ${imageId}`);
+                });
+                
+                blockBtn.addEventListener('mouseenter', () => {
+                    blockBtn.style.background = '#e57373';
+                });
+                blockBtn.addEventListener('mouseleave', () => {
+                    blockBtn.style.background = '#f44336';
+                });
+                
+                console.log('✓ Block button event listener added');
+            }
+            
             // Add refresh button event listener
             const refreshBtn = content.querySelector('#cp-refresh-btn');
             if (refreshBtn) {
@@ -3100,6 +3161,70 @@ console.log('Current URL:', window.location.href);
                             margin-left: auto;
                         "
                     >Back</button>
+                </div>
+                
+                <!-- Image Approval Panel -->
+                <div style="
+                    display: flex; 
+                    gap: 8px; 
+                    align-items: center; 
+                    padding: 6px;
+                    border-top: 1px solid rgba(255,255,255,0.1);
+                ">
+                    <input 
+                        type="text" 
+                        id="floating-image-id-input" 
+                        placeholder="Enter Image ID"
+                        autocomplete="off"
+                        style="
+                            width: 140px;
+                            padding: 8px 12px;
+                            border: none;
+                            border-radius: 6px;
+                            background: rgba(0, 0, 0, 0.4);
+                            color: #fff;
+                            font-size: 12px;
+                            font-weight: 500;
+                            outline: none;
+                            transition: background 0.2s ease;
+                        "
+                    />
+                    <style>
+                        #floating-image-id-input::placeholder {
+                            color: rgba(255, 255, 255, 0.6);
+                            opacity: 1;
+                        }
+                    </style>
+                    <button 
+                        id="floating-approve-btn"
+                        style="
+                            background: #4caf50;
+                            color: #fff;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: bold;
+                            transition: all 0.2s ease;
+                            white-space: nowrap;
+                        "
+                    >Approve</button>
+                    <button 
+                        id="floating-block-btn"
+                        style="
+                            background: #f44336;
+                            color: #fff;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: bold;
+                            transition: all 0.2s ease;
+                            white-space: nowrap;
+                        "
+                    >Block</button>
                 </div>
             </div>
             <div id="floating-order-detail" style="display: none;"></div>
