@@ -1989,29 +1989,29 @@ console.log('Current URL:', window.location.href);
             position: absolute;
             top: -8px;
             right: -8px;
-            background: rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.85);
+            border: 2px solid rgba(255,255,255,0.95);
+            color: #333;
             font-size: 16px;
             cursor: pointer;
             padding: 0;
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.2s;
             z-index: 1000;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.4);
         `;
         
         // Check pinned state from storage
         const isPinned = localStorage.getItem('cp-window-pinned') === 'true';
         if (isPinned) {
-            pinButton.style.color = 'rgba(255,235,59,0.9)';
-            pinButton.style.background = 'rgba(255,235,59,0.15)';
-            pinButton.style.borderColor = 'rgba(255,235,59,0.5)';
+            pinButton.style.background = 'rgba(255,235,59,0.9)';
+            pinButton.style.borderColor = 'rgba(255,235,59,1)';
+            pinButton.style.color = '#333';
             pinButton.style.transform = 'rotate(45deg)';
             pinButton.title = 'Unpin';
         }
@@ -2024,17 +2024,17 @@ console.log('Current URL:', window.location.href);
             
             if (newPinnedState) {
                 // Pinned
-                pinButton.style.color = 'rgba(255,235,59,0.9)';
-                pinButton.style.background = 'rgba(255,235,59,0.15)';
-                pinButton.style.borderColor = 'rgba(255,235,59,0.5)';
+                pinButton.style.background = 'rgba(255,235,59,0.9)';
+                pinButton.style.borderColor = 'rgba(255,235,59,1)';
+                pinButton.style.color = '#333';
                 pinButton.style.transform = 'rotate(45deg)';
                 pinButton.title = 'Unpin';
                 console.log('✅ Window pinned - will stay open across pages');
             } else {
                 // Unpinned
-                pinButton.style.color = 'rgba(255,255,255,0.5)';
-                pinButton.style.background = 'rgba(0,0,0,0.3)';
-                pinButton.style.borderColor = 'rgba(255,255,255,0.2)';
+                pinButton.style.background = 'rgba(255,255,255,0.85)';
+                pinButton.style.borderColor = 'rgba(255,255,255,0.95)';
+                pinButton.style.color = '#333';
                 pinButton.style.transform = 'rotate(0deg)';
                 pinButton.title = 'Pin';
                 console.log('📌 Window unpinned - will close when navigating');
@@ -2044,22 +2044,22 @@ console.log('Current URL:', window.location.href);
         pinButton.addEventListener('mouseenter', () => {
             const isPinned = localStorage.getItem('cp-window-pinned') === 'true';
             if (isPinned) {
-                pinButton.style.background = 'rgba(255,235,59,0.25)';
+                pinButton.style.background = 'rgba(255,235,59,1)';
+                pinButton.style.boxShadow = '0 4px 15px rgba(255,235,59,0.5)';
             } else {
-                pinButton.style.color = 'rgba(255,255,255,0.8)';
-                pinButton.style.background = 'rgba(255,255,255,0.1)';
+                pinButton.style.background = 'rgba(255,255,255,1)';
+                pinButton.style.boxShadow = '0 4px 15px rgba(255,255,255,0.5)';
             }
         });
         
         pinButton.addEventListener('mouseleave', () => {
             const isPinned = localStorage.getItem('cp-window-pinned') === 'true';
             if (isPinned) {
-                pinButton.style.color = 'rgba(255,235,59,0.9)';
-                pinButton.style.background = 'rgba(255,235,59,0.15)';
+                pinButton.style.background = 'rgba(255,235,59,0.9)';
             } else {
-                pinButton.style.color = 'rgba(255,255,255,0.5)';
-                pinButton.style.background = 'rgba(0,0,0,0.3)';
+                pinButton.style.background = 'rgba(255,255,255,0.85)';
             }
+            pinButton.style.boxShadow = '0 2px 10px rgba(0,0,0,0.4)';
         });
         
         // SSO Login Button
