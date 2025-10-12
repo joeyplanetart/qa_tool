@@ -3587,8 +3587,24 @@ console.log('Current URL:', window.location.href);
                 const itemsDoc = itemsParser.parseFromString(itemsResponse.html, 'text/html');
                 
                 // Extract items from the page
-                const itemBars = itemsDoc.querySelectorAll('div.item_bar');
+                // Note: item_bar class might have multiple classes, use attribute selector
+                const itemBars = itemsDoc.querySelectorAll('div[class*="item_bar"]');
                 console.log('Found item_bar divs:', itemBars.length);
+                
+                // Debug: Also try other selectors
+                if (itemBars.length === 0) {
+                    console.log('⚠️ No item_bar found with class*="item_bar", trying alternatives...');
+                    const allDivs = itemsDoc.querySelectorAll('div');
+                    console.log(`DEBUG: Total divs in page: ${allDivs.length}`);
+                    let foundItemBars = 0;
+                    allDivs.forEach((div, idx) => {
+                        if (div.className && div.className.includes('item_bar')) {
+                            foundItemBars++;
+                            console.log(`DEBUG: Found div with item_bar at index ${idx}, className: "${div.className}"`);
+                        }
+                    });
+                    console.log(`DEBUG: Found ${foundItemBars} divs containing "item_bar" in className`);
+                }
                 
                 itemBars.forEach((itemBar, index) => {
                     console.log(`\n=== Processing Item ${index + 1} ===`);
