@@ -3125,10 +3125,20 @@ console.log('Current URL:', window.location.href);
         if (type === 'error') bgColor = 'rgba(244, 67, 54, 0.95)'; // red
         if (type === 'warning') bgColor = 'rgba(255, 152, 0, 0.95)'; // orange
         
+        // Get floating window position and width
+        const floatingWindow = document.getElementById('cp-floating-window');
+        let rightPosition = '20px';
+        
+        if (floatingWindow) {
+            const rect = floatingWindow.getBoundingClientRect();
+            // Align with the floating window's right edge (with same padding as content)
+            rightPosition = `${window.innerWidth - rect.right + 10}px`;
+        }
+        
         toast.style.cssText = `
             position: fixed;
             top: 80px;
-            right: 20px;
+            right: ${rightPosition};
             background: ${bgColor};
             color: white;
             padding: 12px 20px;
@@ -3139,7 +3149,7 @@ console.log('Current URL:', window.location.href);
             font-size: 14px;
             font-weight: 500;
             max-width: 400px;
-            animation: slideInRight 0.3s ease-out;
+            animation: slideInDown 0.3s ease-out;
         `;
         
         // Add animation keyframes
@@ -3147,23 +3157,23 @@ console.log('Current URL:', window.location.href);
             const style = document.createElement('style');
             style.id = 'cp-toast-style';
             style.textContent = `
-                @keyframes slideInRight {
+                @keyframes slideInDown {
                     from {
-                        transform: translateX(400px);
+                        transform: translateY(-20px);
                         opacity: 0;
                     }
                     to {
-                        transform: translateX(0);
+                        transform: translateY(0);
                         opacity: 1;
                     }
                 }
-                @keyframes slideOutRight {
+                @keyframes slideOutUp {
                     from {
-                        transform: translateX(0);
+                        transform: translateY(0);
                         opacity: 1;
                     }
                     to {
-                        transform: translateX(400px);
+                        transform: translateY(-20px);
                         opacity: 0;
                     }
                 }
@@ -3175,7 +3185,7 @@ console.log('Current URL:', window.location.href);
         
         // Auto remove after 3 seconds
         setTimeout(() => {
-            toast.style.animation = 'slideOutRight 0.3s ease-out';
+            toast.style.animation = 'slideOutUp 0.3s ease-out';
             setTimeout(() => {
                 if (toast && toast.parentNode) {
                     toast.remove();
