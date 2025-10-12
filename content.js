@@ -3614,101 +3614,86 @@ console.log('Current URL:', window.location.href);
                 console.log('DEBUG: Page title:', itemsDoc.title);
                 console.log('DEBUG: Body text preview:', itemsDoc.body.textContent.substring(0, 500));
                 
-                // Extract items from the page
-                // Real structure: <div class="item_wrapper item_51344396400">
-                const itemWrappers = itemsDoc.querySelectorAll('div.item_wrapper');
-                console.log('Found item_wrapper divs:', itemWrappers.length);
+                // Extract items from the AJAX response
+                // AJAX returns fragment without item_wrapper, starts with item_bar
+                console.log('Parsing AJAX response HTML...');
                 
-                // Debug: If no item_wrapper found, show what we have
-                if (itemWrappers.length === 0) {
-                    console.log('⚠️ No item_wrapper found!');
-                    console.log('DEBUG: Checking for div with class containing "item"...');
-                    const allDivs = itemsDoc.querySelectorAll('div[class*="item"]');
-                    console.log(`Found ${allDivs.length} divs with "item" in class`);
-                    allDivs.forEach((div, idx) => {
-                        if (idx < 5) {
-                            console.log(`DEBUG: Div ${idx} class="${div.className}"`);
+                // The AJAX response is the entire item content, treat it as one item
+                const itemWrapper = itemsDoc.body; // Use body as container
+                console.log(`\n=== Processing Item ${itemNum} ===`);
+                    
+                const item = {
+                    itemNumber: 'N/A',
+                    totalPrice: 'N/A',
+                    designId: 'N/A',
+                    quantity: 'N/A',
+                    unitPrice: 'N/A'
+                };
+                
+                // 1. Extract Item ID from <span>ID: 51344396400</span> in item_bar
+                const itemBar = itemWrapper.querySelector('div.item_bar');
+                if (itemBar) {
+                    const spans = itemBar.querySelectorAll('span');
+                    spans.forEach(span => {
+                        const text = span.textContent.trim();
+                        if (text.startsWith('ID:')) {
+                            item.itemNumber = text.replace('ID:', '').trim();
+                            console.log('✓ Extracted Item ID:', item.itemNumber);
                         }
                     });
                 }
                 
-                itemWrappers.forEach((itemWrapper, index) => {
-                    console.log(`\n=== Processing Item ${index + 1} ===`);
-                    console.log('DEBUG: itemWrapper className:', itemWrapper.className);
-                    
-                    const item = {
-                        itemNumber: 'N/A',
-                        totalPrice: 'N/A',
-                        designId: 'N/A',
-                        quantity: 'N/A',
-                        unitPrice: 'N/A'
-                    };
-                    
-                    // 1. Extract Item ID from <span>ID: 51344396400</span> in item_bar
-                    const itemBar = itemWrapper.querySelector('div.item_bar');
-                    if (itemBar) {
-                        const spans = itemBar.querySelectorAll('span');
-                        spans.forEach(span => {
-                            const text = span.textContent.trim();
-                            if (text.startsWith('ID:')) {
-                                item.itemNumber = text.replace('ID:', '').trim();
-                                console.log('✓ Extracted Item ID:', item.itemNumber);
+                // 2. Extract Design from line_wrapper containing "Design:"
+                const lineWrappers = itemWrapper.querySelectorAll('div.line_wrapper');
+                lineWrappers.forEach(wrapper => {
+                    const flSpan = wrapper.querySelector('span.fl');
+                    if (flSpan && flSpan.textContent.trim() === 'Design:') {
+                        // Find <a> tag with design ID (the red link with numbers)
+                        const links = wrapper.querySelectorAll('a');
+                        links.forEach(link => {
+                            const linkText = link.textContent.trim();
+                            // Design ID link contains only numbers
+                            if (/^\d+$/.test(linkText)) {
+                                item.designId = linkText;
+                                console.log('✓ Extracted Design ID:', item.designId);
                             }
                         });
-                    }
-                    
-                    // 2. Extract Design from line_wrapper containing "Design:"
-                    const lineWrappers = itemWrapper.querySelectorAll('div.line_wrapper');
-                    lineWrappers.forEach(wrapper => {
-                        const flSpan = wrapper.querySelector('span.fl');
-                        if (flSpan && flSpan.textContent.trim() === 'Design:') {
-                            // Find <a> tag with design ID (the red link with numbers)
-                            const links = wrapper.querySelectorAll('a');
-                            links.forEach(link => {
-                                const linkText = link.textContent.trim();
-                                // Design ID link contains only numbers
-                                if (/^\d+$/.test(linkText)) {
-                                    item.designId = linkText;
-                                    console.log('✓ Extracted Design ID:', item.designId);
-                                }
-                            });
-                        }
-                    });
-                    
-                    // 3. Extract Qty, Unit Price Paid, Amount from item_pricing section
-                    const pricingSection = itemWrapper.querySelector('div.item_pricing');
-                    if (pricingSection) {
-                        const pricingWrappers = pricingSection.querySelectorAll('div.line_wrapper');
-                        pricingWrappers.forEach(wrapper => {
-                            const flSpan = wrapper.querySelector('span.fl');
-                            const frSpan = wrapper.querySelector('span.fr');
-                            
-                            if (flSpan && frSpan) {
-                                const label = flSpan.textContent.trim();
-                                const value = frSpan.textContent.trim();
-                                
-                                if (label === 'Qty:') {
-                                    item.quantity = value;
-                                    console.log('✓ Extracted Qty:', item.quantity);
-                                } else if (label === 'Unit Price Paid:') {
-                                    item.unitPrice = value;
-                                    console.log('✓ Extracted Unit Price:', item.unitPrice);
-                                } else if (label === 'Amount:') {
-                                    item.totalPrice = value;
-                                    console.log('✓ Extracted Amount:', item.totalPrice);
-                                }
-                            }
-                        });
-                    }
-                    
-                    // Add item to orderData if we got at least the item number
-                    if (item.itemNumber !== 'N/A') {
-                        orderData.items.push(item);
-                        console.log('✓ Added item to order:', item);
-                    } else {
-                        console.log('⚠️ Skipping item - no Item ID found');
                     }
                 });
+                
+                // 3. Extract Qty, Unit Price Paid, Amount from item_pricing section
+                const pricingSection = itemWrapper.querySelector('div.item_pricing');
+                if (pricingSection) {
+                    const pricingWrappers = pricingSection.querySelectorAll('div.line_wrapper');
+                    pricingWrappers.forEach(wrapper => {
+                        const flSpan = wrapper.querySelector('span.fl');
+                        const frSpan = wrapper.querySelector('span.fr');
+                        
+                        if (flSpan && frSpan) {
+                            const label = flSpan.textContent.trim();
+                            const value = frSpan.textContent.trim();
+                            
+                            if (label === 'Qty:') {
+                                item.quantity = value;
+                                console.log('✓ Extracted Qty:', item.quantity);
+                            } else if (label === 'Unit Price Paid:') {
+                                item.unitPrice = value;
+                                console.log('✓ Extracted Unit Price:', item.unitPrice);
+                            } else if (label === 'Amount:') {
+                                item.totalPrice = value;
+                                console.log('✓ Extracted Amount:', item.totalPrice);
+                            }
+                        }
+                    });
+                }
+                
+                // Add item to orderData if we got at least the item number
+                if (item.itemNumber !== 'N/A') {
+                    orderData.items.push(item);
+                    console.log('✓ Added item to order:', item);
+                } else {
+                    console.log('⚠️ Skipping item - no Item ID found');
+                }
                 
                 console.log(`✓ Item ${itemNum} processed, total items so far: ${orderData.items.length}`);
             } else {
