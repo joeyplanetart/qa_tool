@@ -3026,7 +3026,7 @@ console.log('Current URL:', window.location.href);
                     }
                     
                     console.log('=== DEBUG COMPLETE ===');
-                    alert('Debug 完成！请查看浏览器控制台 (F12) 的输出结果\n\n特别关注：🎯 DIRECT TEST 部分的输出！');
+                    showToastNotification('🔍 Debug完成！请查看控制台 (F12)', 'info');
                 });
                 
                 debugBtn.addEventListener('mouseenter', () => {
