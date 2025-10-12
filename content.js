@@ -3549,6 +3549,7 @@ console.log('Current URL:', window.location.href);
             
             // Fetch Email from order_tab_customer.php
             console.log('=== DEBUG: Fetching Email from order_tab_customer.php ===');
+            console.log('📊 Order data BEFORE email extraction:', JSON.stringify(orderData, null, 2));
             try {
                 const customerResponse = await chrome.runtime.sendMessage({
                     type: 'FETCH_ORDER_FROM_ADMIN',
@@ -3605,6 +3606,7 @@ console.log('Current URL:', window.location.href);
                 console.log('⚠️ Error fetching email from customer page:', emailError);
             }
             
+            console.log('📊 Order data AFTER email extraction:', JSON.stringify(orderData, null, 2));
             console.log('✅ Extracted order data:', orderData);
             return orderData;
             
