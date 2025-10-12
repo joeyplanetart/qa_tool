@@ -1979,6 +1979,71 @@ console.log('Current URL:', window.location.href);
             color: white;
         `;
         
+        // Pin Button (to keep window open across page navigation)
+        const pinButton = document.createElement('button');
+        pinButton.id = 'cp-pin-button';
+        pinButton.innerHTML = '📌';
+        pinButton.title = 'Pin window (keep open across pages)';
+        pinButton.style.cssText = `
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.5);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            margin-left: auto;
+            margin-right: 5px;
+        `;
+        
+        // Check pinned state from storage
+        const isPinned = localStorage.getItem('cp-window-pinned') === 'true';
+        if (isPinned) {
+            pinButton.style.color = 'rgba(255,235,59,0.9)';
+            pinButton.style.transform = 'rotate(45deg)';
+            pinButton.title = 'Unpin window';
+        }
+        
+        pinButton.addEventListener('click', () => {
+            const currentlyPinned = localStorage.getItem('cp-window-pinned') === 'true';
+            const newPinnedState = !currentlyPinned;
+            
+            localStorage.setItem('cp-window-pinned', newPinnedState.toString());
+            
+            if (newPinnedState) {
+                // Pinned
+                pinButton.style.color = 'rgba(255,235,59,0.9)';
+                pinButton.style.transform = 'rotate(45deg)';
+                pinButton.title = 'Unpin window';
+                console.log('✅ Window pinned - will stay open across pages');
+            } else {
+                // Unpinned
+                pinButton.style.color = 'rgba(255,255,255,0.5)';
+                pinButton.style.transform = 'rotate(0deg)';
+                pinButton.title = 'Pin window (keep open across pages)';
+                console.log('📌 Window unpinned - will close when navigating');
+            }
+        });
+        
+        pinButton.addEventListener('mouseenter', () => {
+            if (localStorage.getItem('cp-window-pinned') !== 'true') {
+                pinButton.style.color = 'rgba(255,255,255,0.8)';
+            }
+            pinButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
+        });
+        
+        pinButton.addEventListener('mouseleave', () => {
+            const isPinned = localStorage.getItem('cp-window-pinned') === 'true';
+            pinButton.style.color = isPinned ? 'rgba(255,235,59,0.9)' : 'rgba(255,255,255,0.5)';
+            pinButton.style.backgroundColor = 'transparent';
+        });
+        
         // SSO Login Button
         const ssoButton = document.createElement('button');
         ssoButton.textContent = 'SSO Login';
@@ -1991,7 +2056,6 @@ console.log('Current URL:', window.location.href);
             cursor: pointer;
             padding: 6px 12px;
             border-radius: 4px;
-            margin-left: auto;
             margin-right: 10px;
             transition: all 0.2s;
         `;
@@ -2042,6 +2106,7 @@ console.log('Current URL:', window.location.href);
         });
         
         header.appendChild(title);
+        header.appendChild(pinButton);
         header.appendChild(ssoButton);
         header.appendChild(closeButton);
         
@@ -4077,6 +4142,32 @@ console.log('Current URL:', window.location.href);
             return 'Unknown';
         }
     }
+    
+    // Check if window should be auto-opened (pinned state)
+    function checkAndAutoShowWindow() {
+        const isPinned = localStorage.getItem('cp-window-pinned') === 'true';
+        if (isPinned) {
+            console.log('🔍 Window is pinned - auto-showing on page load');
+            // Wait for DOM to be ready before showing
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    setTimeout(() => {
+                        showFloatingWindow();
+                    }, 500); // Small delay to ensure page is stable
+                });
+            } else {
+                // DOM already ready
+                setTimeout(() => {
+                    showFloatingWindow();
+                }, 500);
+            }
+        } else {
+            console.log('📌 Window is not pinned - waiting for manual open');
+        }
+    }
+    
+    // Execute auto-show check
+    checkAndAutoShowWindow();
     
     // Listen for messages from background script
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
