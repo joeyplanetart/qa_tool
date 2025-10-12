@@ -3214,14 +3214,43 @@ console.log('Current URL:', window.location.href);
         }, 3000);
     }
     
+    // Detect current environment from URL
+    function detectEnvironment() {
+        const hostname = window.location.hostname;
+        
+        if (hostname.includes('pre.planetart.com')) {
+            return 'pre';
+        } else if (hostname.includes('stage.planetart.com')) {
+            return 'stage';
+        } else {
+            // Default to live for production domains
+            return 'live';
+        }
+    }
+    
+    // Get Admin API base URL based on environment
+    function getAdminApiUrl(environment) {
+        const apiUrls = {
+            'pre': 'https://admin-cpsw-web.pre.planetart.com',
+            'stage': 'https://admin-cpsw-web.stage.planetart.com',
+            'live': 'https://admin.planetart.com'
+        };
+        
+        return apiUrls[environment] || apiUrls['live'];
+    }
+    
     // Approve image function
     async function approveImage(imageId) {
         console.log('🔍 Approving image:', imageId);
         
+        const environment = detectEnvironment();
+        console.log('Current environment:', environment);
+        
         const response = await chrome.runtime.sendMessage({
             type: 'APPROVE_BLOCK_IMAGE',
             imageId: imageId,
-            action: 'approve'
+            action: 'approve',
+            environment: environment
         });
         
         if (!response.success) {
@@ -3236,10 +3265,14 @@ console.log('Current URL:', window.location.href);
     async function blockImage(imageId) {
         console.log('🔍 Blocking image:', imageId);
         
+        const environment = detectEnvironment();
+        console.log('Current environment:', environment);
+        
         const response = await chrome.runtime.sendMessage({
             type: 'APPROVE_BLOCK_IMAGE',
             imageId: imageId,
-            action: 'block'
+            action: 'block',
+            environment: environment
         });
         
         if (!response.success) {

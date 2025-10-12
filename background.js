@@ -57,7 +57,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         
         const imageId = request.imageId;
         const action = request.action; // 'approve' or 'block'
+        const environment = request.environment || 'pre'; // Default to pre
         const statusNo = action === 'approve' ? 1 : -1; // 1 for approve, -1 for block
+        
+        // Determine Admin API URL based on environment
+        const apiBaseUrls = {
+            'pre': 'https://admin-cpsw-web.pre.planetart.com',
+            'stage': 'https://admin-cpsw-web.stage.planetart.com',
+            'live': 'https://admin.planetart.com'
+        };
+        
+        const apiBaseUrl = apiBaseUrls[environment] || apiBaseUrls['pre'];
+        const apiUrl = `${apiBaseUrl}/ajax/ajax_cp_cup_tool_approve.php`;
+        
+        console.log(`Environment: ${environment}`);
+        console.log(`API URL: ${apiUrl}`);
         
         // Construct form data
         const formData = new URLSearchParams();
@@ -70,8 +84,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         
         formData.append('channel', 'MP');
-        
-        const apiUrl = 'https://admin-cpsw-web.pre.planetart.com/ajax/ajax_cp_cup_tool_approve.php';
         
         console.log(`Background: ${action === 'approve' ? 'Approving' : 'Blocking'} image ${imageId}`);
         console.log('FormData:', {
