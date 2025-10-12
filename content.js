@@ -3573,37 +3573,110 @@ console.log('Current URL:', window.location.href);
                 console.log('⚠️ Failed to fetch overview page:', overviewResponse.error);
             }
             
-            // TODO: Extract items from admin page
-            // For now, add mock items data for UI testing
-            if (orderData.items.length === 0) {
-                console.log('⚠️ No items extracted, using mock data for testing');
-                orderData.items = [
-                    { 
-                        itemNumber: '51334364400',
-                        totalPrice: '$14.84',
-                        designId: '100861886004',
-                        quantity: '1',
-                        unitPrice: '$14.84'
-                    },
-                    { 
-                        itemNumber: '51334364401',
-                        totalPrice: '$14.84',
-                        designId: '100861886005',
-                        quantity: '1',
-                        unitPrice: '$14.84'
-                    },
-                    { 
-                        itemNumber: '51334364402',
-                        totalPrice: '$29.68',
-                        designId: '100861886006',
-                        quantity: '2',
-                        unitPrice: '$14.84'
+            // ========== STEP 3: Fetch from order_tab_items.php (Order Items) ==========
+            console.log('=== STEP 3: Fetching Order Items from order_tab_items.php ===');
+            const itemsResponse = await chrome.runtime.sendMessage({
+                type: 'FETCH_ORDER_FROM_ADMIN',
+                orderId: orderId,
+                url: `https://admin.planetart.com/orders/order_tab_items.php?order_id=${orderId}`
+            });
+            
+            if (itemsResponse.success) {
+                console.log('✓ Items page HTML received, length:', itemsResponse.html.length);
+                const itemsParser = new DOMParser();
+                const itemsDoc = itemsParser.parseFromString(itemsResponse.html, 'text/html');
+                
+                // Extract items from the page
+                const itemBars = itemsDoc.querySelectorAll('div.item_bar');
+                console.log('Found item_bar divs:', itemBars.length);
+                
+                itemBars.forEach((itemBar, index) => {
+                    console.log(`\n=== Processing Item ${index + 1} ===`);
+                    
+                    const item = {
+                        itemNumber: 'N/A',
+                        totalPrice: 'N/A',
+                        designId: 'N/A',
+                        quantity: 'N/A',
+                        unitPrice: 'N/A'
+                    };
+                    
+                    // Extract Item ID from <span>ID: 51344396400</span>
+                    const spans = itemBar.querySelectorAll('span');
+                    spans.forEach(span => {
+                        const text = span.textContent.trim();
+                        if (text.startsWith('ID:')) {
+                            item.itemNumber = text.replace('ID:', '').trim();
+                            console.log('✓ Extracted Item ID:', item.itemNumber);
+                        }
+                    });
+                    
+                    // Find all <span class="fl"> labels
+                    const labels = itemBar.querySelectorAll('span.fl');
+                    labels.forEach(label => {
+                        const labelText = label.textContent.trim();
+                        
+                        if (labelText === 'Design:') {
+                            // Get Design from nearest <a> tag
+                            let nextElement = label.nextElementSibling;
+                            while (nextElement) {
+                                if (nextElement.tagName === 'A') {
+                                    item.designId = nextElement.textContent.trim();
+                                    console.log('✓ Extracted Design:', item.designId);
+                                    break;
+                                }
+                                nextElement = nextElement.nextElementSibling;
+                            }
+                        } else if (labelText === 'Qty:') {
+                            // Get Qty from nearest <span class="fr">
+                            let nextElement = label.nextElementSibling;
+                            while (nextElement) {
+                                if (nextElement.tagName === 'SPAN' && nextElement.classList.contains('fr')) {
+                                    item.quantity = nextElement.textContent.trim();
+                                    console.log('✓ Extracted Qty:', item.quantity);
+                                    break;
+                                }
+                                nextElement = nextElement.nextElementSibling;
+                            }
+                        } else if (labelText === 'Unit Price Paid:') {
+                            // Get Unit Price Paid from nearest <span class="fr">
+                            let nextElement = label.nextElementSibling;
+                            while (nextElement) {
+                                if (nextElement.tagName === 'SPAN' && nextElement.classList.contains('fr')) {
+                                    item.unitPrice = nextElement.textContent.trim();
+                                    console.log('✓ Extracted Unit Price:', item.unitPrice);
+                                    break;
+                                }
+                                nextElement = nextElement.nextElementSibling;
+                            }
+                        } else if (labelText === 'Amount:') {
+                            // Get Amount from nearest <span class="fr">
+                            let nextElement = label.nextElementSibling;
+                            while (nextElement) {
+                                if (nextElement.tagName === 'SPAN' && nextElement.classList.contains('fr')) {
+                                    item.totalPrice = nextElement.textContent.trim();
+                                    console.log('✓ Extracted Amount:', item.totalPrice);
+                                    break;
+                                }
+                                nextElement = nextElement.nextElementSibling;
+                            }
+                        }
+                    });
+                    
+                    // Add item to orderData if we got at least the item number
+                    if (item.itemNumber !== 'N/A') {
+                        orderData.items.push(item);
+                        console.log('✓ Added item to order:', item);
                     }
-                ];
+                });
+                
+                console.log(`✓ Total items extracted: ${orderData.items.length}`);
+            } else {
+                console.log('⚠️ Failed to fetch items page:', itemsResponse.error);
             }
             
-            // ========== STEP 3: Fetch from order_tab_customer.php (Email) ==========
-            console.log('=== STEP 3: Fetching Email from order_tab_customer.php ===');
+            // ========== STEP 4: Fetch from order_tab_customer.php (Email) ==========
+            console.log('=== STEP 4: Fetching Email from order_tab_customer.php ===');
             console.log('📊 Order data BEFORE email extraction:', JSON.stringify(orderData, null, 2));
             try {
                 const customerResponse = await chrome.runtime.sendMessage({
