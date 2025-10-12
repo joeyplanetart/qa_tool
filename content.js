@@ -3749,7 +3749,7 @@ console.log('Current URL:', window.location.href);
                 ">
                     <!-- Email Header -->
                     <div style="
-                        margin-bottom: 12px;
+                        margin-bottom: 16px;
                         padding-bottom: 12px;
                         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
                     ">
@@ -3758,96 +3758,102 @@ console.log('Current URL:', window.location.href);
                             font-size: 14px;
                             font-weight: bold;
                             margin-bottom: 4px;
-                        ">📧 ${email}</div>
+                        ">${email}</div>
                         <div style="
                             color: rgba(255, 255, 255, 0.6);
                             font-size: 11px;
                         ">${stores.length} store${stores.length > 1 ? 's' : ''} found</div>
                     </div>
                     
-                    <!-- Stores Table -->
-                    <div style="overflow-x: auto;">
-                        <table style="
-                            width: 100%;
-                            border-collapse: collapse;
-                            font-size: 12px;
-                        ">
-                            <thead>
-                                <tr style="
-                                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                                ">
-                                    <th style="
-                                        color: rgba(255, 255, 255, 0.7);
-                                        font-weight: 600;
-                                        text-align: left;
-                                        padding: 8px 8px 8px 0;
-                                        font-size: 11px;
-                                        text-transform: uppercase;
-                                        letter-spacing: 0.5px;
-                                    ">Store Name</th>
-                                    <th style="
-                                        color: rgba(255, 255, 255, 0.7);
-                                        font-weight: 600;
-                                        text-align: left;
-                                        padding: 8px;
-                                        font-size: 11px;
-                                        text-transform: uppercase;
-                                        letter-spacing: 0.5px;
-                                    ">Store ID</th>
-                                    <th style="
-                                        color: rgba(255, 255, 255, 0.7);
-                                        font-weight: 600;
-                                        text-align: left;
-                                        padding: 8px;
-                                        font-size: 11px;
-                                        text-transform: uppercase;
-                                        letter-spacing: 0.5px;
-                                    ">CP Member No</th>
-                                    <th style="
-                                        color: rgba(255, 255, 255, 0.7);
-                                        font-weight: 600;
-                                        text-align: right;
-                                        padding: 8px 0 8px 8px;
-                                        font-size: 11px;
-                                        text-transform: uppercase;
-                                        letter-spacing: 0.5px;
-                                    ">SW Customer ID</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                    <!-- Stores List - Vertical Layout -->
+                    <div>
             `;
             
-            stores.forEach((store, index) => {
+            stores.forEach((store, storeIndex) => {
                 html += `
-                    <tr style="
-                        ${index < stores.length - 1 ? 'border-bottom: 1px solid rgba(255, 255, 255, 0.05);' : ''}
+                    <div style="
+                        background: rgba(255, 255, 255, 0.05);
+                        border-radius: 8px;
+                        padding: 12px;
+                        margin-bottom: ${storeIndex < stores.length - 1 ? '10px' : '0'};
                     ">
-                        <td style="
-                            color: #fff;
-                            padding: 10px 8px 10px 0;
-                            font-weight: 500;
-                        ">${store.storeName || 'N/A'}</td>
-                        <td style="
-                            color: rgba(255, 255, 255, 0.9);
-                            padding: 10px 8px;
-                        ">${store.storeId || 'N/A'}</td>
-                        <td style="
-                            color: rgba(255, 255, 255, 0.9);
-                            padding: 10px 8px;
-                        ">${store.cpMemberNo || 'N/A'}</td>
-                        <td style="
-                            color: #4caf50;
-                            padding: 10px 0 10px 8px;
-                            text-align: right;
-                            font-weight: 600;
-                        ">${store.swCustomerId || 'N/A'}</td>
-                    </tr>
+                        <!-- Store Name -->
+                        <div style="
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            margin-bottom: 8px;
+                            padding-bottom: 8px;
+                            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                        ">
+                            <span style="
+                                color: rgba(255, 255, 255, 0.7);
+                                font-size: 11px;
+                                text-transform: uppercase;
+                                letter-spacing: 0.5px;
+                            ">Store Name:</span>
+                            <span style="
+                                color: #fff;
+                                font-size: 13px;
+                                font-weight: 600;
+                            ">${store.storeName || 'N/A'}</span>
+                        </div>
+                        
+                        <!-- Store ID -->
+                        <div style="
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            margin-bottom: 6px;
+                        ">
+                            <span style="
+                                color: rgba(255, 255, 255, 0.6);
+                                font-size: 11px;
+                            ">Store ID:</span>
+                            <span style="
+                                color: rgba(255, 255, 255, 0.9);
+                                font-size: 12px;
+                            ">${store.storeId || 'N/A'}</span>
+                        </div>
+                        
+                        <!-- CP Member No -->
+                        <div style="
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            margin-bottom: 6px;
+                        ">
+                            <span style="
+                                color: rgba(255, 255, 255, 0.6);
+                                font-size: 11px;
+                            ">CP Member No:</span>
+                            <span style="
+                                color: rgba(255, 255, 255, 0.9);
+                                font-size: 12px;
+                            ">${store.cpMemberNo || 'N/A'}</span>
+                        </div>
+                        
+                        <!-- SW Customer ID -->
+                        <div style="
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                        ">
+                            <span style="
+                                color: rgba(255, 255, 255, 0.6);
+                                font-size: 11px;
+                            ">SW Customer ID:</span>
+                            <span style="
+                                color: #4caf50;
+                                font-size: 12px;
+                                font-weight: 600;
+                            ">${store.swCustomerId || 'N/A'}</span>
+                        </div>
+                    </div>
                 `;
             });
             
             html += `
-                            </tbody>
-                        </table>
                     </div>
                 </div>
             `;
