@@ -2552,6 +2552,97 @@ console.log('Current URL:', window.location.href);
                 console.log('✓ PDP button event listener added to floating window');
             }
             
+            // Add store search functionality event listeners
+            const storeEmailInput = content.querySelector('#floating-store-email-input');
+            const storeEmailClearBtn = content.querySelector('#floating-store-email-clear-btn');
+            const storeCustomerIdInput = content.querySelector('#floating-store-customer-id-input');
+            const storeCustomerIdClearBtn = content.querySelector('#floating-store-customer-id-clear-btn');
+            const searchStoreBtn = content.querySelector('#floating-search-store-btn');
+            
+            if (storeEmailInput) {
+                // Show/hide clear button based on input value
+                storeEmailInput.addEventListener('input', function() {
+                    if (storeEmailClearBtn) {
+                        storeEmailClearBtn.style.display = this.value ? 'block' : 'none';
+                    }
+                });
+                
+                // Enter key triggers search
+                storeEmailInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' && searchStoreBtn) {
+                        searchStoreBtn.click();
+                    }
+                });
+                
+                console.log('✓ Store email input event listeners added');
+            }
+            
+            if (storeEmailClearBtn) {
+                storeEmailClearBtn.addEventListener('click', function() {
+                    if (storeEmailInput) {
+                        storeEmailInput.value = '';
+                        storeEmailClearBtn.style.display = 'none';
+                        storeEmailInput.focus();
+                    }
+                });
+                console.log('✓ Store email clear button event listener added');
+            }
+            
+            if (storeCustomerIdInput) {
+                // Show/hide clear button based on input value
+                storeCustomerIdInput.addEventListener('input', function() {
+                    if (storeCustomerIdClearBtn) {
+                        storeCustomerIdClearBtn.style.display = this.value ? 'block' : 'none';
+                    }
+                });
+                
+                // Enter key triggers search
+                storeCustomerIdInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' && searchStoreBtn) {
+                        searchStoreBtn.click();
+                    }
+                });
+                
+                console.log('✓ Store customer ID input event listeners added');
+            }
+            
+            if (storeCustomerIdClearBtn) {
+                storeCustomerIdClearBtn.addEventListener('click', function() {
+                    if (storeCustomerIdInput) {
+                        storeCustomerIdInput.value = '';
+                        storeCustomerIdClearBtn.style.display = 'none';
+                        storeCustomerIdInput.focus();
+                    }
+                });
+                console.log('✓ Store customer ID clear button event listener added');
+            }
+            
+            if (searchStoreBtn) {
+                searchStoreBtn.addEventListener('click', function() {
+                    const email = storeEmailInput ? storeEmailInput.value.trim() : '';
+                    const customerId = storeCustomerIdInput ? storeCustomerIdInput.value.trim() : '';
+                    
+                    if (!email && !customerId) {
+                        showToastNotification('Please enter Email or SW Customer ID', 'warning');
+                        return;
+                    }
+                    
+                    console.log('🔍 Search Store clicked:', { email, customerId });
+                    // TODO: Implement store search logic
+                    showToastNotification('Store search functionality will be implemented', 'info');
+                });
+                
+                // Hover effects
+                searchStoreBtn.addEventListener('mouseenter', () => {
+                    searchStoreBtn.style.background = '#ab47bc';
+                });
+                searchStoreBtn.addEventListener('mouseleave', () => {
+                    searchStoreBtn.style.background = '#9c27b0';
+                });
+                
+                console.log('✓ Search Store button event listener added');
+            }
+            
             // Add image approval functionality event listeners
             const imageIdInput = content.querySelector('#floating-image-id-input');
             const imageClearBtn = content.querySelector('#floating-image-clear-btn');
@@ -3373,6 +3464,119 @@ console.log('Current URL:', window.location.href);
                             margin-left: auto;
                         "
                     >Back</button>
+                </div>
+                
+                <!-- Store Search Panel -->
+                <div style="
+                    display: flex; 
+                    gap: 8px; 
+                    align-items: center; 
+                    padding: 6px;
+                    border-top: 1px solid rgba(255,255,255,0.1);
+                ">
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input 
+                            type="email" 
+                            id="floating-store-email-input" 
+                            placeholder="Enter Email"
+                            autocomplete="off"
+                            style="
+                                width: 140px;
+                                padding: 8px 28px 8px 12px;
+                                border: none;
+                                border-radius: 6px;
+                                background: rgba(0, 0, 0, 0.4);
+                                color: #fff;
+                                font-size: 12px;
+                                font-weight: 500;
+                                outline: none;
+                                transition: background 0.2s ease;
+                            "
+                        />
+                        <button
+                            id="floating-store-email-clear-btn"
+                            style="
+                                position: absolute;
+                                right: 4px;
+                                background: transparent;
+                                border: none;
+                                color: rgba(255, 255, 255, 0.6);
+                                cursor: pointer;
+                                font-size: 16px;
+                                line-height: 1;
+                                padding: 4px 6px;
+                                border-radius: 50%;
+                                display: none;
+                                transition: all 0.2s ease;
+                            "
+                            title="Clear"
+                        >×</button>
+                    </div>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input 
+                            type="text" 
+                            id="floating-store-customer-id-input" 
+                            placeholder="Enter SW Customer ID"
+                            autocomplete="off"
+                            style="
+                                width: 140px;
+                                padding: 8px 28px 8px 12px;
+                                border: none;
+                                border-radius: 6px;
+                                background: rgba(0, 0, 0, 0.4);
+                                color: #fff;
+                                font-size: 12px;
+                                font-weight: 500;
+                                outline: none;
+                                transition: background 0.2s ease;
+                            "
+                        />
+                        <button
+                            id="floating-store-customer-id-clear-btn"
+                            style="
+                                position: absolute;
+                                right: 4px;
+                                background: transparent;
+                                border: none;
+                                color: rgba(255, 255, 255, 0.6);
+                                cursor: pointer;
+                                font-size: 16px;
+                                line-height: 1;
+                                padding: 4px 6px;
+                                border-radius: 50%;
+                                display: none;
+                                transition: all 0.2s ease;
+                            "
+                            title="Clear"
+                        >×</button>
+                    </div>
+                    <style>
+                        #floating-store-email-input::placeholder,
+                        #floating-store-customer-id-input::placeholder {
+                            color: rgba(255, 255, 255, 0.6);
+                            opacity: 1;
+                        }
+                        #floating-store-email-clear-btn:hover,
+                        #floating-store-customer-id-clear-btn:hover {
+                            background: rgba(255, 255, 255, 0.1);
+                            color: rgba(255, 255, 255, 0.9);
+                        }
+                    </style>
+                    <button 
+                        id="floating-search-store-btn"
+                        style="
+                            background: #9c27b0;
+                            color: #fff;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: bold;
+                            transition: all 0.2s ease;
+                            white-space: nowrap;
+                        "
+                    >Search Store</button>
                 </div>
                 
                 <!-- Image Approval Panel -->
