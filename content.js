@@ -2570,44 +2570,80 @@ console.log('Current URL:', window.location.href);
             }
             
             if (approveBtn) {
-                approveBtn.addEventListener('click', function() {
+                approveBtn.addEventListener('click', async function() {
                     const imageId = imageIdInput ? imageIdInput.value.trim() : '';
                     if (!imageId) {
                         console.log('⚠️ No Image ID entered');
+                        showToastNotification('Please enter Image ID', 'warning');
                         return;
                     }
-                    console.log('✅ Approve clicked for Image ID:', imageId);
-                    // TODO: Implement approve logic
-                    alert(`Approve functionality will be implemented for Image ID: ${imageId}`);
+                    
+                    // Disable button and show loading state
+                    approveBtn.disabled = true;
+                    approveBtn.textContent = 'Approving...';
+                    
+                    try {
+                        await approveImage(imageId);
+                        showToastNotification(`✅ Image ${imageId} approved successfully!`, 'success');
+                        if (imageIdInput) imageIdInput.value = '';
+                    } catch (error) {
+                        console.error('❌ Approve failed:', error);
+                        showToastNotification(`❌ Failed to approve: ${error.message}`, 'error');
+                    } finally {
+                        approveBtn.disabled = false;
+                        approveBtn.textContent = 'Approve';
+                    }
                 });
                 
                 approveBtn.addEventListener('mouseenter', () => {
-                    approveBtn.style.background = '#66bb6a';
+                    if (!approveBtn.disabled) {
+                        approveBtn.style.background = '#66bb6a';
+                    }
                 });
                 approveBtn.addEventListener('mouseleave', () => {
-                    approveBtn.style.background = '#4caf50';
+                    if (!approveBtn.disabled) {
+                        approveBtn.style.background = '#4caf50';
+                    }
                 });
                 
                 console.log('✓ Approve button event listener added');
             }
             
             if (blockBtn) {
-                blockBtn.addEventListener('click', function() {
+                blockBtn.addEventListener('click', async function() {
                     const imageId = imageIdInput ? imageIdInput.value.trim() : '';
                     if (!imageId) {
                         console.log('⚠️ No Image ID entered');
+                        showToastNotification('Please enter Image ID', 'warning');
                         return;
                     }
-                    console.log('🚫 Block clicked for Image ID:', imageId);
-                    // TODO: Implement block logic
-                    alert(`Block functionality will be implemented for Image ID: ${imageId}`);
+                    
+                    // Disable button and show loading state
+                    blockBtn.disabled = true;
+                    blockBtn.textContent = 'Blocking...';
+                    
+                    try {
+                        await blockImage(imageId);
+                        showToastNotification(`🚫 Image ${imageId} blocked successfully!`, 'success');
+                        if (imageIdInput) imageIdInput.value = '';
+                    } catch (error) {
+                        console.error('❌ Block failed:', error);
+                        showToastNotification(`❌ Failed to block: ${error.message}`, 'error');
+                    } finally {
+                        blockBtn.disabled = false;
+                        blockBtn.textContent = 'Block';
+                    }
                 });
                 
                 blockBtn.addEventListener('mouseenter', () => {
-                    blockBtn.style.background = '#e57373';
+                    if (!blockBtn.disabled) {
+                        blockBtn.style.background = '#e57373';
+                    }
                 });
                 blockBtn.addEventListener('mouseleave', () => {
-                    blockBtn.style.background = '#f44336';
+                    if (!blockBtn.disabled) {
+                        blockBtn.style.background = '#f44336';
+                    }
                 });
                 
                 console.log('✓ Block button event listener added');
@@ -3071,6 +3107,119 @@ console.log('Current URL:', window.location.href);
     }
     
     // Create search panel HTML
+    // Toast notification function
+    function showToastNotification(message, type = 'info') {
+        // Remove existing toast if any
+        const existingToast = document.getElementById('cp-toast-notification');
+        if (existingToast) {
+            existingToast.remove();
+        }
+        
+        const toast = document.createElement('div');
+        toast.id = 'cp-toast-notification';
+        toast.textContent = message;
+        
+        // Set color based on type
+        let bgColor = 'rgba(33, 150, 243, 0.95)'; // info - blue
+        if (type === 'success') bgColor = 'rgba(76, 175, 80, 0.95)'; // green
+        if (type === 'error') bgColor = 'rgba(244, 67, 54, 0.95)'; // red
+        if (type === 'warning') bgColor = 'rgba(255, 152, 0, 0.95)'; // orange
+        
+        toast.style.cssText = `
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: ${bgColor};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10001;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            max-width: 400px;
+            animation: slideInRight 0.3s ease-out;
+        `;
+        
+        // Add animation keyframes
+        if (!document.getElementById('cp-toast-style')) {
+            const style = document.createElement('style');
+            style.id = 'cp-toast-style';
+            style.textContent = `
+                @keyframes slideInRight {
+                    from {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+                @keyframes slideOutRight {
+                    from {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                    to {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(toast);
+        
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            toast.style.animation = 'slideOutRight 0.3s ease-out';
+            setTimeout(() => {
+                if (toast && toast.parentNode) {
+                    toast.remove();
+                }
+            }, 300);
+        }, 3000);
+    }
+    
+    // Approve image function
+    async function approveImage(imageId) {
+        console.log('🔍 Approving image:', imageId);
+        
+        const response = await chrome.runtime.sendMessage({
+            type: 'APPROVE_BLOCK_IMAGE',
+            imageId: imageId,
+            action: 'approve'
+        });
+        
+        if (!response.success) {
+            throw new Error(response.error || 'Failed to approve image');
+        }
+        
+        console.log('✅ Image approved successfully:', imageId);
+        return response;
+    }
+    
+    // Block image function
+    async function blockImage(imageId) {
+        console.log('🔍 Blocking image:', imageId);
+        
+        const response = await chrome.runtime.sendMessage({
+            type: 'APPROVE_BLOCK_IMAGE',
+            imageId: imageId,
+            action: 'block'
+        });
+        
+        if (!response.success) {
+            throw new Error(response.error || 'Failed to block image');
+        }
+        
+        console.log('🚫 Image blocked successfully:', imageId);
+        return response;
+    }
+    
     function createSearchPanel() {
         return `
             <div style="

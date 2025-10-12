@@ -28,7 +28,8 @@
     "*://www.cafepress.com.au/*",
     "*://cafepress.com.au/*",
     "*://admin.planetart.com/*",
-    "*://login.planetart.com/*"
+    "*://login.planetart.com/*",
+    "*://admin-cpsw-web.pre.planetart.com/*"
   ],
   "content_scripts": [
     {
