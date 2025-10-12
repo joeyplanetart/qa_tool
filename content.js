@@ -2426,6 +2426,7 @@ console.log('Current URL:', window.location.href);
             // Add search functionality event listeners
             const searchBtn = content.querySelector('#floating-search-btn');
             const searchInput = content.querySelector('#floating-order-id-input');
+            const clearBtn = content.querySelector('#floating-clear-btn');
             const pdpBtn = content.querySelector('#floating-pdp-btn');
             
             if (searchBtn) {
@@ -2439,7 +2440,26 @@ console.log('Current URL:', window.location.href);
                         searchOrderInFloatingWindow();
                     }
                 });
+                
+                // Show/hide clear button based on input value
+                searchInput.addEventListener('input', function() {
+                    if (clearBtn) {
+                        clearBtn.style.display = this.value ? 'block' : 'none';
+                    }
+                });
+                
                 console.log('✓ Search input enter key listener added to floating window');
+            }
+            
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function() {
+                    if (searchInput) {
+                        searchInput.value = '';
+                        clearBtn.style.display = 'none';
+                        searchInput.focus();
+                    }
+                });
+                console.log('✓ Clear button event listener added to floating window');
             }
             
             if (pdpBtn) {
@@ -2915,29 +2935,53 @@ console.log('Current URL:', window.location.href);
                 border: 1px solid rgba(255,255,255,0.2);
             ">
                 <div style="display: flex; gap: 8px; align-items: center; padding: 6px;">
-                    <input 
-                        type="text" 
-                        id="floating-order-id-input" 
-                        placeholder="Enter Order ID"
-                        maxlength="11"
-                        autocomplete="off"
-                        style="
-                            width: 140px;
-                            padding: 8px 12px;
-                            border: none;
-                            border-radius: 6px;
-                            background: rgba(0, 0, 0, 0.4);
-                            color: #fff;
-                            font-size: 12px;
-                            font-weight: 500;
-                            outline: none;
-                            transition: background 0.2s ease;
-                        "
-                    />
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input 
+                            type="text" 
+                            id="floating-order-id-input" 
+                            placeholder="Enter Order ID"
+                            maxlength="11"
+                            autocomplete="off"
+                            style="
+                                width: 140px;
+                                padding: 8px 28px 8px 12px;
+                                border: none;
+                                border-radius: 6px;
+                                background: rgba(0, 0, 0, 0.4);
+                                color: #fff;
+                                font-size: 12px;
+                                font-weight: 500;
+                                outline: none;
+                                transition: background 0.2s ease;
+                            "
+                        />
+                        <button
+                            id="floating-clear-btn"
+                            style="
+                                position: absolute;
+                                right: 4px;
+                                background: transparent;
+                                border: none;
+                                color: rgba(255, 255, 255, 0.6);
+                                cursor: pointer;
+                                font-size: 16px;
+                                line-height: 1;
+                                padding: 4px 6px;
+                                border-radius: 50%;
+                                display: none;
+                                transition: all 0.2s ease;
+                            "
+                            title="Clear"
+                        >×</button>
+                    </div>
                     <style>
                         #floating-order-id-input::placeholder {
                             color: rgba(255, 255, 255, 0.6);
                             opacity: 1;
+                        }
+                        #floating-clear-btn:hover {
+                            background: rgba(255, 255, 255, 0.1);
+                            color: rgba(255, 255, 255, 0.9);
                         }
                     </style>
                     <button 
