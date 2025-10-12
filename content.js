@@ -1979,39 +1979,6 @@ console.log('Current URL:', window.location.href);
             color: white;
         `;
         
-        // User info display
-        const userInfo = document.createElement('div');
-        userInfo.id = 'cp-user-info';
-        userInfo.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            margin-left: auto;
-            margin-right: 10px;
-            font-size: 11px;
-            color: rgba(255,255,255,0.8);
-            line-height: 1.4;
-        `;
-        
-        const userNameSpan = document.createElement('span');
-        userNameSpan.id = 'cp-user-name';
-        userNameSpan.textContent = 'Checking...';
-        userNameSpan.style.cssText = `
-            font-weight: 600;
-            color: rgba(255,235,59,0.9);
-        `;
-        
-        const userIdSpan = document.createElement('span');
-        userIdSpan.id = 'cp-user-id';
-        userIdSpan.textContent = '';
-        userIdSpan.style.cssText = `
-            font-size: 10px;
-            color: rgba(255,255,255,0.6);
-        `;
-        
-        userInfo.appendChild(userNameSpan);
-        userInfo.appendChild(userIdSpan);
-        
         // SSO Login Button
         const ssoButton = document.createElement('button');
         ssoButton.textContent = 'SSO Login';
@@ -2024,6 +1991,7 @@ console.log('Current URL:', window.location.href);
             cursor: pointer;
             padding: 6px 12px;
             border-radius: 4px;
+            margin-left: auto;
             margin-right: 10px;
             transition: all 0.2s;
         `;
@@ -2033,14 +2001,11 @@ console.log('Current URL:', window.location.href);
             const ssoUrl = 'https://login.planetart.com/sso';
             window.open(ssoUrl, '_blank');
             
-            // Update button text and check login status after user logs in
+            // Update button text to show logged in status
             setTimeout(() => {
                 ssoButton.textContent = 'SSO ✓';
                 ssoButton.style.background = 'rgba(76,175,80,0.9)'; // Green
-                
-                // Update user login status
-                updateUserLoginStatus();
-            }, 3000); // Wait 3 seconds for user to complete SSO login
+            }, 2000);
         });
         ssoButton.addEventListener('mouseenter', () => {
             ssoButton.style.background = 'rgba(255,235,59,1)';
@@ -2077,7 +2042,6 @@ console.log('Current URL:', window.location.href);
         });
         
         header.appendChild(title);
-        header.appendChild(userInfo);
         header.appendChild(ssoButton);
         header.appendChild(closeButton);
         
@@ -2097,47 +2061,6 @@ console.log('Current URL:', window.location.href);
         return floatingWindow;
     }
     
-    // Check and update user login status
-    async function updateUserLoginStatus() {
-        console.log('🔍 Content: Checking user login status...');
-        
-        try {
-            // Request login status from background script
-            const response = await chrome.runtime.sendMessage({
-                type: 'CHECK_LOGIN_STATUS'
-            });
-            
-            console.log('✅ Content: Login status response:', response);
-            
-            const userNameSpan = document.getElementById('cp-user-name');
-            const userIdSpan = document.getElementById('cp-user-id');
-            
-            if (!userNameSpan || !userIdSpan) {
-                console.log('⚠️ User info elements not found');
-                return;
-            }
-            
-            if (response.isLoggedIn) {
-                userNameSpan.textContent = response.email;
-                userNameSpan.style.color = 'rgba(76,175,80,0.9)'; // Green
-                userIdSpan.textContent = `ID: ${response.userId}`;
-                console.log('✅ User info updated:', response.email, response.userId);
-            } else {
-                userNameSpan.textContent = 'Not Logged In';
-                userNameSpan.style.color = 'rgba(244,67,54,0.9)'; // Red
-                userIdSpan.textContent = '';
-                console.log('❌ User not logged in');
-            }
-        } catch (error) {
-            console.error('❌ Error checking login status:', error);
-            const userNameSpan = document.getElementById('cp-user-name');
-            if (userNameSpan) {
-                userNameSpan.textContent = 'Error';
-                userNameSpan.style.color = 'rgba(244,67,54,0.9)';
-            }
-        }
-    }
-    
     function showFloatingWindow() {
         if (!floatingWindow) {
             createFloatingWindow();
@@ -2145,9 +2068,6 @@ console.log('Current URL:', window.location.href);
         
         floatingWindow.style.display = 'block';
         isWindowVisible = true;
-        
-        // Update user login status
-        updateUserLoginStatus();
         
         // Trigger data refresh and display
         updateFloatingWindowContent();

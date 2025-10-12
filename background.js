@@ -51,67 +51,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Return true to indicate async response
         return true;
     }
-    
-    if (request.type === 'CHECK_LOGIN_STATUS') {
-        console.log('🔍 Background: Checking login status...');
-        
-        // Check cookies from admin.planetart.com and login.planetart.com
-        Promise.all([
-            chrome.cookies.get({ url: 'https://admin.planetart.com', name: 'attntv_mstore_email' }),
-            chrome.cookies.get({ url: 'https://admin.planetart.com', name: 'stiadmin_user_id' }),
-            chrome.cookies.get({ url: 'https://login.planetart.com', name: 'attntv_mstore_email' }),
-            chrome.cookies.get({ url: 'https://login.planetart.com', name: 'stiadmin_user_id' })
-        ])
-        .then(([adminEmailCookie, adminUserIdCookie, loginEmailCookie, loginUserIdCookie]) => {
-            console.log('Background: Admin email cookie:', adminEmailCookie);
-            console.log('Background: Admin userId cookie:', adminUserIdCookie);
-            console.log('Background: Login email cookie:', loginEmailCookie);
-            console.log('Background: Login userId cookie:', loginUserIdCookie);
-            
-            // Try admin domain first, then login domain
-            let emailCookie = adminEmailCookie || loginEmailCookie;
-            let userIdCookie = adminUserIdCookie || loginUserIdCookie;
-            
-            if (emailCookie && emailCookie.value) {
-                // Remove :0 suffix if present
-                let emailValue = emailCookie.value;
-                const colonIndex = emailValue.lastIndexOf(':');
-                if (colonIndex !== -1) {
-                    emailValue = emailValue.substring(0, colonIndex);
-                }
-                
-                const userId = userIdCookie && userIdCookie.value ? userIdCookie.value : 'N/A';
-                
-                console.log('✅ Background: User logged in:', emailValue, userId);
-                
-                sendResponse({
-                    isLoggedIn: true,
-                    email: emailValue,
-                    userId: userId
-                });
-            } else {
-                console.log('❌ Background: User not logged in');
-                
-                sendResponse({
-                    isLoggedIn: false,
-                    email: null,
-                    userId: null
-                });
-            }
-        })
-        .catch(error => {
-            console.error('❌ Background: Error checking cookies:', error);
-            sendResponse({
-                isLoggedIn: false,
-                email: null,
-                userId: null,
-                error: error.message
-            });
-        });
-        
-        // Return true to indicate async response
-        return true;
-    }
 });
 
 // Handle extension icon click
