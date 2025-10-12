@@ -197,7 +197,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     storeName: store.store_name || store.storeName || 'N/A',
                     storeId: store.store_id || store.storeId || 'N/A',
                     cpMemberNo: store.cp_member_no || store.cpMemberNo || 'N/A',
-                    swCustomerId: store.sw_customer_id || store.swCustomerId || swCustomerId || 'N/A'
+                    swCustomerId: store.customer_id || store.sw_customer_id || store.swCustomerId || swCustomerId || 'N/A'
                 }));
             } else if (Array.isArray(data)) {
                 // If data is directly an array
@@ -206,7 +206,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     storeName: store.store_name || store.storeName || 'N/A',
                     storeId: store.store_id || store.storeId || 'N/A',
                     cpMemberNo: store.cp_member_no || store.cpMemberNo || 'N/A',
-                    swCustomerId: store.sw_customer_id || store.swCustomerId || swCustomerId || 'N/A'
+                    swCustomerId: store.customer_id || store.sw_customer_id || store.swCustomerId || swCustomerId || 'N/A'
                 }));
             }
             

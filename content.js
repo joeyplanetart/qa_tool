@@ -3794,10 +3794,10 @@ console.log('Current URL:', window.location.href);
                         margin-bottom: ${storeIndex < stores.length - 1 ? '10px' : '0'};
                     ">
                         <!-- Store Name -->
-                        <div style="
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
+            <div style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
                             margin-bottom: 8px;
                             padding-bottom: 8px;
                             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -3924,7 +3924,7 @@ console.log('Current URL:', window.location.href);
                         display: flex;
                         justify-content: space-between;
                         align-items: center;
-                        margin-bottom: 4px;
+                margin-bottom: 4px;
                     ">
                         <span style="color: #fff; font-size: 13px; font-weight: bold;">${item.itemNumber}</span>
                         <span style="color: #ffeb3b; font-weight: bold; font-size: 13px;">${item.totalPrice}</span>
