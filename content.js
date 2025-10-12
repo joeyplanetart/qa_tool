@@ -3583,8 +3583,14 @@ console.log('Current URL:', window.location.href);
             
             if (itemsResponse.success) {
                 console.log('✓ Items page HTML received, length:', itemsResponse.html.length);
+                console.log('DEBUG: Items page HTML preview (first 2000 chars):', itemsResponse.html.substring(0, 2000));
+                
                 const itemsParser = new DOMParser();
                 const itemsDoc = itemsParser.parseFromString(itemsResponse.html, 'text/html');
+                
+                // Debug: Check page title and body content
+                console.log('DEBUG: Page title:', itemsDoc.title);
+                console.log('DEBUG: Body text preview:', itemsDoc.body.textContent.substring(0, 500));
                 
                 // Extract items from the page
                 // Note: item_bar class might have multiple classes, use attribute selector
@@ -3596,14 +3602,27 @@ console.log('Current URL:', window.location.href);
                     console.log('⚠️ No item_bar found with class*="item_bar", trying alternatives...');
                     const allDivs = itemsDoc.querySelectorAll('div');
                     console.log(`DEBUG: Total divs in page: ${allDivs.length}`);
-                    let foundItemBars = 0;
+                    
+                    // Show first few divs with classes
+                    let shownDivs = 0;
                     allDivs.forEach((div, idx) => {
+                        if (shownDivs < 10 && div.className) {
+                            console.log(`DEBUG: Div ${idx} className: "${div.className}"`);
+                            shownDivs++;
+                        }
                         if (div.className && div.className.includes('item_bar')) {
-                            foundItemBars++;
-                            console.log(`DEBUG: Found div with item_bar at index ${idx}, className: "${div.className}"`);
+                            console.log(`DEBUG: ✓ Found div with item_bar at index ${idx}, className: "${div.className}"`);
                         }
                     });
-                    console.log(`DEBUG: Found ${foundItemBars} divs containing "item_bar" in className`);
+                    
+                    // Try to find any element with "item" in class name
+                    const itemElements = itemsDoc.querySelectorAll('[class*="item"]');
+                    console.log(`DEBUG: Found ${itemElements.length} elements with "item" in class`);
+                    if (itemElements.length > 0 && itemElements.length < 20) {
+                        itemElements.forEach((el, idx) => {
+                            console.log(`DEBUG: Item element ${idx}: ${el.tagName} class="${el.className}"`);
+                        });
+                    }
                 }
                 
                 itemBars.forEach((itemBar, index) => {
