@@ -2554,6 +2554,7 @@ console.log('Current URL:', window.location.href);
             
             // Add image approval functionality event listeners
             const imageIdInput = content.querySelector('#floating-image-id-input');
+            const imageClearBtn = content.querySelector('#floating-image-clear-btn');
             const approveBtn = content.querySelector('#floating-approve-btn');
             const blockBtn = content.querySelector('#floating-block-btn');
             
@@ -2566,7 +2567,26 @@ console.log('Current URL:', window.location.href);
                         }
                     }
                 });
+                
+                // Show/hide clear button based on input value
+                imageIdInput.addEventListener('input', function() {
+                    if (imageClearBtn) {
+                        imageClearBtn.style.display = this.value ? 'block' : 'none';
+                    }
+                });
+                
                 console.log('✓ Image ID input enter key listener added');
+            }
+            
+            if (imageClearBtn) {
+                imageClearBtn.addEventListener('click', function() {
+                    if (imageIdInput) {
+                        imageIdInput.value = '';
+                        imageClearBtn.style.display = 'none';
+                        imageIdInput.focus();
+                    }
+                });
+                console.log('✓ Image clear button event listener added');
             }
             
             if (approveBtn) {
@@ -3330,28 +3350,52 @@ console.log('Current URL:', window.location.href);
                     padding: 6px;
                     border-top: 1px solid rgba(255,255,255,0.1);
                 ">
-                    <input 
-                        type="text" 
-                        id="floating-image-id-input" 
-                        placeholder="Enter Image ID"
-                        autocomplete="off"
-                        style="
-                            width: 140px;
-                            padding: 8px 12px;
-                            border: none;
-                            border-radius: 6px;
-                            background: rgba(0, 0, 0, 0.4);
-                            color: #fff;
-                            font-size: 12px;
-                            font-weight: 500;
-                            outline: none;
-                            transition: background 0.2s ease;
-                        "
-                    />
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input 
+                            type="text" 
+                            id="floating-image-id-input" 
+                            placeholder="Enter Image ID"
+                            autocomplete="off"
+                            style="
+                                width: 140px;
+                                padding: 8px 28px 8px 12px;
+                                border: none;
+                                border-radius: 6px;
+                                background: rgba(0, 0, 0, 0.4);
+                                color: #fff;
+                                font-size: 12px;
+                                font-weight: 500;
+                                outline: none;
+                                transition: background 0.2s ease;
+                            "
+                        />
+                        <button
+                            id="floating-image-clear-btn"
+                            style="
+                                position: absolute;
+                                right: 4px;
+                                background: transparent;
+                                border: none;
+                                color: rgba(255, 255, 255, 0.6);
+                                cursor: pointer;
+                                font-size: 16px;
+                                line-height: 1;
+                                padding: 4px 6px;
+                                border-radius: 50%;
+                                display: none;
+                                transition: all 0.2s ease;
+                            "
+                            title="Clear"
+                        >×</button>
+                    </div>
                     <style>
                         #floating-image-id-input::placeholder {
                             color: rgba(255, 255, 255, 0.6);
                             opacity: 1;
+                        }
+                        #floating-image-clear-btn:hover {
+                            background: rgba(255, 255, 255, 0.1);
+                            color: rgba(255, 255, 255, 0.9);
                         }
                     </style>
                     <button 
