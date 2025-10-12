@@ -1968,6 +1968,7 @@ console.log('Current URL:', window.location.href);
             justify-content: space-between;
             align-items: center;
             background: rgba(0,0,0,0.1);
+            position: relative;
         `;
         
         const title = document.createElement('h3');
@@ -1985,27 +1986,31 @@ console.log('Current URL:', window.location.href);
         pinButton.innerHTML = '📌';
         pinButton.title = 'Pin window (keep open across pages)';
         pinButton.style.cssText = `
-            background: none;
-            border: none;
+            position: absolute;
+            top: 5px;
+            right: 40px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
             color: rgba(255,255,255,0.5);
-            font-size: 18px;
+            font-size: 16px;
             cursor: pointer;
             padding: 0;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.2s;
-            margin-left: auto;
-            margin-right: 5px;
+            z-index: 10;
         `;
         
         // Check pinned state from storage
         const isPinned = localStorage.getItem('cp-window-pinned') === 'true';
         if (isPinned) {
             pinButton.style.color = 'rgba(255,235,59,0.9)';
+            pinButton.style.background = 'rgba(255,235,59,0.15)';
+            pinButton.style.borderColor = 'rgba(255,235,59,0.5)';
             pinButton.style.transform = 'rotate(45deg)';
             pinButton.title = 'Unpin window';
         }
@@ -2019,12 +2024,16 @@ console.log('Current URL:', window.location.href);
             if (newPinnedState) {
                 // Pinned
                 pinButton.style.color = 'rgba(255,235,59,0.9)';
+                pinButton.style.background = 'rgba(255,235,59,0.15)';
+                pinButton.style.borderColor = 'rgba(255,235,59,0.5)';
                 pinButton.style.transform = 'rotate(45deg)';
                 pinButton.title = 'Unpin window';
                 console.log('✅ Window pinned - will stay open across pages');
             } else {
                 // Unpinned
                 pinButton.style.color = 'rgba(255,255,255,0.5)';
+                pinButton.style.background = 'rgba(0,0,0,0.3)';
+                pinButton.style.borderColor = 'rgba(255,255,255,0.2)';
                 pinButton.style.transform = 'rotate(0deg)';
                 pinButton.title = 'Pin window (keep open across pages)';
                 console.log('📌 Window unpinned - will close when navigating');
@@ -2032,16 +2041,24 @@ console.log('Current URL:', window.location.href);
         });
         
         pinButton.addEventListener('mouseenter', () => {
-            if (localStorage.getItem('cp-window-pinned') !== 'true') {
+            const isPinned = localStorage.getItem('cp-window-pinned') === 'true';
+            if (isPinned) {
+                pinButton.style.background = 'rgba(255,235,59,0.25)';
+            } else {
                 pinButton.style.color = 'rgba(255,255,255,0.8)';
+                pinButton.style.background = 'rgba(255,255,255,0.1)';
             }
-            pinButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
         });
         
         pinButton.addEventListener('mouseleave', () => {
             const isPinned = localStorage.getItem('cp-window-pinned') === 'true';
-            pinButton.style.color = isPinned ? 'rgba(255,235,59,0.9)' : 'rgba(255,255,255,0.5)';
-            pinButton.style.backgroundColor = 'transparent';
+            if (isPinned) {
+                pinButton.style.color = 'rgba(255,235,59,0.9)';
+                pinButton.style.background = 'rgba(255,235,59,0.15)';
+            } else {
+                pinButton.style.color = 'rgba(255,255,255,0.5)';
+                pinButton.style.background = 'rgba(0,0,0,0.3)';
+            }
         });
         
         // SSO Login Button
@@ -2056,6 +2073,7 @@ console.log('Current URL:', window.location.href);
             cursor: pointer;
             padding: 6px 12px;
             border-radius: 4px;
+            margin-left: auto;
             margin-right: 10px;
             transition: all 0.2s;
         `;
@@ -2106,8 +2124,8 @@ console.log('Current URL:', window.location.href);
         });
         
         header.appendChild(title);
-        header.appendChild(pinButton);
         header.appendChild(ssoButton);
+        header.appendChild(pinButton);
         header.appendChild(closeButton);
         
         // Create content area
