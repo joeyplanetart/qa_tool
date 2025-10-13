@@ -2191,7 +2191,11 @@ console.log('Current URL:', window.location.href);
             
             // Check if we're on a product page by URL pattern
             const currentUrl = window.location.href;
-            const isProductPage = currentUrl.match(/\/\+[^/]*,\d+/) !== null; // Matches pattern like /+product-name,123456 or /+,123456
+            // Supports two URL formats:
+            // 1. /+{seo-slug},{productId} - e.g. /+,78765606 or /+product-name,78765606
+            // 2. /mf/{designId}/_xxx?productId={productId} - e.g. /mf/110425555/_tshirt?productId=78765606
+            const isProductPage = currentUrl.match(/\/\+[^/]*,\d+/) !== null || 
+                                  currentUrl.match(/\/mf\/\d+\/[^?]*\?productId=\d+/) !== null;
             
             // Check if we have valid product data (not just "Not found")
             const hasValidProductData = isProductPage && result && (
