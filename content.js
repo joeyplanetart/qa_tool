@@ -1969,6 +1969,8 @@ console.log('Current URL:', window.location.href);
             align-items: center;
             background: rgba(0,0,0,0.1);
             position: relative;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
         `;
         
         const title = document.createElement('h3');
@@ -2191,11 +2193,13 @@ console.log('Current URL:', window.location.href);
             
             // Check if we're on a product page by URL pattern
             const currentUrl = window.location.href;
-            // Supports two URL formats:
+            // Supports three URL formats:
             // 1. /+{seo-slug},{productId} - e.g. /+,78765606 or /+product-name,78765606
             // 2. /mf/{designId}/_xxx?productId={productId} - e.g. /mf/110425555/_tshirt?productId=78765606
+            // 3. /mf/{designId}/xxx?fromProductId={productId} - e.g. /mf/80826596/large-puzzle?fromProductId=538485120
             const isProductPage = currentUrl.match(/\/\+[^/]*,\d+/) !== null || 
-                                  currentUrl.match(/\/mf\/\d+\/[^?]*\?productId=\d+/) !== null;
+                                  currentUrl.match(/\/mf\/\d+\/[^?]*\?productId=\d+/) !== null ||
+                                  currentUrl.match(/\/mf\/\d+\/[^?]*\?fromProductId=\d+/) !== null;
             
             // Check if we have valid product data (not just "Not found")
             const hasValidProductData = isProductPage && result && (
