@@ -2188,9 +2188,6 @@ console.log('Current URL:', window.location.href);
             let html = '';
             let productInfoHtml = '';
             
-            // Add search panel
-            html += createSearchPanel();
-            
             // Check if we're on a product page by URL pattern
             const currentUrl = window.location.href;
             // Supports five URL formats:
@@ -2222,9 +2219,15 @@ console.log('Current URL:', window.location.href);
             console.log('  - Has productsData:', result?.productsData ? 'Yes' : 'No');
             console.log('  - Decision: hasValidProductData =', hasValidProductData);
             
+            // Add environment switcher at the top (only show on product pages)
             if (hasValidProductData) {
-                // Add environment switcher (only show on product pages)
-                productInfoHtml += createEnvironmentSwitcher();
+                html += createEnvironmentSwitcher();
+            }
+            
+            // Add search panel
+            html += createSearchPanel();
+            
+            if (hasValidProductData) {
                 // Start product info card
                 productInfoHtml += `
                     <div style="
@@ -2522,6 +2525,7 @@ console.log('Current URL:', window.location.href);
             
             // Add search functionality event listeners
             const searchBtn = content.querySelector('#floating-search-btn');
+            const cancelOrderBtn = content.querySelector('#floating-cancel-order-btn');
             const searchInput = content.querySelector('#floating-order-id-input');
             const clearBtn = content.querySelector('#floating-clear-btn');
             const pdpBtn = content.querySelector('#floating-pdp-btn');
@@ -2529,6 +2533,11 @@ console.log('Current URL:', window.location.href);
             if (searchBtn) {
                 searchBtn.addEventListener('click', searchOrderInFloatingWindow);
                 console.log('✓ Search button event listener added to floating window');
+            }
+            
+            if (cancelOrderBtn) {
+                cancelOrderBtn.addEventListener('click', cancelOrderInFloatingWindow);
+                console.log('✓ Cancel Order button event listener added to floating window');
             }
             
             if (searchInput) {
@@ -2562,6 +2571,32 @@ console.log('Current URL:', window.location.href);
             if (pdpBtn) {
                 pdpBtn.addEventListener('click', showPDPInfo);
                 console.log('✓ PDP button event listener added to floating window');
+            }
+            
+            // Add hover effects for Cancel Order button
+            if (cancelOrderBtn) {
+                cancelOrderBtn.addEventListener('mouseenter', () => {
+                    if (!cancelOrderBtn.disabled) {
+                        cancelOrderBtn.style.background = '#f4511e';
+                    }
+                });
+                cancelOrderBtn.addEventListener('mouseleave', () => {
+                    if (!cancelOrderBtn.disabled) {
+                        cancelOrderBtn.style.background = '#ff5722';
+                    }
+                });
+            }
+            
+            // Add hover effects for Back button
+            if (pdpBtn) {
+                pdpBtn.addEventListener('mouseenter', () => {
+                    pdpBtn.style.background = 'rgba(255,255,255,0.3)';
+                    pdpBtn.style.borderColor = 'rgba(255,255,255,0.5)';
+                });
+                pdpBtn.addEventListener('mouseleave', () => {
+                    pdpBtn.style.background = 'rgba(255,255,255,0.2)';
+                    pdpBtn.style.borderColor = 'rgba(255,255,255,0.3)';
+                });
             }
             
             // Add store search functionality event listeners
@@ -3439,6 +3474,7 @@ console.log('Current URL:', window.location.href);
     
     function createSearchPanel() {
         return `
+            <!-- Search Panel -->
             <div style="
                 margin-bottom: 10px;
                 padding: 0;
@@ -3455,7 +3491,7 @@ console.log('Current URL:', window.location.href);
                             maxlength="11"
                             autocomplete="off"
                             style="
-                                width: 140px;
+                                width: 120px;
                                 padding: 8px 28px 8px 12px;
                                 border: none;
                                 border-radius: 6px;
@@ -3512,21 +3548,20 @@ console.log('Current URL:', window.location.href);
                         "
                     >Search</button>
                     <button 
-                        id="floating-pdp-btn"
+                        id="floating-cancel-order-btn"
                         style="
-                            background: rgba(255,255,255,0.2);
+                            background: #ff5722;
                             color: #fff;
-                            border: 1px solid rgba(255,255,255,0.3);
-                            padding: 8px 14px;
+                            border: none;
+                            padding: 8px 16px;
                             border-radius: 6px;
                             cursor: pointer;
                             font-size: 12px;
                             font-weight: bold;
                             transition: all 0.2s ease;
                             white-space: nowrap;
-                            margin-left: auto;
                         "
-                    >Back</button>
+                    >Cancel Order</button>
                 </div>
                 
                 <!-- Store Search Panel -->
@@ -3663,7 +3698,7 @@ console.log('Current URL:', window.location.href);
                             placeholder="Enter Image ID"
                             autocomplete="off"
                             style="
-                                width: 140px;
+                                width: 120px;
                                 padding: 8px 28px 8px 12px;
                                 border: none;
                                 border-radius: 6px;
@@ -4681,6 +4716,35 @@ console.log('Current URL:', window.location.href);
             });
     }
     
+    // Cancel order in floating window
+    function cancelOrderInFloatingWindow() {
+        const input = document.getElementById('floating-order-id-input');
+        const cancelOrderBtn = document.getElementById('floating-cancel-order-btn');
+        
+        if (!input || !cancelOrderBtn) return;
+        
+        const orderId = input.value.trim();
+        
+        if (!orderId) {
+            showToastNotification('Please enter an Order ID', 'warning');
+            return;
+        }
+        
+        console.log('Canceling order ID:', orderId);
+        
+        // Show canceling state
+        cancelOrderBtn.textContent = 'Canceling...';
+        cancelOrderBtn.disabled = true;
+        
+        // TODO: Implement actual cancel order API call
+        // For now, just show a placeholder message
+        setTimeout(() => {
+            showToastNotification('Cancel Order feature coming soon', 'info');
+            cancelOrderBtn.textContent = 'Cancel Order';
+            cancelOrderBtn.disabled = false;
+        }, 1000);
+    }
+    
     // Show PDP (Product Detail Page) info - default view
     function showPDPInfo() {
         const orderDetailDiv = document.getElementById('floating-order-detail');
@@ -4745,43 +4809,68 @@ console.log('Current URL:', window.location.href);
         return `
             <div style="
                 margin-top: 2px;
-                margin-bottom: 2px;
-                padding: 10px 15px;
-                background: rgba(0,0,0,0.4);
-                border-radius: 8px;
+                margin-bottom: 8px;
+                padding: 8px 12px;
+                background: rgba(255,255,255,0.1);
+                border-radius: 10px;
                 border: 1px solid rgba(255,255,255,0.2);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
             ">
-                <div style="
-                    font-size: 12px;
-                    color: #fff;
-                    margin-bottom: 2px;
-                    font-weight: normal;
-                    opacity: 0.9;
-                ">${siteName}</div>
-                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                    ${environments.map(env => `
-                        <button 
-                            class="env-switch-btn" 
-                            data-url="${env.url}"
-                            style="
-                                padding: 6px 12px;
-                                border: 1px solid ${env.current ? '#ffeb3b' : 'rgba(255,255,255,0.3)'};
-                                background: ${env.current ? '#ffeb3b' : 'rgba(255,255,255,0.1)'};
-                                color: ${env.current ? '#333' : '#fff'};
-                                border-radius: 4px;
-                                font-size: 11px;
-                                cursor: ${env.current ? 'default' : 'pointer'};
-                                font-weight: ${env.current ? 'bold' : 'normal'};
-                                min-width: 50px;
-                                text-align: center;
-                                transition: all 0.2s ease;
-                            "
-                            ${env.current ? 'disabled' : ''}
-                            onmouseover="if(!this.disabled) { this.style.background='rgba(255,255,255,0.2)'; this.style.borderColor='rgba(255,255,255,0.5)'; }"
-                            onmouseout="if(!this.disabled) { this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.3)'; }"
-                        >${env.name}</button>
-                    `).join('')}
+                <!-- Left: Environment Switcher -->
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                    <div style="
+                        font-size: 12px;
+                        color: #fff;
+                        font-weight: normal;
+                        opacity: 0.9;
+                        white-space: nowrap;
+                    ">${siteName}</div>
+                    <div style="display: flex; gap: 6px; flex-wrap: nowrap;">
+                        ${environments.map(env => `
+                            <button 
+                                class="env-switch-btn" 
+                                data-url="${env.url}"
+                                style="
+                                    padding: 6px 12px;
+                                    border: 1px solid ${env.current ? '#ffeb3b' : 'rgba(255,255,255,0.3)'};
+                                    background: ${env.current ? '#ffeb3b' : 'rgba(255,255,255,0.1)'};
+                                    color: ${env.current ? '#333' : '#fff'};
+                                    border-radius: 4px;
+                                    font-size: 11px;
+                                    cursor: ${env.current ? 'default' : 'pointer'};
+                                    font-weight: ${env.current ? 'bold' : 'normal'};
+                                    min-width: 50px;
+                                    text-align: center;
+                                    transition: all 0.2s ease;
+                                    white-space: nowrap;
+                                "
+                                ${env.current ? 'disabled' : ''}
+                                onmouseover="if(!this.disabled) { this.style.background='rgba(255,255,255,0.2)'; this.style.borderColor='rgba(255,255,255,0.5)'; }"
+                                onmouseout="if(!this.disabled) { this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.3)'; }"
+                            >${env.name}</button>
+                        `).join('')}
+                    </div>
                 </div>
+                
+                <!-- Right: Back Button -->
+                <button 
+                    id="floating-pdp-btn"
+                    style="
+                        background: rgba(255,255,255,0.2);
+                        color: #fff;
+                        border: 1px solid rgba(255,255,255,0.3);
+                        padding: 6px 20px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        font-weight: bold;
+                        transition: all 0.2s ease;
+                        white-space: nowrap;
+                    "
+                >← Back</button>
             </div>
         `;
     }
