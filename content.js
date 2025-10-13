@@ -2191,7 +2191,7 @@ console.log('Current URL:', window.location.href);
             
             // Check if we're on a product page by URL pattern
             const currentUrl = window.location.href;
-            const isProductPage = currentUrl.match(/\/\+[^/]+,\d+/) !== null; // Matches pattern like /+product-name,123456
+            const isProductPage = currentUrl.match(/\/\+[^/]*,\d+/) !== null; // Matches pattern like /+product-name,123456 or /+,123456
             
             // Check if we have valid product data (not just "Not found")
             const hasValidProductData = isProductPage && result && (
@@ -3529,7 +3529,7 @@ console.log('Current URL:', window.location.href);
                         <input 
                             type="email" 
                             id="floating-store-email-input" 
-                            placeholder="Email"
+                            placeholder="Enter Email"
                             autocomplete="off"
                             autocorrect="off"
                             autocapitalize="off"
@@ -3576,7 +3576,7 @@ console.log('Current URL:', window.location.href);
                             autocapitalize="off"
                             spellcheck="false"
                             style="
-                                width: 92px;
+                                width: 100px;
                                 padding: 8px 28px 8px 12px;
                                 border: none;
                                 border-radius: 6px;
