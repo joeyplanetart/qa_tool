@@ -2101,6 +2101,34 @@ console.log('Current URL:', window.location.href);
             ssoButton.style.boxShadow = 'none';
         });
         
+        // Minimize Button
+        const minimizeButton = document.createElement('button');
+        minimizeButton.innerHTML = '−';
+        minimizeButton.title = 'Minimize';
+        minimizeButton.style.cssText = `
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+            margin-right: 5px;
+        `;
+        minimizeButton.addEventListener('click', minimizeFloatingWindow);
+        minimizeButton.addEventListener('mouseenter', () => {
+            minimizeButton.style.backgroundColor = 'rgba(255,255,255,0.2)';
+        });
+        minimizeButton.addEventListener('mouseleave', () => {
+            minimizeButton.style.backgroundColor = 'transparent';
+        });
+        
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '×';
         closeButton.style.cssText = `
@@ -2128,6 +2156,7 @@ console.log('Current URL:', window.location.href);
         
         header.appendChild(title);
         header.appendChild(ssoButton);
+        header.appendChild(minimizeButton);
         header.appendChild(closeButton);
         
         // Create content area
@@ -2164,6 +2193,12 @@ console.log('Current URL:', window.location.href);
             floatingWindow.style.display = 'none';
         }
         isWindowVisible = false;
+        
+        // Also hide the floating ball if it exists
+        const floatingBall = document.getElementById('cp-floating-ball');
+        if (floatingBall) {
+            floatingBall.style.display = 'none';
+        }
     }
     
     function toggleFloatingWindow() {
@@ -2171,6 +2206,153 @@ console.log('Current URL:', window.location.href);
             hideFloatingWindow();
         } else {
             showFloatingWindow();
+        }
+    }
+    
+    // Minimize window to floating ball
+    function minimizeFloatingWindow() {
+        if (!floatingWindow) return;
+        
+        // Save minimized state
+        localStorage.setItem('cp-window-minimized', 'true');
+        
+        // Add transition animation
+        floatingWindow.style.transition = 'all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        floatingWindow.style.transform = 'scale(0.3)';
+        floatingWindow.style.opacity = '0';
+        
+        setTimeout(() => {
+            floatingWindow.style.display = 'none';
+            floatingWindow.style.transition = '';
+            floatingWindow.style.transform = '';
+            floatingWindow.style.opacity = '';
+            isWindowVisible = false;
+            
+            // Show floating ball
+            showFloatingBall();
+        }, 400);
+    }
+    
+    // Restore window from floating ball
+    function restoreFloatingWindow() {
+        // Clear minimized state
+        localStorage.setItem('cp-window-minimized', 'false');
+        
+        // Hide floating ball
+        const floatingBall = document.getElementById('cp-floating-ball');
+        if (floatingBall) {
+            floatingBall.style.transition = 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            floatingBall.style.transform = 'scale(0)';
+            floatingBall.style.opacity = '0';
+            
+            setTimeout(() => {
+                floatingBall.style.display = 'none';
+                floatingBall.style.transition = '';
+                floatingBall.style.transform = '';
+                floatingBall.style.opacity = '';
+            }, 300);
+        }
+        
+        // Show window with animation
+        if (floatingWindow) {
+            floatingWindow.style.display = 'block';
+            floatingWindow.style.transform = 'scale(0.3)';
+            floatingWindow.style.opacity = '0';
+            floatingWindow.style.transition = 'all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            
+            setTimeout(() => {
+                floatingWindow.style.transform = 'scale(1)';
+                floatingWindow.style.opacity = '1';
+            }, 10);
+            
+            setTimeout(() => {
+                floatingWindow.style.transition = '';
+                floatingWindow.style.transform = '';
+                floatingWindow.style.opacity = '';
+                isWindowVisible = true;
+                
+                // Update content after animation completes
+                updateFloatingWindowContent();
+            }, 400);
+        }
+    }
+    
+    // Create floating ball
+    function showFloatingBall() {
+        let floatingBall = document.getElementById('cp-floating-ball');
+        
+        if (!floatingBall) {
+            floatingBall = document.createElement('div');
+            floatingBall.id = 'cp-floating-ball';
+            floatingBall.innerHTML = 'C';
+            floatingBall.title = 'Click to restore';
+            floatingBall.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                width: 60px;
+                height: 60px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 50%;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                z-index: 10000;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 24px;
+                font-weight: bold;
+                color: white;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                transition: all 0.3s ease;
+                animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            `;
+            
+            // Add bounce animation keyframes
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes bounceIn {
+                    0% {
+                        transform: scale(0);
+                        opacity: 0;
+                    }
+                    50% {
+                        transform: scale(1.1);
+                    }
+                    100% {
+                        transform: scale(1);
+                        opacity: 1;
+                    }
+                }
+                @keyframes pulse {
+                    0%, 100% {
+                        transform: scale(1);
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                    }
+                    50% {
+                        transform: scale(1.05);
+                        box-shadow: 0 6px 30px rgba(102,126,234,0.6);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            floatingBall.addEventListener('click', restoreFloatingWindow);
+            
+            floatingBall.addEventListener('mouseenter', () => {
+                floatingBall.style.transform = 'scale(1.1)';
+                floatingBall.style.boxShadow = '0 6px 30px rgba(102,126,234,0.6)';
+            });
+            
+            floatingBall.addEventListener('mouseleave', () => {
+                floatingBall.style.transform = 'scale(1)';
+                floatingBall.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
+            });
+            
+            document.body.appendChild(floatingBall);
+        } else {
+            floatingBall.style.display = 'flex';
+            floatingBall.style.animation = 'bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
         }
     }
     
@@ -2219,10 +2401,8 @@ console.log('Current URL:', window.location.href);
             console.log('  - Has productsData:', result?.productsData ? 'Yes' : 'No');
             console.log('  - Decision: hasValidProductData =', hasValidProductData);
             
-            // Add environment switcher at the top (only show on product pages)
-            if (hasValidProductData) {
-                html += createEnvironmentSwitcher();
-            }
+            // Add environment switcher at the top (always show, but env buttons only on product pages)
+            html += createEnvironmentSwitcher();
             
             // Add search panel
             html += createSearchPanel();
@@ -4788,8 +4968,6 @@ console.log('Current URL:', window.location.href);
         const currentUrl = window.location.href;
         const environments = getEnvironmentInfo(currentUrl);
         
-        if (!environments) return '';
-        
         // Determine site name based on current URL
         let siteName = 'ENV';
         if (currentUrl.includes('cafus-cpsw-web') || 
@@ -4806,20 +4984,10 @@ console.log('Current URL:', window.location.href);
             siteName = 'CAFAU';
         }
         
-        return `
-            <div style="
-                margin-top: 2px;
-                margin-bottom: 8px;
-                padding: 8px 12px;
-                background: rgba(255,255,255,0.1);
-                border-radius: 10px;
-                border: 1px solid rgba(255,255,255,0.2);
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 12px;
-            ">
-                <!-- Left: Environment Switcher -->
+        // Environment switcher content (only show on product pages)
+        let envSwitcherContent = '';
+        if (environments && environments.length > 0) {
+            envSwitcherContent = `
                 <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
                     <div style="
                         font-size: 12px;
@@ -4854,8 +5022,26 @@ console.log('Current URL:', window.location.href);
                         `).join('')}
                     </div>
                 </div>
+            `;
+        }
+        
+        return `
+            <div style="
+                margin-top: 2px;
+                margin-bottom: 8px;
+                padding: 8px 12px;
+                background: rgba(255,255,255,0.1);
+                border-radius: 10px;
+                border: 1px solid rgba(255,255,255,0.2);
+                display: flex;
+                justify-content: ${environments && environments.length > 0 ? 'space-between' : 'flex-end'};
+                align-items: center;
+                gap: 12px;
+            ">
+                <!-- Left: Environment Switcher (only on product pages) -->
+                ${envSwitcherContent}
                 
-                <!-- Right: Back Button -->
+                <!-- Right: Back Button (always show) -->
                 <button 
                     id="floating-pdp-btn"
                     style="
@@ -5038,19 +5224,39 @@ console.log('Current URL:', window.location.href);
     // Check if window should be auto-opened (pinned state)
     function checkAndAutoShowWindow() {
         const isPinned = localStorage.getItem('cp-window-pinned') === 'true';
+        const isMinimized = localStorage.getItem('cp-window-minimized') === 'true';
+        
         if (isPinned) {
             console.log('🔍 Window is pinned - auto-showing on page load');
+            console.log('📦 Minimized state:', isMinimized);
+            
             // Wait for DOM to be ready before showing
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', () => {
                     setTimeout(() => {
-                        showFloatingWindow();
+                        if (isMinimized) {
+                            // Show as floating ball if minimized
+                            createFloatingWindow();
+                            updateFloatingWindowContent(); // Load content even when minimized
+                            showFloatingBall();
+                        } else {
+                            // Show full window if not minimized
+                            showFloatingWindow();
+                        }
                     }, 500); // Small delay to ensure page is stable
                 });
             } else {
                 // DOM already ready
                 setTimeout(() => {
-                    showFloatingWindow();
+                    if (isMinimized) {
+                        // Show as floating ball if minimized
+                        createFloatingWindow();
+                        updateFloatingWindowContent(); // Load content even when minimized
+                        showFloatingBall();
+                    } else {
+                        // Show full window if not minimized
+                        showFloatingWindow();
+                    }
                 }, 500);
             }
         } else {
