@@ -2779,6 +2779,42 @@ console.log('Current URL:', window.location.href);
                 });
             }
             
+            // Add panel toggle functionality
+            const panelToggleBtn = content.querySelector('#cp-panel-toggle-btn');
+            const collapsiblePanels = content.querySelector('#cp-collapsible-panels');
+            
+            if (panelToggleBtn && collapsiblePanels) {
+                panelToggleBtn.addEventListener('click', () => {
+                    const isCurrentlyExpanded = collapsiblePanels.style.maxHeight !== '0px';
+                    const newExpandedState = !isCurrentlyExpanded;
+                    
+                    // Toggle panels
+                    collapsiblePanels.style.maxHeight = newExpandedState ? '500px' : '0';
+                    
+                    // Update button text and title
+                    const buttonText = panelToggleBtn.querySelector('span');
+                    if (buttonText) {
+                        buttonText.textContent = newExpandedState ? '▲ Collapse' : '▼ Expand';
+                    }
+                    panelToggleBtn.title = newExpandedState ? 'Collapse' : 'Expand';
+                    
+                    // Save state
+                    localStorage.setItem('cp-panel-expanded', newExpandedState.toString());
+                    
+                    console.log('📋 Panel toggled:', newExpandedState ? 'Expanded' : 'Collapsed');
+                });
+                
+                // Add hover effect
+                panelToggleBtn.addEventListener('mouseenter', () => {
+                    panelToggleBtn.style.background = 'rgba(255,255,255,0.1)';
+                });
+                panelToggleBtn.addEventListener('mouseleave', () => {
+                    panelToggleBtn.style.background = 'transparent';
+                });
+                
+                console.log('✓ Panel toggle button event listener added');
+            }
+            
             // Add store search functionality event listeners
             const storeEmailInput = content.querySelector('#floating-store-email-input');
             const storeEmailClearBtn = content.querySelector('#floating-store-email-clear-btn');
@@ -3653,15 +3689,19 @@ console.log('Current URL:', window.location.href);
     }
     
     function createSearchPanel() {
+        // Check if panel is expanded (default: true)
+        const isExpanded = localStorage.getItem('cp-panel-expanded') !== 'false';
+        
         return `
             <!-- Search Panel -->
-            <div style="
+            <div id="cp-function-panel" style="
                 margin-bottom: 10px;
                 padding: 0;
                 background: rgba(255,255,255,0.1);
                 border-radius: 10px;
                 border: 1px solid rgba(255,255,255,0.2);
             ">
+                <!-- Order Search Panel (Always visible) -->
                 <div style="display: flex; gap: 8px; align-items: center; padding: 6px;">
                     <div style="position: relative; display: flex; align-items: center;">
                         <input 
@@ -3744,14 +3784,20 @@ console.log('Current URL:', window.location.href);
                     >Cancel Order</button>
                 </div>
                 
-                <!-- Store Search Panel -->
-                <div style="
-                    display: flex; 
-                    gap: 8px; 
-                    align-items: center; 
-                    padding: 6px;
-                    border-top: 1px solid rgba(255,255,255,0.1);
+                <!-- Collapsible Panels Container -->
+                <div id="cp-collapsible-panels" style="
+                    max-height: ${isExpanded ? '500px' : '0'};
+                    overflow: hidden;
+                    transition: max-height 0.3s ease-in-out;
                 ">
+                    <!-- Store Search Panel -->
+                    <div style="
+                        display: flex; 
+                        gap: 8px; 
+                        align-items: center; 
+                        padding: 6px;
+                        border-top: 1px solid rgba(255,255,255,0.1);
+                    ">
                     <div style="position: relative; display: flex; align-items: center;">
                         <input 
                             type="email" 
@@ -3949,6 +3995,25 @@ console.log('Current URL:', window.location.href);
                             white-space: nowrap;
                         "
                     >Block</button>
+                </div>
+                </div>
+                
+                <!-- Toggle Button -->
+                <div style="
+                    padding: 4px 6px;
+                    border-top: 1px solid rgba(255,255,255,0.1);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    cursor: pointer;
+                    transition: background 0.2s ease;
+                " id="cp-panel-toggle-btn" title="${isExpanded ? 'Collapse' : 'Expand'}">
+                    <span style="
+                        color: rgba(255,255,255,0.7);
+                        font-size: 11px;
+                        font-weight: 500;
+                        user-select: none;
+                    ">${isExpanded ? '▲ Collapse' : '▼ Expand'}</span>
                 </div>
             </div>
             <div id="floating-order-detail" style="display: none;"></div>
