@@ -5065,7 +5065,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         color: #fff;
                         padding: 2px 0;
                         white-space: nowrap;
-                    ">${detectedBranch}</div>
+                        max-width: 150px;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    " title="${detectedBranch}">${detectedBranch}</div>
                 ` : ''}
                 
                 <!-- 当前环境 -->
