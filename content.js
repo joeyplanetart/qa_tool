@@ -5040,49 +5040,40 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         
         // 站点信息显示（始终显示，不依赖 Product Info）
         const siteInfoContent = `
-            <div style="display: flex; align-items: center; gap: 8px; flex: 1; flex-wrap: wrap;">
-                <!-- 站点名称 -->
+            <div style="display: flex; align-items: center; gap: 10px; flex: 1; flex-wrap: wrap;">
+                <!-- 站点名称 - 突出显示 -->
                 <div style="
-                    font-size: 13px;
-                    color: #c5cae9;
+                    font-size: 16px;
+                    color: #fff;
                     font-weight: bold;
-                    padding: 4px 10px;
-                    background: rgba(255,255,255,0.15);
-                    border-radius: 4px;
+                    letter-spacing: 0.5px;
                     white-space: nowrap;
                 ">${siteName}</div>
                 
                 <!-- 站点 ID -->
                 <div style="
-                    font-size: 11px;
-                    color: #ffeb3b;
-                    padding: 3px 8px;
-                    background: rgba(255,235,59,0.15);
-                    border: 1px solid rgba(255,235,59,0.3);
-                    border-radius: 4px;
+                    font-size: 12px;
+                    color: #fff;
+                    padding: 2px 0;
                     white-space: nowrap;
                 ">ID: ${siteId}</div>
                 
                 <!-- 分支名称（如果有） -->
                 ${detectedBranch ? `
                     <div style="
-                        font-size: 11px;
-                        color: #81c784;
-                        padding: 3px 8px;
-                        background: rgba(129,199,132,0.15);
-                        border: 1px solid rgba(129,199,132,0.3);
-                        border-radius: 4px;
+                        font-size: 12px;
+                        color: #fff;
+                        padding: 2px 0;
                         white-space: nowrap;
-                    ">🔱 ${detectedBranch}</div>
+                    ">${detectedBranch}</div>
                 ` : ''}
                 
                 <!-- 当前环境 -->
                 <div style="
-                    font-size: 11px;
-                    color: ${currentEnv === 'Live' ? '#ff9800' : currentEnv === 'Stage' ? '#9c27b0' : '#2196f3'};
-                    padding: 3px 8px;
-                    background: ${currentEnv === 'Live' ? 'rgba(255,152,0,0.15)' : currentEnv === 'Stage' ? 'rgba(156,39,176,0.15)' : 'rgba(33,150,243,0.15)'};
-                    border: 1px solid ${currentEnv === 'Live' ? 'rgba(255,152,0,0.3)' : currentEnv === 'Stage' ? 'rgba(156,39,176,0.3)' : 'rgba(33,150,243,0.3)'};
+                    font-size: 12px;
+                    color: #fff;
+                    padding: 4px 12px;
+                    background: ${currentEnv === 'Live' ? '#ff9800' : currentEnv === 'Stage' ? '#9c27b0' : '#2196f3'};
                     border-radius: 4px;
                     font-weight: bold;
                     white-space: nowrap;
