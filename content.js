@@ -3714,13 +3714,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         console.log('🔍 Approving image:', imageId);
         
         const environment = detectEnvironment();
+        const detectedBranch = CONFIG.autoDetectBranch() || CONFIG.BRANCH.CURRENT;
         console.log('Current environment:', environment);
+        console.log('Current branch:', detectedBranch);
         
         const response = await chrome.runtime.sendMessage({
             type: 'APPROVE_BLOCK_IMAGE',
             imageId: imageId,
             action: 'approve',
-            environment: environment
+            environment: environment,
+            branch: detectedBranch
         });
         
         if (!response.success) {
@@ -3736,13 +3739,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         console.log('🔍 Blocking image:', imageId);
         
         const environment = detectEnvironment();
+        const detectedBranch = CONFIG.autoDetectBranch() || CONFIG.BRANCH.CURRENT;
         console.log('Current environment:', environment);
+        console.log('Current branch:', detectedBranch);
         
         const response = await chrome.runtime.sendMessage({
             type: 'APPROVE_BLOCK_IMAGE',
             imageId: imageId,
             action: 'block',
-            environment: environment
+            environment: environment,
+            branch: detectedBranch
         });
         
         if (!response.success) {
