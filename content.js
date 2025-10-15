@@ -3130,7 +3130,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         // Show panel and generate content
                         testLinksPanel.innerHTML = createTestLinksPanel();
                         testLinksPanel.style.display = 'block';
-                        testLinksBtn.textContent = '🔗 Hide Links';
+                        testLinksBtn.textContent = 'Hide Links';
                         
                         // Add event listeners for copy and open buttons
                         const copyBtns = testLinksPanel.querySelectorAll('.test-link-copy-btn');
@@ -3153,7 +3153,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                     console.error('Failed to copy:', err);
                                     btn.innerHTML = '❌ Failed';
                                     setTimeout(() => {
-                                        btn.innerHTML = '📋 Copy';
+                                        btn.innerHTML = 'Copy';
                                     }, 2000);
                                 }
                             });
@@ -3169,7 +3169,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     } else {
                         // Hide panel
                         testLinksPanel.style.display = 'none';
-                        testLinksBtn.textContent = '🔗 Test Links';
+                        testLinksBtn.textContent = 'Test Links';
                     }
                 });
                 
@@ -4072,7 +4072,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         "
                         onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.3)';"
                         onmouseout="this.style.transform=''; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
-                    >🔗 Test Links</button>
+                    >Test Links</button>
                 </div>
                 
                 <!-- Test Links Panel (hidden by default) -->
@@ -5248,7 +5248,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         // Define link categories
         const linkCategories = [
             {
-                name: '🏠 常用页面',
+                name: '常用页面',
                 links: [
                     { title: '首页', url: `https://${siteBaseUrl}` },
                     { title: '搜索页面', url: `https://${siteBaseUrl}/search/` },
@@ -5257,7 +5257,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 ]
             },
             {
-                name: '🔧 Admin 工具',
+                name: 'Admin 工具',
                 links: [
                     { title: 'Admin Panel', url: `https://${adminBaseUrl}` },
                     { title: 'Image Approval', url: `https://${adminBaseUrl}/cp/image-approve.aspx` },
@@ -5266,7 +5266,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 ]
             },
             {
-                name: '🔌 API 端点',
+                name: 'API 端点',
                 links: [
                     { title: 'API Base', url: CONFIG.getAdminBaseUrl(env) },
                     { title: 'Image Approve API', url: `${CONFIG.getAdminApiUrl(env)}/api/sw/cpadmin/productimage/approve` },
@@ -5275,7 +5275,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 ]
             },
             {
-                name: '📄 测试页面',
+                name: '测试页面',
                 links: [
                     { title: '测试产品 1', url: `https://${siteBaseUrl}/+test-product-1` },
                     { title: '测试产品 2', url: `https://${siteBaseUrl}/+test-product-2` },
@@ -5330,7 +5330,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 transition: all 0.2s ease;
                             " onmouseover="this.style.background='rgba(33, 150, 243, 0.3)';"
                                onmouseout="this.style.background='rgba(33, 150, 243, 0.2)';"
-                            >📋 Copy</button>
+                            >Copy</button>
                             <button class="test-link-open-btn" data-url="${link.url}" style="
                                 background: rgba(76, 175, 80, 0.2);
                                 border: 1px solid rgba(76, 175, 80, 0.4);
@@ -5344,7 +5344,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 transition: all 0.2s ease;
                             " onmouseover="this.style.background='rgba(76, 175, 80, 0.3)';"
                                onmouseout="this.style.background='rgba(76, 175, 80, 0.2)';"
-                            >🔗 Open</button>
+                            >Open</button>
                         </div>
                     </div>
                 `;
@@ -5383,7 +5383,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         color: #fff;
                         font-size: 14px;
                         font-weight: bold;
-                    ">📚 Test Links & APIs</div>
+                    ">Test Links & APIs</div>
                     <div style="
                         color: rgba(255,255,255,0.6);
                         font-size: 10px;
