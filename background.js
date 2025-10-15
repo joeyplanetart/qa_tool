@@ -75,10 +75,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Restore original branch
         CONFIG.BRANCH.CURRENT = originalBranch;
         
+        console.log('========== APPROVE/BLOCK REQUEST DEBUG ==========');
         console.log(`Environment: ${environment}`);
         console.log(`Branch: ${branch}`);
         console.log(`API URL: ${apiUrl}`);
         console.log(`Admin Base URL: ${adminBaseUrl}`);
+        console.log(`Action: ${action}`);
+        console.log(`Image ID: ${imageId}`);
         
         // Construct form data
         const formData = new URLSearchParams();
@@ -99,6 +102,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             'reason_no': action === 'block' ? 1 : undefined,
             'channel': 'MP'
         });
+        console.log('FormData string:', formData.toString());
+        console.log('Request headers:', {
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Origin': adminBaseUrl,
+            'Referer': `${adminBaseUrl}/cstools/cp/cup_tool.php`
+        });
         
         fetch(apiUrl, {
             method: 'POST',
@@ -112,34 +123,51 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             },
             body: formData.toString()
         })
-        .then(response => {
+        .then(async response => {
+            console.log('========== APPROVE/BLOCK RESPONSE DEBUG ==========');
             console.log('Background: Response status:', response.status);
+            console.log('Background: Response statusText:', response.statusText);
+            console.log('Background: Response ok:', response.ok);
             console.log('Background: Response content-type:', response.headers.get('content-type'));
+            console.log('Background: Response headers:', {
+                'content-type': response.headers.get('content-type'),
+                'content-length': response.headers.get('content-length'),
+                'set-cookie': response.headers.get('set-cookie')
+            });
             
             if (!response.ok) {
+                // Get response body for debugging
+                const responseText = await response.text();
+                console.error('Background: Error response body (first 1000 chars):', responseText.substring(0, 1000));
+                
                 if (response.status === 401 || response.status === 403) {
-                    throw new Error('Unauthorized - Please login via SSO first');
+                    throw new Error(`Unauthorized (${response.status}) - Please login via SSO first. Response: ${responseText.substring(0, 200)}`);
                 }
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}. Body: ${responseText.substring(0, 200)}`);
             }
             
             // Check if response is JSON
             const contentType = response.headers.get('content-type');
+            console.log('Background: Content-Type check:', contentType);
+            
             if (!contentType || !contentType.includes('application/json')) {
-                console.warn('Background: Response is not JSON, likely HTML (login page)');
-                throw new Error('Not logged in or session expired. Please login via SSO first');
+                const responseText = await response.text();
+                console.warn('Background: Response is not JSON. Body (first 1000 chars):', responseText.substring(0, 1000));
+                throw new Error(`Not logged in or session expired. Response is HTML. Body: ${responseText.substring(0, 200)}`);
             }
             
             return response.json();
         })
         .then(data => {
-            console.log('Background: API response data:', data);
+            console.log('Background: API response data:', JSON.stringify(data, null, 2));
             
             // Check if API returned an error
             if (data.error || data.success === false) {
-                throw new Error(data.message || data.error || 'API returned an error');
+                console.error('Background: API returned error:', data);
+                throw new Error(data.message || data.error || JSON.stringify(data));
             }
             
+            console.log('✅ Approve/Block success!');
             sendResponse({
                 success: true,
                 data: data,
@@ -148,12 +176,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             });
         })
         .catch(error => {
-            console.error('Background: Error:', error);
+            console.error('========== APPROVE/BLOCK ERROR ==========');
+            console.error('Background: Error type:', error.name);
+            console.error('Background: Error message:', error.message);
+            console.error('Background: Error stack:', error.stack);
             
             // Improve error message
             let errorMessage = error.message;
             if (errorMessage.includes('Unexpected token')) {
-                errorMessage = 'Not logged in or session expired. Please login via SSO first';
+                errorMessage = 'Not logged in or session expired. Response is not valid JSON. Please login via SSO first';
             }
             
             sendResponse({
