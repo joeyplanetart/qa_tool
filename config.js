@@ -2,39 +2,71 @@
 // All domain and base URL configurations are centralized here
 
 const CONFIG = {
+    // Branch name configuration (can be changed flexibly)
+    // 分支名称配置（可灵活修改）
+    BRANCH: {
+        CURRENT: 'cpsw-web',  // 当前使用的分支名称，如需切换分支请修改此处
+        // 其他可能的分支示例：'feature-web', 'release-web', 'hotfix-web' 等
+    },
+    
+    // Base domain configuration
+    // 基础域名配置
+    BASE_DOMAIN: {
+        PRE: 'pre.planetart.com',
+        STAGE: 'stage.planetart.com',
+        LIVE: 'planetart.com'
+    },
+    
+    // Region prefixes
+    // 地区前缀
+    REGION_PREFIX: {
+        US: 'cafus',
+        CA: 'cafca',
+        UK: 'cafuk',
+        AU: 'cafau'
+    },
+    
     // Frontend site domains by region and environment
-    SITES: {
-        US: {
-            PRE: 'cafus-cpsw-web.pre.planetart.com',
-            STAGE: 'cafus-cpsw-web.stage.planetart.com',
-            LIVE: 'www.cafepress.com',
-            LIVE_ALT: 'cafepress.com'  // Alternative domain without www
-        },
-        CA: {
-            PRE: 'cafca-cpsw-web.pre.planetart.com',
-            STAGE: 'cafca-cpsw-web.stage.planetart.com',
-            LIVE: 'www.cafepress.ca',
-            LIVE_ALT: 'cafepress.ca'
-        },
-        UK: {
-            PRE: 'cafuk-cpsw-web.pre.planetart.com',
-            STAGE: 'cafuk-cpsw-web.stage.planetart.com',
-            LIVE: 'www.cafepress.co.uk',
-            LIVE_ALT: 'cafepress.co.uk'
-        },
-        AU: {
-            PRE: 'cafau-cpsw-web.pre.planetart.com',
-            STAGE: 'cafau-cpsw-web.stage.planetart.com',
-            LIVE: 'www.cafepress.com.au',
-            LIVE_ALT: 'cafepress.com.au'
-        }
+    // 自动生成的站点域名（基于上述配置）
+    get SITES() {
+        const branch = this.BRANCH.CURRENT;
+        return {
+            US: {
+                PRE: `${this.REGION_PREFIX.US}-${branch}.${this.BASE_DOMAIN.PRE}`,
+                STAGE: `${this.REGION_PREFIX.US}-${branch}.${this.BASE_DOMAIN.STAGE}`,
+                LIVE: 'www.cafepress.com',
+                LIVE_ALT: 'cafepress.com'
+            },
+            CA: {
+                PRE: `${this.REGION_PREFIX.CA}-${branch}.${this.BASE_DOMAIN.PRE}`,
+                STAGE: `${this.REGION_PREFIX.CA}-${branch}.${this.BASE_DOMAIN.STAGE}`,
+                LIVE: 'www.cafepress.ca',
+                LIVE_ALT: 'cafepress.ca'
+            },
+            UK: {
+                PRE: `${this.REGION_PREFIX.UK}-${branch}.${this.BASE_DOMAIN.PRE}`,
+                STAGE: `${this.REGION_PREFIX.UK}-${branch}.${this.BASE_DOMAIN.STAGE}`,
+                LIVE: 'www.cafepress.co.uk',
+                LIVE_ALT: 'cafepress.co.uk'
+            },
+            AU: {
+                PRE: `${this.REGION_PREFIX.AU}-${branch}.${this.BASE_DOMAIN.PRE}`,
+                STAGE: `${this.REGION_PREFIX.AU}-${branch}.${this.BASE_DOMAIN.STAGE}`,
+                LIVE: 'www.cafepress.com.au',
+                LIVE_ALT: 'cafepress.com.au'
+            }
+        };
     },
     
     // Admin backend domains by environment
-    ADMIN: {
-        PRE: 'https://admin-cpsw-web.pre.planetart.com',
-        STAGE: 'https://admin-cpsw-web.stage.planetart.com',
-        LIVE: 'https://admin.planetart.com'
+    // 自动生成的 Admin 域名（基于分支配置）
+    get ADMIN() {
+        const branch = this.BRANCH.CURRENT;
+        return {
+            PRE: `https://admin-${branch}.${this.BASE_DOMAIN.PRE}`,
+            STAGE: `https://admin-${branch}.${this.BASE_DOMAIN.STAGE}`,
+            LIVE: 'https://admin.planetart.com'
+        };
     },
     
     // Authentication related domains
@@ -63,6 +95,86 @@ const CONFIG = {
     },
     
     // Helper methods
+    
+    /**
+     * Set current branch name (dynamically change branch)
+     * 设置当前分支名称（动态切换分支）
+     * @param {string} branchName - Branch name (e.g., 'cpsw-web', 'feature-web')
+     * @example CONFIG.setBranch('feature-web')
+     */
+    setBranch(branchName) {
+        this.BRANCH.CURRENT = branchName;
+        console.log(`✅ Branch switched to: ${branchName}`);
+        console.log(`📍 Example domains:`);
+        console.log(`   - US PRE: ${this.SITES.US.PRE}`);
+        console.log(`   - Admin PRE: ${this.ADMIN.PRE}`);
+    },
+    
+    /**
+     * Get current branch name
+     * 获取当前分支名称
+     * @returns {string} Current branch name
+     */
+    getCurrentBranch() {
+        return this.BRANCH.CURRENT;
+    },
+    
+    /**
+     * Build custom domain with specific branch
+     * 使用指定分支构建自定义域名
+     * @param {string} region - Region code ('US', 'CA', 'UK', 'AU')
+     * @param {string} environment - Environment ('pre', 'stage', 'live')
+     * @param {string} branchName - Optional branch name (uses current if not specified)
+     * @returns {string} Generated domain
+     * @example CONFIG.buildDomain('US', 'pre', 'feature-web') // cafus-feature-web.pre.planetart.com
+     */
+    buildDomain(region, environment, branchName = null) {
+        const branch = branchName || this.BRANCH.CURRENT;
+        const regionPrefix = this.REGION_PREFIX[region];
+        
+        if (!regionPrefix) {
+            console.error(`Invalid region: ${region}`);
+            return null;
+        }
+        
+        const env = environment.toLowerCase();
+        
+        if (env === 'live') {
+            // Live environment uses production domains
+            return this.SITES[region].LIVE;
+        } else if (env === 'pre') {
+            return `${regionPrefix}-${branch}.${this.BASE_DOMAIN.PRE}`;
+        } else if (env === 'stage') {
+            return `${regionPrefix}-${branch}.${this.BASE_DOMAIN.STAGE}`;
+        }
+        
+        console.error(`Invalid environment: ${environment}`);
+        return null;
+    },
+    
+    /**
+     * Build admin domain with specific branch
+     * 使用指定分支构建 Admin 域名
+     * @param {string} environment - Environment ('pre', 'stage', 'live')
+     * @param {string} branchName - Optional branch name (uses current if not specified)
+     * @returns {string} Generated admin URL
+     * @example CONFIG.buildAdminDomain('pre', 'feature-web') // https://admin-feature-web.pre.planetart.com
+     */
+    buildAdminDomain(environment, branchName = null) {
+        const branch = branchName || this.BRANCH.CURRENT;
+        const env = environment.toLowerCase();
+        
+        if (env === 'live') {
+            return 'https://admin.planetart.com';
+        } else if (env === 'pre') {
+            return `https://admin-${branch}.${this.BASE_DOMAIN.PRE}`;
+        } else if (env === 'stage') {
+            return `https://admin-${branch}.${this.BASE_DOMAIN.STAGE}`;
+        }
+        
+        console.error(`Invalid environment: ${environment}`);
+        return null;
+    },
     
     /**
      * Get all supported domains for manifest permissions

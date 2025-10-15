@@ -2,6 +2,42 @@
 
 这是一个为Cafepress QA团队开发的Chrome插件，提供产品信息提取、订单查询、图片审核和店铺搜索等多功能工具。
 
+## ⚙️ 版本 & 配置
+
+### 当前版本：v1.6.2
+- ✅ 统一配置管理系统
+- ✅ 灵活的分支名称配置
+- ✅ 支持通配符域名匹配
+- ✅ 运行时动态分支切换
+
+### 🔧 分支配置（新功能）
+
+**快速切换分支环境：**
+
+1. **修改配置文件**（推荐）：
+   ```javascript
+   // 编辑 config.js 第 8 行
+   BRANCH: {
+       CURRENT: 'your-branch-name',  // 改成您的分支名称
+   }
+   ```
+
+2. **运行时动态切换**：
+   ```javascript
+   // 在浏览器控制台执行
+   CONFIG.setBranch('feature-web');
+   ```
+
+3. **构建自定义域名**：
+   ```javascript
+   CONFIG.buildDomain('US', 'pre', 'hotfix-web');
+   // 结果: cafus-hotfix-web.pre.planetart.com
+   ```
+
+📚 **详细说明**：查看 [分支配置使用指南](BRANCH_CONFIG_GUIDE.md)
+
+---
+
 ## 功能特性
 
 ### 📦 产品信息提取
