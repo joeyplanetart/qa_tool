@@ -221,10 +221,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 chrome.action.onClicked.addListener((tab) => {
     console.log('Extension icon clicked on tab:', tab.url);
     
-    // Check if we're on a supported domain using unified config
-    const supportedDomains = CONFIG.getSupportedDomains();
+    // Check if we're on a supported domain using pattern matching
+    function isSupportedUrl(url) {
+        if (!url) return false;
+        
+        try {
+            const hostname = new URL(url).hostname;
+            
+            // Supported patterns
+            const supportedPatterns = [
+                /^cafus-.*\.pre\.planetart\.com$/,
+                /^cafus-.*\.stage\.planetart\.com$/,
+                /^cafca-.*\.pre\.planetart\.com$/,
+                /^cafca-.*\.stage\.planetart\.com$/,
+                /^cafuk-.*\.pre\.planetart\.com$/,
+                /^cafuk-.*\.stage\.planetart\.com$/,
+                /^cafau-.*\.pre\.planetart\.com$/,
+                /^cafau-.*\.stage\.planetart\.com$/,
+                /^(www\.)?cafepress\.com$/,
+                /^(www\.)?cafepress\.ca$/,
+                /^(www\.)?cafepress\.co\.uk$/,
+                /^(www\.)?cafepress\.com\.au$/
+            ];
+            
+            return supportedPatterns.some(pattern => pattern.test(hostname));
+        } catch (e) {
+            return false;
+        }
+    }
     
-    const isSupported = supportedDomains.some(domain => tab.url && tab.url.includes(domain));
+    const isSupported = isSupportedUrl(tab.url);
     
     if (isSupported) {
         console.log('Supported domain detected:', tab.url);
