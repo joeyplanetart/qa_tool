@@ -5249,52 +5249,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         // Define link categories with all environment URLs
         const linkCategories = [
             {
-                name: 'Admin 工具',
-                links: [
-                    { title: 'Admin Panel', urls: generateEnvUrls('', true) },
-                    { title: 'Image Approval', urls: generateEnvUrls('/cp/image-approve.aspx', true) },
-                    { title: 'Product Management', urls: generateEnvUrls('/cp/product-management.aspx', true) },
-                    { title: 'Order Search', urls: generateEnvUrls('/cp/order-search.aspx', true) },
-                ]
-            },
-            {
-                name: 'API 端点',
-                links: [
-                    { 
-                        title: 'API Base', 
-                        urls: {
-                            live: CONFIG.getAdminBaseUrl('live'),
-                            pre: CONFIG.getAdminBaseUrl('pre'),
-                            stage: CONFIG.getAdminBaseUrl('stage')
-                        }
-                    },
-                    { 
-                        title: 'Image Approve API', 
-                        urls: {
-                            live: `${CONFIG.getAdminApiUrl('live')}/api/sw/cpadmin/productimage/approve`,
-                            pre: `${CONFIG.getAdminApiUrl('pre')}/api/sw/cpadmin/productimage/approve`,
-                            stage: `${CONFIG.getAdminApiUrl('stage')}/api/sw/cpadmin/productimage/approve`
-                        }
-                    },
-                    { 
-                        title: 'Image Block API', 
-                        urls: {
-                            live: `${CONFIG.getAdminApiUrl('live')}/api/sw/cpadmin/productimage/block`,
-                            pre: `${CONFIG.getAdminApiUrl('pre')}/api/sw/cpadmin/productimage/block`,
-                            stage: `${CONFIG.getAdminApiUrl('stage')}/api/sw/cpadmin/productimage/block`
-                        }
-                    },
-                    { 
-                        title: 'Store Search API', 
-                        urls: {
-                            live: `${CONFIG.getAdminApiUrl('live')}/api/storeinfo/searchcpstores`,
-                            pre: `${CONFIG.getAdminApiUrl('pre')}/api/storeinfo/searchcpstores`,
-                            stage: `${CONFIG.getAdminApiUrl('stage')}/api/storeinfo/searchcpstores`
-                        }
-                    },
-                ]
-            },
-            {
                 name: 'Chatbot',
                 links: [
                     { 
