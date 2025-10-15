@@ -97,10 +97,38 @@ const CONFIG = {
     // Helper methods
     
     /**
+     * Auto-detect branch name from current URL
+     * 从当前 URL 自动检测分支名称
+     * @returns {string|null} Detected branch name or null if not found
+     */
+    autoDetectBranch() {
+        if (typeof window === 'undefined') return null;
+        
+        const hostname = window.location.hostname;
+        
+        // Pattern: {region}-{branch}.{environment}.planetart.com
+        // Examples: cafus-cpsw-web.pre.planetart.com, cafca-master.stage.planetart.com
+        const preStagePattern = /^caf(?:us|ca|uk|au|)-([^.]+)\.(pre|stage)\.planetart\.com$/;
+        const adminPattern = /^admin-([^.]+)\.(pre|stage)\.planetart\.com$/;
+        
+        let match = hostname.match(preStagePattern);
+        if (match) {
+            return match[1]; // 返回分支名称
+        }
+        
+        match = hostname.match(adminPattern);
+        if (match) {
+            return match[1]; // 返回分支名称
+        }
+        
+        return null; // Live 环境或无法识别的域名
+    },
+    
+    /**
      * Set current branch name (dynamically change branch)
      * 设置当前分支名称（动态切换分支）
-     * @param {string} branchName - Branch name (e.g., 'cpsw-web', 'feature-web')
-     * @example CONFIG.setBranch('feature-web')
+     * @param {string} branchName - Branch name (e.g., 'cpsw-web', 'master')
+     * @example CONFIG.setBranch('master')
      */
     setBranch(branchName) {
         this.BRANCH.CURRENT = branchName;
@@ -108,6 +136,33 @@ const CONFIG = {
         console.log(`📍 Example domains:`);
         console.log(`   - US PRE: ${this.SITES.US.PRE}`);
         console.log(`   - Admin PRE: ${this.ADMIN.PRE}`);
+    },
+    
+    /**
+     * Auto-detect and set branch from current URL
+     * 自动检测并设置当前 URL 的分支
+     * @param {boolean} updateConfig - Whether to update CONFIG.BRANCH.CURRENT (default: false)
+     * @returns {string|null} Detected branch name or null
+     */
+    detectAndSetBranch(updateConfig = false) {
+        const detectedBranch = this.autoDetectBranch();
+        
+        if (detectedBranch) {
+            console.log(`🔍 Auto-detected branch: ${detectedBranch}`);
+            
+            if (updateConfig) {
+                this.BRANCH.CURRENT = detectedBranch;
+                console.log(`✅ Config updated to use detected branch: ${detectedBranch}`);
+            } else {
+                console.log(`ℹ️ Detected branch: ${detectedBranch} (config not updated, using: ${this.BRANCH.CURRENT})`);
+            }
+            
+            return detectedBranch;
+        } else {
+            console.log(`ℹ️ Could not auto-detect branch from URL: ${window.location.hostname}`);
+            console.log(`📌 Using configured branch: ${this.BRANCH.CURRENT}`);
+            return null;
+        }
     },
     
     /**

@@ -1,5 +1,27 @@
 // Popup script
 console.log('=== POPUP SCRIPT STARTING ===');
+
+// Auto-detect branch from current tab URL
+if (typeof CONFIG !== 'undefined') {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (tabs[0] && tabs[0].url) {
+            const url = new URL(tabs[0].url);
+            const hostname = url.hostname;
+            
+            // Try to detect branch from current tab
+            const preStagePattern = /^caf(?:us|ca|uk|au|)-([^.]+)\.(pre|stage)\.planetart\.com$/;
+            const adminPattern = /^admin-([^.]+)\.(pre|stage)\.planetart\.com$/;
+            
+            let match = hostname.match(preStagePattern) || hostname.match(adminPattern);
+            if (match) {
+                const detectedBranch = match[1];
+                console.log(`🔍 Auto-detected branch from tab: ${detectedBranch}`);
+                CONFIG.BRANCH.CURRENT = detectedBranch;
+            }
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('=== DOM CONTENT LOADED ===');
     const loadingDiv = document.getElementById('loading');

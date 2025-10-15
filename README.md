@@ -4,37 +4,56 @@
 
 ## ⚙️ 版本 & 配置
 
-### 当前版本：v1.6.2
+### 当前版本：v1.6.3
 - ✅ 统一配置管理系统
 - ✅ 灵活的分支名称配置
 - ✅ 支持通配符域名匹配
 - ✅ 运行时动态分支切换
+- ✨ **自动检测分支**（新功能）
 
-### 🔧 分支配置（新功能）
+### 🎯 自动分支检测（推荐）✨
 
-**快速切换分支环境：**
+**无需手动配置！系统自动识别当前页面的分支：**
 
-1. **修改配置文件**（推荐）：
+```
+访问 cafus-master.pre.planetart.com    → 自动使用 master 分支
+访问 cafus-cpsw-web.stage.planetart.com → 自动使用 cpsw-web 分支
+访问 admin-hotfix-123.pre.planetart.com → 自动使用 hotfix-123 分支
+```
+
+**工作原理：**
+- 页面加载时自动从 URL 提取分支名称
+- 无需手动修改配置文件
+- 支持 Pre 和 Stage 环境自动检测
+- Live 环境使用配置的默认分支
+
+📚 **详细说明**：查看 [自动检测功能指南](AUTO_DETECT_GUIDE.md)
+
+---
+
+### 🔧 手动配置分支（可选）
+
+如果需要手动指定分支：
+
+1. **修改配置文件**：
    ```javascript
    // 编辑 config.js 第 8 行
    BRANCH: {
-       CURRENT: 'your-branch-name',  // 改成您的分支名称
+       CURRENT: 'your-branch-name',
    }
    ```
 
 2. **运行时动态切换**：
    ```javascript
-   // 在浏览器控制台执行
    CONFIG.setBranch('master');
    ```
 
 3. **构建自定义域名**：
    ```javascript
    CONFIG.buildDomain('US', 'pre', 'hotfix-123');
-   // 结果: cafus-hotfix-123.pre.planetart.com
    ```
 
-📚 **详细说明**：查看 [分支配置使用指南](BRANCH_CONFIG_GUIDE.md)
+📚 **更多选项**：查看 [分支配置使用指南](BRANCH_CONFIG_GUIDE.md)
 
 ---
 
