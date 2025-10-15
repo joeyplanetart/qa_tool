@@ -48,10 +48,10 @@ BRANCH: {
 
 **常见分支名称示例：**
 - `cpsw-web` - 默认分支
-- `feature-web` - 功能分支
-- `hotfix-web` - 热修复分支
-- `release-web` - 发布分支
-- `dev-web` - 开发分支
+- `master` - 主分支
+- `feature-branch` - 功能分支
+- `hotfix-123` - 热修复分支
+- `release-v2` - 发布分支
 
 ### 方法 2：运行时动态切换（推荐用于临时测试）
 
@@ -231,20 +231,20 @@ fetch(hotfixUrl + '/orders/order_tab_overview.php?order_id=123');
 ## ⚠️ 注意事项
 
 ### 1. 分支名称格式要求
-- 分支名称必须以 `-web` 结尾
+- 分支名称是完整的分支标识符（如 `cpsw-web`, `master`）
 - 只能包含字母、数字和连字符
 - 建议使用小写字母
 
 **✅ 正确格式：**
-- `cpsw-web`
-- `feature-web`
-- `hotfix-123-web`
-- `release-v2-web`
+- `cpsw-web` (默认分支)
+- `master` (主分支)
+- `feature-branch` (功能分支)
+- `hotfix-123` (热修复分支)
 
 **❌ 错误格式：**
-- `cpsw` (缺少 -web 后缀)
-- `feature_web` (使用下划线)
+- `feature_branch` (使用下划线)
 - `FEATURE-WEB` (大写字母可能导致问题)
+- 包含空格或特殊字符
 
 ### 2. Live 环境不受分支影响
 Live 环境始终使用固定的生产域名：
@@ -297,14 +297,16 @@ CONFIG.ADMIN.PRE           // https://admin-feature-web.pre.planetart.com
 ### 1. 使用有意义的分支名称
 ```javascript
 // ✅ 推荐
-'feature-user-profile-web'
-'hotfix-order-bug-web'
-'release-v2.0-web'
+'feature-user-profile'
+'hotfix-order-bug'
+'release-v2.0'
+'cpsw-web'
+'master'
 
 // ❌ 不推荐
-'test-web'
-'temp-web'
-'abc-web'
+'test'
+'temp'
+'abc'
 ```
 
 ### 2. 在配置文件中记录分支历史
@@ -312,15 +314,16 @@ CONFIG.ADMIN.PRE           // https://admin-feature-web.pre.planetart.com
 BRANCH: {
     CURRENT: 'cpsw-web',
     // 历史分支记录（可选）
-    // 'feature-checkout-web' - 2024-01-15 测试新结账流程
-    // 'hotfix-payment-web' - 2024-01-20 修复支付问题
+    // 'feature-checkout' - 2024-01-15 测试新结账流程
+    // 'hotfix-payment' - 2024-01-20 修复支付问题
+    // 'master' - 2024-01-25 主分支测试
 }
 ```
 
 ### 3. 使用控制台验证切换结果
 ```javascript
 // 切换分支后始终验证
-CONFIG.setBranch('new-branch-web');
+CONFIG.setBranch('master');
 
 // 验证关键域名
 console.table({

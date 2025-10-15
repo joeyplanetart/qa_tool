@@ -6,7 +6,7 @@ const CONFIG = {
     // 分支名称配置（可灵活修改）
     BRANCH: {
         CURRENT: 'cpsw-web',  // 当前使用的分支名称，如需切换分支请修改此处
-        // 其他可能的分支示例：'feature-web', 'release-web', 'hotfix-web' 等
+        // 其他可能的分支示例：'master', 'cpsw-web', 'feature-branch', 'hotfix-123' 等
     },
     
     // Base domain configuration

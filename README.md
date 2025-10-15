@@ -25,13 +25,13 @@
 2. **运行时动态切换**：
    ```javascript
    // 在浏览器控制台执行
-   CONFIG.setBranch('feature-web');
+   CONFIG.setBranch('master');
    ```
 
 3. **构建自定义域名**：
    ```javascript
-   CONFIG.buildDomain('US', 'pre', 'hotfix-web');
-   // 结果: cafus-hotfix-web.pre.planetart.com
+   CONFIG.buildDomain('US', 'pre', 'hotfix-123');
+   // 结果: cafus-hotfix-123.pre.planetart.com
    ```
 
 📚 **详细说明**：查看 [分支配置使用指南](BRANCH_CONFIG_GUIDE.md)
