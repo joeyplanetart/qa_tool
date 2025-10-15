@@ -3132,39 +3132,71 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         testLinksPanel.style.display = 'block';
                         testLinksBtn.textContent = 'Hide Links';
                         
-                        // Add event listeners for copy and open buttons
-                        const copyBtns = testLinksPanel.querySelectorAll('.test-link-copy-btn');
-                        copyBtns.forEach(btn => {
-                            btn.addEventListener('click', async () => {
-                                const url = btn.getAttribute('data-url');
-                                try {
-                                    await navigator.clipboard.writeText(url);
-                                    const originalText = btn.innerHTML;
-                                    btn.innerHTML = '✅ Copied!';
-                                    btn.style.background = 'rgba(76, 175, 80, 0.3)';
-                                    btn.style.color = '#81c784';
+                        // Add event listeners for Live and Stage buttons
+                        const liveBtns = testLinksPanel.querySelectorAll('.test-link-live-btn');
+                        liveBtns.forEach(btn => {
+                            if (!btn.disabled) {
+                                btn.addEventListener('click', async () => {
+                                    const url = btn.getAttribute('data-url');
+                                    if (!url) return;
                                     
-                                    setTimeout(() => {
-                                        btn.innerHTML = originalText;
-                                        btn.style.background = 'rgba(33, 150, 243, 0.2)';
-                                        btn.style.color = '#64b5f6';
-                                    }, 2000);
-                                } catch (err) {
-                                    console.error('Failed to copy:', err);
-                                    btn.innerHTML = '❌ Failed';
-                                    setTimeout(() => {
-                                        btn.innerHTML = 'Copy';
-                                    }, 2000);
-                                }
-                            });
+                                    try {
+                                        await navigator.clipboard.writeText(url);
+                                        const originalText = btn.innerHTML;
+                                        const originalBg = btn.style.background;
+                                        const originalColor = btn.style.color;
+                                        
+                                        btn.innerHTML = '✅ Copied';
+                                        btn.style.background = 'rgba(76, 175, 80, 0.3)';
+                                        btn.style.color = '#81c784';
+                                        
+                                        setTimeout(() => {
+                                            btn.innerHTML = originalText;
+                                            btn.style.background = originalBg;
+                                            btn.style.color = originalColor;
+                                        }, 1500);
+                                    } catch (err) {
+                                        console.error('Failed to copy:', err);
+                                        btn.innerHTML = '❌';
+                                        setTimeout(() => {
+                                            btn.innerHTML = 'Live';
+                                        }, 1500);
+                                    }
+                                });
+                            }
                         });
                         
-                        const openBtns = testLinksPanel.querySelectorAll('.test-link-open-btn');
-                        openBtns.forEach(btn => {
-                            btn.addEventListener('click', () => {
-                                const url = btn.getAttribute('data-url');
-                                window.open(url, '_blank');
-                            });
+                        const stageBtns = testLinksPanel.querySelectorAll('.test-link-stage-btn');
+                        stageBtns.forEach(btn => {
+                            if (!btn.disabled) {
+                                btn.addEventListener('click', async () => {
+                                    const url = btn.getAttribute('data-url');
+                                    if (!url) return;
+                                    
+                                    try {
+                                        await navigator.clipboard.writeText(url);
+                                        const originalText = btn.innerHTML;
+                                        const originalBg = btn.style.background;
+                                        const originalColor = btn.style.color;
+                                        
+                                        btn.innerHTML = '✅ Copied';
+                                        btn.style.background = 'rgba(76, 175, 80, 0.3)';
+                                        btn.style.color = '#81c784';
+                                        
+                                        setTimeout(() => {
+                                            btn.innerHTML = originalText;
+                                            btn.style.background = originalBg;
+                                            btn.style.color = originalColor;
+                                        }, 1500);
+                                    } catch (err) {
+                                        console.error('Failed to copy:', err);
+                                        btn.innerHTML = '❌';
+                                        setTimeout(() => {
+                                            btn.innerHTML = 'Stage';
+                                        }, 1500);
+                                    }
+                                });
+                            }
                         });
                     } else {
                         // Hide panel
@@ -5220,66 +5252,80 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         const hostname = window.location.hostname;
         const region = CONFIG.detectRegion(currentUrl);
         const detectedBranch = CONFIG.autoDetectBranch(hostname);
-        
-        // Detect environment
-        let env = 'live';
-        if (hostname.includes('.pre.planetart.com')) {
-            env = 'pre';
-        } else if (hostname.includes('.stage.planetart.com')) {
-            env = 'stage';
-        }
-        
-        // Get base domains
         const branch = detectedBranch || CONFIG.BRANCH.CURRENT;
-        let siteBaseUrl = '';
-        let adminBaseUrl = '';
         
-        if (env === 'live') {
-            siteBaseUrl = CONFIG.getSiteConfig(region)?.LIVE || '';
-            adminBaseUrl = CONFIG.ADMIN.LIVE;
-        } else if (env === 'pre') {
-            siteBaseUrl = CONFIG.buildDomain(region, 'pre', branch);
-            adminBaseUrl = CONFIG.buildAdminDomain('pre', branch);
-        } else if (env === 'stage') {
-            siteBaseUrl = CONFIG.buildDomain(region, 'stage', branch);
-            adminBaseUrl = CONFIG.buildAdminDomain('stage', branch);
+        // Helper function to generate URLs for both environments
+        function generateEnvUrls(path, isAdmin = false) {
+            const liveBase = isAdmin ? CONFIG.ADMIN.LIVE : (CONFIG.getSiteConfig(region)?.LIVE || '');
+            const stageBase = isAdmin ? 
+                CONFIG.buildAdminDomain('stage', branch) : 
+                CONFIG.buildDomain(region, 'stage', branch);
+            
+            return {
+                live: liveBase ? `https://${liveBase}${path}` : null,
+                stage: stageBase ? `https://${stageBase}${path}` : null
+            };
         }
         
-        // Define link categories
+        // Define link categories with Live and Stage URLs
         const linkCategories = [
             {
                 name: '常用页面',
                 links: [
-                    { title: '首页', url: `https://${siteBaseUrl}` },
-                    { title: '搜索页面', url: `https://${siteBaseUrl}/search/` },
-                    { title: 'Create Your Own', url: `https://${siteBaseUrl}/create-your-own` },
-                    { title: 'Designer Studio', url: `https://${siteBaseUrl}/designer` },
+                    { title: '首页', urls: generateEnvUrls('') },
+                    { title: '搜索页面', urls: generateEnvUrls('/search/') },
+                    { title: 'Create Your Own', urls: generateEnvUrls('/create-your-own') },
+                    { title: 'Designer Studio', urls: generateEnvUrls('/designer') },
                 ]
             },
             {
                 name: 'Admin 工具',
                 links: [
-                    { title: 'Admin Panel', url: `https://${adminBaseUrl}` },
-                    { title: 'Image Approval', url: `https://${adminBaseUrl}/cp/image-approve.aspx` },
-                    { title: 'Product Management', url: `https://${adminBaseUrl}/cp/product-management.aspx` },
-                    { title: 'Order Search', url: `https://${adminBaseUrl}/cp/order-search.aspx` },
+                    { title: 'Admin Panel', urls: generateEnvUrls('', true) },
+                    { title: 'Image Approval', urls: generateEnvUrls('/cp/image-approve.aspx', true) },
+                    { title: 'Product Management', urls: generateEnvUrls('/cp/product-management.aspx', true) },
+                    { title: 'Order Search', urls: generateEnvUrls('/cp/order-search.aspx', true) },
                 ]
             },
             {
                 name: 'API 端点',
                 links: [
-                    { title: 'API Base', url: CONFIG.getAdminBaseUrl(env) },
-                    { title: 'Image Approve API', url: `${CONFIG.getAdminApiUrl(env)}/api/sw/cpadmin/productimage/approve` },
-                    { title: 'Image Block API', url: `${CONFIG.getAdminApiUrl(env)}/api/sw/cpadmin/productimage/block` },
-                    { title: 'Store Search API', url: `${CONFIG.getAdminApiUrl(env)}/api/storeinfo/searchcpstores` },
+                    { 
+                        title: 'API Base', 
+                        urls: {
+                            live: CONFIG.getAdminBaseUrl('live'),
+                            stage: CONFIG.getAdminBaseUrl('stage')
+                        }
+                    },
+                    { 
+                        title: 'Image Approve API', 
+                        urls: {
+                            live: `${CONFIG.getAdminApiUrl('live')}/api/sw/cpadmin/productimage/approve`,
+                            stage: `${CONFIG.getAdminApiUrl('stage')}/api/sw/cpadmin/productimage/approve`
+                        }
+                    },
+                    { 
+                        title: 'Image Block API', 
+                        urls: {
+                            live: `${CONFIG.getAdminApiUrl('live')}/api/sw/cpadmin/productimage/block`,
+                            stage: `${CONFIG.getAdminApiUrl('stage')}/api/sw/cpadmin/productimage/block`
+                        }
+                    },
+                    { 
+                        title: 'Store Search API', 
+                        urls: {
+                            live: `${CONFIG.getAdminApiUrl('live')}/api/storeinfo/searchcpstores`,
+                            stage: `${CONFIG.getAdminApiUrl('stage')}/api/storeinfo/searchcpstores`
+                        }
+                    },
                 ]
             },
             {
                 name: '测试页面',
                 links: [
-                    { title: '测试产品 1', url: `https://${siteBaseUrl}/+test-product-1` },
-                    { title: '测试产品 2', url: `https://${siteBaseUrl}/+test-product-2` },
-                    { title: 'QA Test Page', url: `https://${siteBaseUrl}/qa-test` },
+                    { title: '测试产品 1', urls: generateEnvUrls('/+test-product-1') },
+                    { title: '测试产品 2', urls: generateEnvUrls('/+test-product-2') },
+                    { title: 'QA Test Page', urls: generateEnvUrls('/qa-test') },
                 ]
             }
         ];
@@ -5289,6 +5335,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         linkCategories.forEach(category => {
             let linksHtml = '';
             category.links.forEach(link => {
+                // Check if Live and Stage URLs are available
+                const hasLive = link.urls.live && link.urls.live !== 'null';
+                const hasStage = link.urls.stage && link.urls.stage !== 'null';
+                
                 linksHtml += `
                     <div style="
                         display: flex;
@@ -5308,43 +5358,46 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 font-weight: 600;
                                 margin-bottom: 3px;
                             ">${link.title}</div>
-                            <div style="
-                                color: rgba(255,255,255,0.6);
-                                font-size: 10px;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
-                                white-space: nowrap;
-                            " title="${link.url}">${link.url}</div>
                         </div>
                         <div style="display: flex; gap: 6px; margin-left: 8px;">
-                            <button class="test-link-copy-btn" data-url="${link.url}" style="
-                                background: rgba(33, 150, 243, 0.2);
-                                border: 1px solid rgba(33, 150, 243, 0.4);
-                                color: #64b5f6;
-                                padding: 4px 10px;
-                                border-radius: 4px;
-                                cursor: pointer;
-                                font-size: 10px;
-                                font-weight: bold;
-                                white-space: nowrap;
-                                transition: all 0.2s ease;
-                            " onmouseover="this.style.background='rgba(33, 150, 243, 0.3)';"
-                               onmouseout="this.style.background='rgba(33, 150, 243, 0.2)';"
-                            >Copy</button>
-                            <button class="test-link-open-btn" data-url="${link.url}" style="
-                                background: rgba(76, 175, 80, 0.2);
-                                border: 1px solid rgba(76, 175, 80, 0.4);
-                                color: #81c784;
-                                padding: 4px 10px;
-                                border-radius: 4px;
-                                cursor: pointer;
-                                font-size: 10px;
-                                font-weight: bold;
-                                white-space: nowrap;
-                                transition: all 0.2s ease;
-                            " onmouseover="this.style.background='rgba(76, 175, 80, 0.3)';"
-                               onmouseout="this.style.background='rgba(76, 175, 80, 0.2)';"
-                            >Open</button>
+                            <button 
+                                class="test-link-live-btn" 
+                                data-url="${link.urls.live || ''}" 
+                                ${!hasLive ? 'disabled' : ''}
+                                style="
+                                    background: ${hasLive ? 'rgba(255, 152, 0, 0.2)' : 'rgba(128, 128, 128, 0.1)'};
+                                    border: 1px solid ${hasLive ? 'rgba(255, 152, 0, 0.4)' : 'rgba(128, 128, 128, 0.2)'};
+                                    color: ${hasLive ? '#ffb74d' : 'rgba(255, 255, 255, 0.3)'};
+                                    padding: 4px 10px;
+                                    border-radius: 4px;
+                                    cursor: ${hasLive ? 'pointer' : 'not-allowed'};
+                                    font-size: 10px;
+                                    font-weight: bold;
+                                    white-space: nowrap;
+                                    transition: all 0.2s ease;
+                                    min-width: 45px;
+                                "
+                                ${hasLive ? "onmouseover=\"this.style.background='rgba(255, 152, 0, 0.3)';\" onmouseout=\"this.style.background='rgba(255, 152, 0, 0.2)';\"" : ''}
+                            >Live</button>
+                            <button 
+                                class="test-link-stage-btn" 
+                                data-url="${link.urls.stage || ''}" 
+                                ${!hasStage ? 'disabled' : ''}
+                                style="
+                                    background: ${hasStage ? 'rgba(156, 39, 176, 0.2)' : 'rgba(128, 128, 128, 0.1)'};
+                                    border: 1px solid ${hasStage ? 'rgba(156, 39, 176, 0.4)' : 'rgba(128, 128, 128, 0.2)'};
+                                    color: ${hasStage ? '#ba68c8' : 'rgba(255, 255, 255, 0.3)'};
+                                    padding: 4px 10px;
+                                    border-radius: 4px;
+                                    cursor: ${hasStage ? 'pointer' : 'not-allowed'};
+                                    font-size: 10px;
+                                    font-weight: bold;
+                                    white-space: nowrap;
+                                    transition: all 0.2s ease;
+                                    min-width: 45px;
+                                "
+                                ${hasStage ? "onmouseover=\"this.style.background='rgba(156, 39, 176, 0.3)';\" onmouseout=\"this.style.background='rgba(156, 39, 176, 0.2)';\"" : ''}
+                            >Stage</button>
                         </div>
                     </div>
                 `;
@@ -5356,9 +5409,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         color: #ffeb3b;
                         font-size: 13px;
                         font-weight: bold;
-                        margin-bottom: 8px;
-                        padding-bottom: 6px;
-                        border-bottom: 2px solid rgba(255,235,59,0.3);
+                        margin-bottom: 10px;
+                        padding-bottom: 8px;
+                        border-bottom: 1px solid rgba(255,235,59,0.2);
                     ">${category.name}</div>
                     ${linksHtml}
                 </div>
@@ -5374,21 +5427,11 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 overflow-y: auto;
             ">
                 <div style="
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
+                    color: #fff;
+                    font-size: 14px;
+                    font-weight: bold;
                     margin-bottom: 12px;
-                ">
-                    <div style="
-                        color: #fff;
-                        font-size: 14px;
-                        font-weight: bold;
-                    ">Test Links & APIs</div>
-                    <div style="
-                        color: rgba(255,255,255,0.6);
-                        font-size: 10px;
-                    ">Environment: ${env.toUpperCase()}</div>
-                </div>
+                ">Test Links & APIs</div>
                 ${categoriesHtml}
             </div>
         `;
