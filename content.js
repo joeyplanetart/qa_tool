@@ -5249,15 +5249,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         // Define link categories with all environment URLs
         const linkCategories = [
             {
-                name: '常用页面',
-                links: [
-                    { title: '首页', urls: generateEnvUrls('') },
-                    { title: '搜索页面', urls: generateEnvUrls('/search/') },
-                    { title: 'Create Your Own', urls: generateEnvUrls('/create-your-own') },
-                    { title: 'Designer Studio', urls: generateEnvUrls('/designer') },
-                ]
-            },
-            {
                 name: 'Admin 工具',
                 links: [
                     { title: 'Admin Panel', urls: generateEnvUrls('', true) },
@@ -5304,11 +5295,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 ]
             },
             {
-                name: '测试页面',
+                name: 'Chatbot',
                 links: [
-                    { title: '测试产品 1', urls: generateEnvUrls('/+test-product-1') },
-                    { title: '测试产品 2', urls: generateEnvUrls('/+test-product-2') },
-                    { title: 'QA Test Page', urls: generateEnvUrls('/qa-test') },
+                    { 
+                        title: 'View Chat', 
+                        urls: {
+                            live: 'https://ai-pri.planetart.com/admin2/chat-viewer/cp-1-2b040c0a-cc01-4a8f-9eee-c11b14d8428a-cpus',
+                            pre: null,
+                            stage: null
+                        }
+                    },
                 ]
             }
         ];
@@ -5364,7 +5360,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                         flex: 1;
                                     " title="${url}">${url}</div>
                                     <div style="
-                                        color: ${env.color};
+                                        color: #fff;
                                         font-size: 10px;
                                         font-weight: bold;
                                         white-space: nowrap;
