@@ -2911,15 +2911,18 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     searchStoreBtn.textContent = 'Searching...';
                     
                     try {
-                        // Temporarily use Live environment (same as Search Order & Approve)
-                        const environment = 'live';
-                        console.log('Using environment:', environment);
+                        // Search Store needs to use Pre environment as Live API doesn't exist yet
+                        const environment = detectEnvironment();
+                        const detectedBranch = CONFIG.autoDetectBranch() || CONFIG.BRANCH.CURRENT;
+                        console.log('Current environment:', environment);
+                        console.log('Current branch:', detectedBranch);
                         
                         const response = await chrome.runtime.sendMessage({
                             type: 'SEARCH_STORE',
                             email: email,
                             swCustomerId: customerId,
-                            environment: environment
+                            environment: environment,
+                            branch: detectedBranch
                         });
                         
                         if (!response.success) {
@@ -3714,16 +3717,18 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     async function approveImage(imageId) {
         console.log('🔍 Approving image:', imageId);
         
-        // Temporarily use Live environment (same as Search Order)
-        // TODO: Switch to dynamic environment when Live is fully deployed
-        const environment = 'live';
-        console.log('Using environment:', environment);
+        // Use Pre environment (will switch to Live when deployed)
+        const environment = detectEnvironment();
+        const detectedBranch = CONFIG.autoDetectBranch() || CONFIG.BRANCH.CURRENT;
+        console.log('Current environment:', environment);
+        console.log('Current branch:', detectedBranch);
         
         const response = await chrome.runtime.sendMessage({
             type: 'APPROVE_BLOCK_IMAGE',
             imageId: imageId,
             action: 'approve',
-            environment: environment
+            environment: environment,
+            branch: detectedBranch
         });
         
         if (!response.success) {
@@ -3738,16 +3743,18 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     async function blockImage(imageId) {
         console.log('🔍 Blocking image:', imageId);
         
-        // Temporarily use Live environment (same as Search Order)
-        // TODO: Switch to dynamic environment when Live is fully deployed
-        const environment = 'live';
-        console.log('Using environment:', environment);
+        // Use Pre environment (will switch to Live when deployed)
+        const environment = detectEnvironment();
+        const detectedBranch = CONFIG.autoDetectBranch() || CONFIG.BRANCH.CURRENT;
+        console.log('Current environment:', environment);
+        console.log('Current branch:', detectedBranch);
         
         const response = await chrome.runtime.sendMessage({
             type: 'APPROVE_BLOCK_IMAGE',
             imageId: imageId,
             action: 'block',
-            environment: environment
+            environment: environment,
+            branch: detectedBranch
         });
         
         if (!response.success) {
@@ -4563,6 +4570,18 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         console.log('🔍 Content: Requesting order from background script:', orderId);
         
         try {
+            // Determine admin base URL based on current environment
+            const environment = detectEnvironment();
+            const detectedBranch = CONFIG.autoDetectBranch() || CONFIG.BRANCH.CURRENT;
+            const originalBranch = CONFIG.BRANCH.CURRENT;
+            CONFIG.BRANCH.CURRENT = detectedBranch;
+            const adminBaseUrl = CONFIG.getAdminBaseUrl(environment);
+            CONFIG.BRANCH.CURRENT = originalBranch;
+            
+            console.log('Using environment:', environment);
+            console.log('Using branch:', detectedBranch);
+            console.log('Admin Base URL:', adminBaseUrl);
+            
             // Initialize order data
             const orderData = {
                 orderId: orderId,
@@ -4590,7 +4609,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const indexResponse = await chrome.runtime.sendMessage({
                 type: 'FETCH_ORDER_FROM_ADMIN',
                 orderId: orderId,
-                url: `${CONFIG.ADMIN.LIVE}${CONFIG.API_ENDPOINTS.ORDER_TAB_INDEX}?order_id=${orderId}`
+                url: `${adminBaseUrl}${CONFIG.API_ENDPOINTS.ORDER_TAB_INDEX}?order_id=${orderId}`
             });
             
             if (indexResponse.success) {
@@ -4654,7 +4673,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const overviewResponse = await chrome.runtime.sendMessage({
                 type: 'FETCH_ORDER_FROM_ADMIN',
                 orderId: orderId,
-                url: `${CONFIG.ADMIN.LIVE}${CONFIG.API_ENDPOINTS.ORDER_TAB_OVERVIEW}?order_id=${orderId}`
+                url: `${adminBaseUrl}${CONFIG.API_ENDPOINTS.ORDER_TAB_OVERVIEW}?order_id=${orderId}`
             });
             
             if (overviewResponse.success) {
@@ -4829,7 +4848,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const itemsPageResponse = await chrome.runtime.sendMessage({
                 type: 'FETCH_ORDER_FROM_ADMIN',
                 orderId: orderId,
-                url: `${CONFIG.ADMIN.LIVE}${CONFIG.API_ENDPOINTS.ORDER_TAB_ITEMS}?order_id=${orderId}`
+                url: `${adminBaseUrl}${CONFIG.API_ENDPOINTS.ORDER_TAB_ITEMS}?order_id=${orderId}`
             });
             
             let itemsCount = 2; // Default fallback
@@ -4849,7 +4868,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 const itemsResponse = await chrome.runtime.sendMessage({
                     type: 'FETCH_ORDER_FROM_ADMIN',
                     orderId: orderId,
-                    url: `${CONFIG.ADMIN.LIVE}${CONFIG.API_ENDPOINTS.ORDER_TAB_ITEM_AJAX}?item_number=${itemNum}&items_count=${itemsCount}&fp_only=0&order_id=${orderId}`
+                    url: `${adminBaseUrl}${CONFIG.API_ENDPOINTS.ORDER_TAB_ITEM_AJAX}?item_number=${itemNum}&items_count=${itemsCount}&fp_only=0&order_id=${orderId}`
                 });
             
             if (itemsResponse.success) {
@@ -4959,7 +4978,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 const customerResponse = await chrome.runtime.sendMessage({
                     type: 'FETCH_ORDER_FROM_ADMIN',
                     orderId: orderId,
-                    url: `${CONFIG.ADMIN.LIVE}${CONFIG.API_ENDPOINTS.ORDER_TAB_CUSTOMER}?order_id=${orderId}`
+                    url: `${adminBaseUrl}${CONFIG.API_ENDPOINTS.ORDER_TAB_CUSTOMER}?order_id=${orderId}`
                 });
                 
                 if (customerResponse.success) {

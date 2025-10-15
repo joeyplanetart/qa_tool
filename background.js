@@ -60,15 +60,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         
         const imageId = request.imageId;
         const action = request.action; // 'approve' or 'block'
-        const environment = request.environment || 'live'; // Default to live (temporary)
+        const environment = request.environment || 'pre'; // Default to pre (will switch to live when deployed)
+        const branch = request.branch || CONFIG.BRANCH.CURRENT;
         const statusNo = action === 'approve' ? 1 : -1; // 1 for approve, -1 for block
         
-        // For live environment, use fixed admin URL
-        // For pre/stage, would need branch handling (future TODO)
+        // Temporarily set the branch for this request
+        const originalBranch = CONFIG.BRANCH.CURRENT;
+        CONFIG.BRANCH.CURRENT = branch;
+        
+        // Determine Admin API URL based on environment using unified config
         const apiUrl = CONFIG.getAdminApiUrl(environment, CONFIG.API_ENDPOINTS.APPROVE_IMAGE);
         const adminBaseUrl = CONFIG.getAdminBaseUrl(environment);
         
+        // Restore original branch
+        CONFIG.BRANCH.CURRENT = originalBranch;
+        
         console.log(`Environment: ${environment}`);
+        console.log(`Branch: ${branch}`);
         console.log(`API URL: ${apiUrl}`);
         console.log(`Admin Base URL: ${adminBaseUrl}`);
         
@@ -162,13 +170,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         
         const email = request.email || '';
         const swCustomerId = request.swCustomerId || '';
-        const environment = request.environment || 'live'; // Default to live (temporary)
+        const environment = request.environment || 'pre'; // Default to pre (Live API not available yet)
+        const branch = request.branch || CONFIG.BRANCH.CURRENT;
+        
+        // Temporarily set the branch for this request
+        const originalBranch = CONFIG.BRANCH.CURRENT;
+        CONFIG.BRANCH.CURRENT = branch;
         
         // Determine Admin API URL based on environment using unified config
         const apiUrl = CONFIG.getAdminApiUrl(environment, CONFIG.API_ENDPOINTS.SELLER_STORE);
         const adminBaseUrl = CONFIG.getAdminBaseUrl(environment);
         
+        // Restore original branch
+        CONFIG.BRANCH.CURRENT = originalBranch;
+        
         console.log(`Environment: ${environment}`);
+        console.log(`Branch: ${branch}`);
         console.log(`API URL: ${apiUrl}`);
         console.log(`Admin Base URL: ${adminBaseUrl}`);
         console.log(`Search params: email=${email}, sw_customer_id=${swCustomerId}`);
