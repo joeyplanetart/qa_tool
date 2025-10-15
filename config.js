@@ -70,9 +70,10 @@ const CONFIG = {
     },
     
     // Authentication related domains
+    // Using Pre environment (master branch) as Live is not yet released
     AUTH: {
-        LOGIN_DOMAIN: 'https://login.planetart.com',
-        SSO_URL: 'https://login.planetart.com/sso'
+        LOGIN_DOMAIN: 'https://login-master.pre.planetart.com',
+        SSO_URL: 'https://login-master.pre.planetart.com/sso'
     },
     
     // Site ID mapping by region
