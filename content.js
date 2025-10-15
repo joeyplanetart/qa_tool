@@ -3132,71 +3132,46 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         testLinksPanel.style.display = 'block';
                         testLinksBtn.textContent = 'Hide Links';
                         
-                        // Add event listeners for Live and Stage buttons
-                        const liveBtns = testLinksPanel.querySelectorAll('.test-link-live-btn');
-                        liveBtns.forEach(btn => {
-                            if (!btn.disabled) {
-                                btn.addEventListener('click', async () => {
-                                    const url = btn.getAttribute('data-url');
-                                    if (!url) return;
+                        // Add event listeners for Copy buttons
+                        const copyBtns = testLinksPanel.querySelectorAll('.test-link-copy-btn');
+                        copyBtns.forEach(btn => {
+                            btn.addEventListener('click', async () => {
+                                const url = btn.getAttribute('data-url');
+                                if (!url) return;
+                                
+                                try {
+                                    await navigator.clipboard.writeText(url);
+                                    const originalText = btn.innerHTML;
+                                    btn.innerHTML = '✅';
+                                    btn.style.background = 'rgba(76, 175, 80, 0.3)';
+                                    btn.style.color = '#81c784';
                                     
-                                    try {
-                                        await navigator.clipboard.writeText(url);
-                                        const originalText = btn.innerHTML;
-                                        const originalBg = btn.style.background;
-                                        const originalColor = btn.style.color;
-                                        
-                                        btn.innerHTML = '✅ Copied';
-                                        btn.style.background = 'rgba(76, 175, 80, 0.3)';
-                                        btn.style.color = '#81c784';
-                                        
-                                        setTimeout(() => {
-                                            btn.innerHTML = originalText;
-                                            btn.style.background = originalBg;
-                                            btn.style.color = originalColor;
-                                        }, 1500);
-                                    } catch (err) {
-                                        console.error('Failed to copy:', err);
-                                        btn.innerHTML = '❌';
-                                        setTimeout(() => {
-                                            btn.innerHTML = 'Live';
-                                        }, 1500);
-                                    }
-                                });
-                            }
+                                    setTimeout(() => {
+                                        btn.innerHTML = originalText;
+                                        btn.style.background = 'rgba(33, 150, 243, 0.2)';
+                                        btn.style.color = '#64b5f6';
+                                    }, 1500);
+                                } catch (err) {
+                                    console.error('Failed to copy:', err);
+                                    btn.innerHTML = '❌';
+                                    setTimeout(() => {
+                                        btn.innerHTML = 'Copy';
+                                        btn.style.background = 'rgba(33, 150, 243, 0.2)';
+                                        btn.style.color = '#64b5f6';
+                                    }, 1500);
+                                }
+                            });
                         });
                         
-                        const stageBtns = testLinksPanel.querySelectorAll('.test-link-stage-btn');
-                        stageBtns.forEach(btn => {
-                            if (!btn.disabled) {
-                                btn.addEventListener('click', async () => {
-                                    const url = btn.getAttribute('data-url');
-                                    if (!url) return;
-                                    
-                                    try {
-                                        await navigator.clipboard.writeText(url);
-                                        const originalText = btn.innerHTML;
-                                        const originalBg = btn.style.background;
-                                        const originalColor = btn.style.color;
-                                        
-                                        btn.innerHTML = '✅ Copied';
-                                        btn.style.background = 'rgba(76, 175, 80, 0.3)';
-                                        btn.style.color = '#81c784';
-                                        
-                                        setTimeout(() => {
-                                            btn.innerHTML = originalText;
-                                            btn.style.background = originalBg;
-                                            btn.style.color = originalColor;
-                                        }, 1500);
-                                    } catch (err) {
-                                        console.error('Failed to copy:', err);
-                                        btn.innerHTML = '❌';
-                                        setTimeout(() => {
-                                            btn.innerHTML = 'Stage';
-                                        }, 1500);
-                                    }
-                                });
-                            }
+                        // Add event listeners for Open buttons
+                        const openBtns = testLinksPanel.querySelectorAll('.test-link-open-btn');
+                        openBtns.forEach(btn => {
+                            btn.addEventListener('click', () => {
+                                const url = btn.getAttribute('data-url');
+                                if (url) {
+                                    window.open(url, '_blank');
+                                }
+                            });
                         });
                     } else {
                         // Hide panel
@@ -5254,20 +5229,24 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         const detectedBranch = CONFIG.autoDetectBranch(hostname);
         const branch = detectedBranch || CONFIG.BRANCH.CURRENT;
         
-        // Helper function to generate URLs for both environments
+        // Helper function to generate URLs for all environments
         function generateEnvUrls(path, isAdmin = false) {
             const liveBase = isAdmin ? CONFIG.ADMIN.LIVE : (CONFIG.getSiteConfig(region)?.LIVE || '');
+            const preBase = isAdmin ? 
+                CONFIG.buildAdminDomain('pre', branch) : 
+                CONFIG.buildDomain(region, 'pre', branch);
             const stageBase = isAdmin ? 
                 CONFIG.buildAdminDomain('stage', branch) : 
                 CONFIG.buildDomain(region, 'stage', branch);
             
             return {
                 live: liveBase ? `https://${liveBase}${path}` : null,
+                pre: preBase ? `https://${preBase}${path}` : null,
                 stage: stageBase ? `https://${stageBase}${path}` : null
             };
         }
         
-        // Define link categories with Live and Stage URLs
+        // Define link categories with all environment URLs
         const linkCategories = [
             {
                 name: '常用页面',
@@ -5294,6 +5273,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         title: 'API Base', 
                         urls: {
                             live: CONFIG.getAdminBaseUrl('live'),
+                            pre: CONFIG.getAdminBaseUrl('pre'),
                             stage: CONFIG.getAdminBaseUrl('stage')
                         }
                     },
@@ -5301,6 +5281,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         title: 'Image Approve API', 
                         urls: {
                             live: `${CONFIG.getAdminApiUrl('live')}/api/sw/cpadmin/productimage/approve`,
+                            pre: `${CONFIG.getAdminApiUrl('pre')}/api/sw/cpadmin/productimage/approve`,
                             stage: `${CONFIG.getAdminApiUrl('stage')}/api/sw/cpadmin/productimage/approve`
                         }
                     },
@@ -5308,6 +5289,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         title: 'Image Block API', 
                         urls: {
                             live: `${CONFIG.getAdminApiUrl('live')}/api/sw/cpadmin/productimage/block`,
+                            pre: `${CONFIG.getAdminApiUrl('pre')}/api/sw/cpadmin/productimage/block`,
                             stage: `${CONFIG.getAdminApiUrl('stage')}/api/sw/cpadmin/productimage/block`
                         }
                     },
@@ -5315,6 +5297,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         title: 'Store Search API', 
                         urls: {
                             live: `${CONFIG.getAdminApiUrl('live')}/api/storeinfo/searchcpstores`,
+                            pre: `${CONFIG.getAdminApiUrl('pre')}/api/storeinfo/searchcpstores`,
                             stage: `${CONFIG.getAdminApiUrl('stage')}/api/storeinfo/searchcpstores`
                         }
                     },
@@ -5335,72 +5318,97 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         linkCategories.forEach(category => {
             let linksHtml = '';
             category.links.forEach(link => {
-                // Check if Live and Stage URLs are available
-                const hasLive = link.urls.live && link.urls.live !== 'null';
-                const hasStage = link.urls.stage && link.urls.stage !== 'null';
-                
+                // Link title
                 linksHtml += `
-                    <div style="
-                        display: flex;
-                        align-items: center;
-                        justify-content: space-between;
-                        padding: 8px 10px;
-                        background: rgba(255,255,255,0.05);
-                        border-radius: 6px;
-                        margin-bottom: 6px;
-                        transition: background 0.2s ease;
-                    " onmouseover="this.style.background='rgba(255,255,255,0.1)';"
-                       onmouseout="this.style.background='rgba(255,255,255,0.05)';">
-                        <div style="flex: 1; min-width: 0;">
-                            <div style="
-                                color: #fff;
-                                font-size: 12px;
-                                font-weight: 600;
-                                margin-bottom: 3px;
-                            ">${link.title}</div>
-                        </div>
-                        <div style="display: flex; gap: 6px; margin-left: 8px;">
-                            <button 
-                                class="test-link-live-btn" 
-                                data-url="${link.urls.live || ''}" 
-                                ${!hasLive ? 'disabled' : ''}
-                                style="
-                                    background: ${hasLive ? 'rgba(255, 152, 0, 0.2)' : 'rgba(128, 128, 128, 0.1)'};
-                                    border: 1px solid ${hasLive ? 'rgba(255, 152, 0, 0.4)' : 'rgba(128, 128, 128, 0.2)'};
-                                    color: ${hasLive ? '#ffb74d' : 'rgba(255, 255, 255, 0.3)'};
-                                    padding: 4px 10px;
-                                    border-radius: 4px;
-                                    cursor: ${hasLive ? 'pointer' : 'not-allowed'};
-                                    font-size: 10px;
-                                    font-weight: bold;
-                                    white-space: nowrap;
-                                    transition: all 0.2s ease;
-                                    min-width: 45px;
-                                "
-                                ${hasLive ? "onmouseover=\"this.style.background='rgba(255, 152, 0, 0.3)';\" onmouseout=\"this.style.background='rgba(255, 152, 0, 0.2)';\"" : ''}
-                            >Live</button>
-                            <button 
-                                class="test-link-stage-btn" 
-                                data-url="${link.urls.stage || ''}" 
-                                ${!hasStage ? 'disabled' : ''}
-                                style="
-                                    background: ${hasStage ? 'rgba(156, 39, 176, 0.2)' : 'rgba(128, 128, 128, 0.1)'};
-                                    border: 1px solid ${hasStage ? 'rgba(156, 39, 176, 0.4)' : 'rgba(128, 128, 128, 0.2)'};
-                                    color: ${hasStage ? '#ba68c8' : 'rgba(255, 255, 255, 0.3)'};
-                                    padding: 4px 10px;
-                                    border-radius: 4px;
-                                    cursor: ${hasStage ? 'pointer' : 'not-allowed'};
-                                    font-size: 10px;
-                                    font-weight: bold;
-                                    white-space: nowrap;
-                                    transition: all 0.2s ease;
-                                    min-width: 45px;
-                                "
-                                ${hasStage ? "onmouseover=\"this.style.background='rgba(156, 39, 176, 0.3)';\" onmouseout=\"this.style.background='rgba(156, 39, 176, 0.2)';\"" : ''}
-                            >Stage</button>
-                        </div>
-                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <div style="
+                            color: #fff;
+                            font-size: 12px;
+                            font-weight: 600;
+                            margin-bottom: 6px;
+                        ">${link.title}</div>
                 `;
+                
+                // Generate each environment URL
+                const environments = [
+                    { name: 'Live', key: 'live', color: '#ff9800' },
+                    { name: 'Pre', key: 'pre', color: '#2196f3' },
+                    { name: 'Stage', key: 'stage', color: '#9c27b0' }
+                ];
+                
+                environments.forEach(env => {
+                    const url = link.urls[env.key];
+                    if (url && url !== 'null') {
+                        linksHtml += `
+                            <div style="
+                                display: flex;
+                                align-items: center;
+                                padding: 6px 8px;
+                                background: rgba(255,255,255,0.03);
+                                border-radius: 4px;
+                                margin-bottom: 4px;
+                                transition: background 0.2s ease;
+                            " onmouseover="this.style.background='rgba(255,255,255,0.06)';"
+                               onmouseout="this.style.background='rgba(255,255,255,0.03)';">
+                                <div style="flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;">
+                                    <div style="
+                                        color: rgba(255,255,255,0.5);
+                                        font-size: 10px;
+                                    ">-</div>
+                                    <div style="
+                                        color: rgba(255,255,255,0.7);
+                                        font-size: 10px;
+                                        overflow: hidden;
+                                        text-overflow: ellipsis;
+                                        white-space: nowrap;
+                                        flex: 1;
+                                    " title="${url}">${url}</div>
+                                    <div style="
+                                        color: ${env.color};
+                                        font-size: 10px;
+                                        font-weight: bold;
+                                        white-space: nowrap;
+                                        padding: 2px 6px;
+                                        background: rgba(${env.color === '#ff9800' ? '255,152,0' : env.color === '#2196f3' ? '33,150,243' : '156,39,176'},0.15);
+                                        border-radius: 3px;
+                                    ">${env.name}</div>
+                                </div>
+                                <div style="display: flex; gap: 4px; margin-left: 8px;">
+                                    <button class="test-link-copy-btn" data-url="${url}" style="
+                                        background: rgba(33, 150, 243, 0.2);
+                                        border: 1px solid rgba(33, 150, 243, 0.4);
+                                        color: #64b5f6;
+                                        padding: 3px 8px;
+                                        border-radius: 3px;
+                                        cursor: pointer;
+                                        font-size: 9px;
+                                        font-weight: bold;
+                                        white-space: nowrap;
+                                        transition: all 0.2s ease;
+                                    " onmouseover="this.style.background='rgba(33, 150, 243, 0.3)';"
+                                       onmouseout="this.style.background='rgba(33, 150, 243, 0.2)';"
+                                    >Copy</button>
+                                    <button class="test-link-open-btn" data-url="${url}" style="
+                                        background: rgba(76, 175, 80, 0.2);
+                                        border: 1px solid rgba(76, 175, 80, 0.4);
+                                        color: #81c784;
+                                        padding: 3px 8px;
+                                        border-radius: 3px;
+                                        cursor: pointer;
+                                        font-size: 9px;
+                                        font-weight: bold;
+                                        white-space: nowrap;
+                                        transition: all 0.2s ease;
+                                    " onmouseover="this.style.background='rgba(76, 175, 80, 0.3)';"
+                                       onmouseout="this.style.background='rgba(76, 175, 80, 0.2)';"
+                                    >Open</button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+                
+                linksHtml += `</div>`;
             });
             
             categoriesHtml += `
