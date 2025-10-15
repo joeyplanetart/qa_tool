@@ -5038,49 +5038,54 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             currentEnv = 'Stage';
         }
         
-        // 站点信息显示（始终显示，不依赖 Product Info）
+        // 站点信息显示（始终显示，不依赖 Product Info）- 固定2行布局
         const siteInfoContent = `
-            <div style="display: flex; align-items: center; gap: 10px; flex: 1; flex-wrap: wrap;">
-                <!-- 站点名称 - 突出显示 -->
-                <div style="
-                    font-size: 16px;
-                    color: #fff;
-                    font-weight: bold;
-                    letter-spacing: 0.5px;
-                    white-space: nowrap;
-                ">${siteName}</div>
-                
-                <!-- 站点 ID -->
-                <div style="
-                    font-size: 12px;
-                    color: #fff;
-                    padding: 2px 0;
-                    white-space: nowrap;
-                ">ID: ${siteId}</div>
-                
-                <!-- 分支名称（如果有） -->
-                ${detectedBranch ? `
+            <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                <!-- 第1行：站点名称 + ID + 分支 -->
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <!-- 站点名称 - 突出显示 -->
+                    <div style="
+                        font-size: 16px;
+                        color: #fff;
+                        font-weight: bold;
+                        letter-spacing: 0.5px;
+                        white-space: nowrap;
+                    ">${siteName}</div>
+                    
+                    <!-- 站点 ID -->
                     <div style="
                         font-size: 12px;
                         color: #fff;
                         padding: 2px 0;
                         white-space: nowrap;
-                        max-width: 150px;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                    " title="${detectedBranch}">${detectedBranch}</div>
-                ` : ''}
+                    ">ID: ${siteId}</div>
+                    
+                    <!-- 分支名称（如果有） -->
+                    ${detectedBranch ? `
+                        <div style="
+                            font-size: 12px;
+                            color: #fff;
+                            padding: 2px 0;
+                            white-space: nowrap;
+                            max-width: 200px;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                        " title="${detectedBranch}">${detectedBranch}</div>
+                    ` : ''}
+                </div>
                 
-                <!-- 当前环境 -->
-                <div style="
-                    font-size: 12px;
-                    color: #fff;
-                    padding: 4px 12px;
-                    background: ${currentEnv === 'Live' ? '#ff9800' : currentEnv === 'Stage' ? '#9c27b0' : '#2196f3'};
-                    border-radius: 4px;
-                    font-weight: bold;
-                    white-space: nowrap;
-                ">${currentEnv}</div>
+                <!-- 第2行：当前环境 -->
+                <div style="display: flex; align-items: center;">
+                    <div style="
+                        font-size: 12px;
+                        color: #fff;
+                        padding: 4px 12px;
+                        background: ${currentEnv === 'Live' ? '#ff9800' : currentEnv === 'Stage' ? '#9c27b0' : '#2196f3'};
+                        border-radius: 4px;
+                        font-weight: bold;
+                        white-space: nowrap;
+                    ">${currentEnv}</div>
+                </div>
             </div>
         `;
         
