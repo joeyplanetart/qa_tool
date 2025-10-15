@@ -3015,7 +3015,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     
                     try {
                         await approveImage(imageId);
-                        showToastNotification(`✅ 图片 ${imageId} 审核通过！`, 'success');
+                        showToastNotification(`✅ Image ${imageId} approved successfully!`, 'success');
                         // Keep Image ID in input for user reference
                     } catch (error) {
                         console.error('❌ Approve failed:', error);
@@ -3055,7 +3055,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     
                     try {
                         await blockImage(imageId);
-                        showToastNotification(`🚫 图片 ${imageId} 已拒绝！`, 'success');
+                        showToastNotification(`🚫 Image ${imageId} blocked successfully!`, 'success');
                         // Keep Image ID in input for user reference
                     } catch (error) {
                         console.error('❌ Block failed:', error);
@@ -3716,7 +3716,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         });
         
         if (!response.success) {
-            throw new Error(response.error || '审核图片失败');
+            throw new Error(response.error || 'Failed to approve image');
         }
         
         console.log('✅ Image approved successfully:', imageId);
@@ -3738,7 +3738,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         });
         
         if (!response.success) {
-            throw new Error(response.error || '拒绝图片失败');
+            throw new Error(response.error || 'Failed to block image');
         }
         
         console.log('🚫 Image blocked successfully:', imageId);

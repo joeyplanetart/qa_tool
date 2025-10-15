@@ -105,7 +105,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             
             if (!response.ok) {
                 if (response.status === 401 || response.status === 403) {
-                    throw new Error('请先点击 SSO Login 按钮登录');
+                    throw new Error('Unauthorized - Please login via SSO first');
                 }
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
@@ -114,7 +114,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 console.warn('Background: Response is not JSON, likely HTML (login page)');
-                throw new Error('未登录或登录已过期，请先点击 SSO Login 按钮登录');
+                throw new Error('Not logged in or session expired. Please login via SSO first');
             }
             
             return response.json();
@@ -124,7 +124,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             
             // Check if API returned an error
             if (data.error || data.success === false) {
-                throw new Error(data.message || data.error || 'API 返回错误');
+                throw new Error(data.message || data.error || 'API returned an error');
             }
             
             sendResponse({
@@ -140,7 +140,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             // Improve error message
             let errorMessage = error.message;
             if (errorMessage.includes('Unexpected token')) {
-                errorMessage = '未登录或登录已过期，请先点击 SSO Login 按钮登录';
+                errorMessage = 'Not logged in or session expired. Please login via SSO first';
             }
             
             sendResponse({
