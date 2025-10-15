@@ -146,17 +146,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}. Body: ${responseText.substring(0, 200)}`);
             }
             
-            // Check if response is JSON
+            // This API returns text/html, not JSON
             const contentType = response.headers.get('content-type');
-            console.log('Background: Content-Type check:', contentType);
+            console.log('Background: Content-Type:', contentType);
             
-            if (!contentType || !contentType.includes('application/json')) {
-                const responseText = await response.text();
-                console.warn('Background: Response is not JSON. Body (first 1000 chars):', responseText.substring(0, 1000));
-                throw new Error(`Not logged in or session expired. Response is HTML. Body: ${responseText.substring(0, 200)}`);
+            // Get response as text
+            const responseText = await response.text();
+            console.log('Background: Response body:', responseText);
+            
+            // The API returns "true" or "false" as plain text
+            // or may return HTML if there's an error
+            if (responseText.trim().toLowerCase() === 'false') {
+                throw new Error('API returned false - Approval/Block failed. Check permissions or image ID.');
             }
             
-            return response.json();
+            if (responseText.trim().toLowerCase() === 'true') {
+                return { success: true, result: responseText };
+            }
+            
+            // If response contains HTML tags, it's likely an error page
+            if (responseText.includes('<html') || responseText.includes('<!DOCTYPE')) {
+                console.error('Background: Received HTML page instead of result:', responseText.substring(0, 500));
+                throw new Error('Not logged in or session expired. Please login via SSO first');
+            }
+            
+            // Return the text as-is if it's some other format
+            return { success: true, result: responseText };
         })
         .then(data => {
             console.log('Background: API response data:', JSON.stringify(data, null, 2));
