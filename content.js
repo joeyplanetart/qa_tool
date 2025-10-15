@@ -5302,18 +5302,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                onmouseout="this.style.background='rgba(255,255,255,0.03)';">
                                 <div style="flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;">
                                     <div style="
-                                        color: rgba(255,255,255,0.5);
-                                        font-size: 10px;
-                                    ">-</div>
-                                    <div style="
-                                        color: rgba(255,255,255,0.7);
-                                        font-size: 10px;
-                                        overflow: hidden;
-                                        text-overflow: ellipsis;
-                                        white-space: nowrap;
-                                        flex: 1;
-                                    " title="${url}">${url}</div>
-                                    <div style="
                                         color: #fff;
                                         font-size: 10px;
                                         font-weight: bold;
@@ -5322,6 +5310,14 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                         background: rgba(${env.color === '#ff9800' ? '255,152,0' : env.color === '#2196f3' ? '33,150,243' : '156,39,176'},0.15);
                                         border-radius: 3px;
                                     ">${env.name}</div>
+                                    <div style="
+                                        color: rgba(255,255,255,0.7);
+                                        font-size: 10px;
+                                        overflow: hidden;
+                                        text-overflow: ellipsis;
+                                        white-space: nowrap;
+                                        flex: 1;
+                                    " title="${url}">${url}</div>
                                 </div>
                                 <div style="display: flex; gap: 4px; margin-left: 8px;">
                                     <button class="test-link-copy-btn" data-url="${url}" style="
