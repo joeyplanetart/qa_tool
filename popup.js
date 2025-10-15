@@ -63,15 +63,15 @@ document.addEventListener('DOMContentLoaded', function() {
             let emailCookie = null;
             let userIdCookie = null;
             
-            // Check admin.planetart.com first
+            // Check admin.planetart.com first using unified config
             console.log('🔍 Checking admin.planetart.com domain...');
             emailCookie = await chrome.cookies.get({
-                url: 'https://admin.planetart.com',
+                url: CONFIG.ADMIN.LIVE,
                 name: 'attntv_mstore_email'
             });
             
             userIdCookie = await chrome.cookies.get({
-                url: 'https://admin.planetart.com',
+                url: CONFIG.ADMIN.LIVE,
                 name: 'stiadmin_user_id'
             });
             
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!emailCookie || !emailCookie.value) {
                 console.log('🔍 Email not found in admin domain, checking login.planetart.com...');
                 emailCookie = await chrome.cookies.get({
-                    url: 'https://login.planetart.com',
+                    url: CONFIG.AUTH.LOGIN_DOMAIN,
                     name: 'attntv_mstore_email'
                 });
                 console.log('📧 Login domain - Email cookie:', emailCookie);
@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!userIdCookie || !userIdCookie.value) {
                 console.log('🔍 UserId not found in admin domain, checking login.planetart.com...');
                 userIdCookie = await chrome.cookies.get({
-                    url: 'https://login.planetart.com',
+                    url: CONFIG.AUTH.LOGIN_DOMAIN,
                     name: 'stiadmin_user_id'
                 });
                 console.log('👤 Login domain - UserId cookie:', userIdCookie);
@@ -260,27 +260,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Site ID - Hardcoded based on site type
             let siteId = 'Not found';
             
-            // Get current tab URL to determine site type and return hardcoded Site ID
+            // Get current tab URL to determine site type and return Site ID using unified config
             chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
                 const currentUrl = tabs[0].url;
-                let calculatedSiteId = 'Not found';
+                const region = CONFIG.detectRegion(currentUrl);
+                const calculatedSiteId = region ? CONFIG.getSiteId(region) : 'Not found';
                 
-                if (currentUrl.includes('cafus-cpsw-web') || 
-                    (currentUrl.includes('cafepress.com') && !currentUrl.includes('cafepress.ca') && !currentUrl.includes('cafepress.co.uk') && !currentUrl.includes('cafepress.com.au'))) {
-                    calculatedSiteId = '170'; // US site
-                    console.log('POPUP: ✅ Hardcoded Site ID for US site:', calculatedSiteId);
-                }
-                else if (currentUrl.includes('cafca-cpsw-web') || currentUrl.includes('cafepress.ca')) {
-                    calculatedSiteId = '173'; // CA site  
-                    console.log('POPUP: ✅ Hardcoded Site ID for CA site:', calculatedSiteId);
-                }
-                else if (currentUrl.includes('cafuk-cpsw-web') || currentUrl.includes('cafepress.co.uk')) {
-                    calculatedSiteId = '172'; // UK site
-                    console.log('POPUP: ✅ Hardcoded Site ID for UK site:', calculatedSiteId);
-                }
-                else if (currentUrl.includes('cafau-cpsw-web') || currentUrl.includes('cafepress.com.au')) {
-                    calculatedSiteId = '171'; // AU site
-                    console.log('POPUP: ✅ Hardcoded Site ID for AU site:', calculatedSiteId);
+                if (region) {
+                    console.log(`POPUP: ✅ Detected region ${region}, Site ID:`, calculatedSiteId);
                 }
                 
                 // Update display element for Site ID

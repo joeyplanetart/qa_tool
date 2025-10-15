@@ -2082,9 +2082,8 @@ console.log('Current URL:', window.location.href);
         `;
         ssoButton.addEventListener('click', () => {
             console.log('SSO Login clicked');
-            // Open SSO login page in new tab
-            const ssoUrl = 'https://login.planetart.com/sso';
-            window.open(ssoUrl, '_blank');
+            // Open SSO login page in new tab using unified config
+            window.open(CONFIG.AUTH.SSO_URL, '_blank');
             
             // Update button text to show logged in status
             setTimeout(() => {
@@ -2511,24 +2510,12 @@ console.log('Current URL:', window.location.href);
                 // Site ID - Hardcoded based on site type
                 let siteId = 'Not found';
                 
-                // Determine site type from current URL and return hardcoded Site ID
+                // Determine site type from current URL and return Site ID using unified config
                 const currentUrl = window.location.href;
-                if (currentUrl.includes('cafus-cpsw-web') || 
-                    (currentUrl.includes('cafepress.com') && !currentUrl.includes('cafepress.ca') && !currentUrl.includes('cafepress.co.uk') && !currentUrl.includes('cafepress.com.au'))) {
-                    siteId = '170'; // US site
-                    console.log('✅ Hardcoded Site ID for US site:', siteId);
-                }
-                else if (currentUrl.includes('cafca-cpsw-web') || currentUrl.includes('cafepress.ca')) {
-                    siteId = '173'; // CA site  
-                    console.log('✅ Hardcoded Site ID for CA site:', siteId);
-                }
-                else if (currentUrl.includes('cafuk-cpsw-web') || currentUrl.includes('cafepress.co.uk')) {
-                    siteId = '172'; // UK site
-                    console.log('✅ Hardcoded Site ID for UK site:', siteId);
-                }
-                else if (currentUrl.includes('cafau-cpsw-web') || currentUrl.includes('cafepress.com.au')) {
-                    siteId = '171'; // AU site
-                    console.log('✅ Hardcoded Site ID for AU site:', siteId);
+                const region = CONFIG.detectRegion(currentUrl);
+                if (region) {
+                    siteId = CONFIG.getSiteId(region);
+                    console.log(`✅ Detected region ${region}, Site ID:`, siteId);
                 }
                 
                 productInfoHtml += createInfoItem('Site ID:', siteId);
@@ -3621,27 +3608,12 @@ console.log('Current URL:', window.location.href);
     
     // Detect current environment from URL
     function detectEnvironment() {
-        const hostname = window.location.hostname;
-        
-        if (hostname.includes('pre.planetart.com')) {
-            return 'pre';
-        } else if (hostname.includes('stage.planetart.com')) {
-            return 'stage';
-        } else {
-            // Default to live for production domains
-            return 'live';
-        }
+        return CONFIG.detectEnvironment(window.location.hostname);
     }
     
-    // Get Admin API base URL based on environment
+    // Get Admin API base URL based on environment (using unified config)
     function getAdminApiUrl(environment) {
-        const apiUrls = {
-            'pre': 'https://admin-cpsw-web.pre.planetart.com',
-            'stage': 'https://admin-cpsw-web.stage.planetart.com',
-            'live': 'https://admin.planetart.com'
-        };
-        
-        return apiUrls[environment] || apiUrls['live'];
+        return CONFIG.getAdminBaseUrl(environment);
     }
     
     // Approve image function
@@ -4490,7 +4462,7 @@ console.log('Current URL:', window.location.href);
             const indexResponse = await chrome.runtime.sendMessage({
                 type: 'FETCH_ORDER_FROM_ADMIN',
                 orderId: orderId,
-                url: `https://admin.planetart.com/orders/order_tab_index.php?order_id=${orderId}`
+                url: `${CONFIG.ADMIN.LIVE}${CONFIG.API_ENDPOINTS.ORDER_TAB_INDEX}?order_id=${orderId}`
             });
             
             if (indexResponse.success) {
@@ -4554,7 +4526,7 @@ console.log('Current URL:', window.location.href);
             const overviewResponse = await chrome.runtime.sendMessage({
                 type: 'FETCH_ORDER_FROM_ADMIN',
                 orderId: orderId,
-                url: `https://admin.planetart.com/orders/order_tab_overview.php?order_id=${orderId}`
+                url: `${CONFIG.ADMIN.LIVE}${CONFIG.API_ENDPOINTS.ORDER_TAB_OVERVIEW}?order_id=${orderId}`
             });
             
             if (overviewResponse.success) {
@@ -4729,7 +4701,7 @@ console.log('Current URL:', window.location.href);
             const itemsPageResponse = await chrome.runtime.sendMessage({
                 type: 'FETCH_ORDER_FROM_ADMIN',
                 orderId: orderId,
-                url: `https://admin.planetart.com/orders/order_tab_items.php?order_id=${orderId}`
+                url: `${CONFIG.ADMIN.LIVE}${CONFIG.API_ENDPOINTS.ORDER_TAB_ITEMS}?order_id=${orderId}`
             });
             
             let itemsCount = 2; // Default fallback
@@ -4749,7 +4721,7 @@ console.log('Current URL:', window.location.href);
                 const itemsResponse = await chrome.runtime.sendMessage({
                     type: 'FETCH_ORDER_FROM_ADMIN',
                     orderId: orderId,
-                    url: `https://admin.planetart.com/orders/order_tab_item_ajax.php?item_number=${itemNum}&items_count=${itemsCount}&fp_only=0&order_id=${orderId}`
+                    url: `${CONFIG.ADMIN.LIVE}${CONFIG.API_ENDPOINTS.ORDER_TAB_ITEM_AJAX}?item_number=${itemNum}&items_count=${itemsCount}&fp_only=0&order_id=${orderId}`
                 });
             
             if (itemsResponse.success) {
@@ -4859,7 +4831,7 @@ console.log('Current URL:', window.location.href);
                 const customerResponse = await chrome.runtime.sendMessage({
                     type: 'FETCH_ORDER_FROM_ADMIN',
                     orderId: orderId,
-                    url: `https://admin.planetart.com/orders/order_tab_customer.php?order_id=${orderId}`
+                    url: `${CONFIG.ADMIN.LIVE}${CONFIG.API_ENDPOINTS.ORDER_TAB_CUSTOMER}?order_id=${orderId}`
                 });
                 
                 if (customerResponse.success) {
@@ -5033,21 +5005,9 @@ console.log('Current URL:', window.location.href);
         const currentUrl = window.location.href;
         const environments = getEnvironmentInfo(currentUrl);
         
-        // Determine site name based on current URL
-        let siteName = 'ENV';
-        if (currentUrl.includes('cafus-cpsw-web') || 
-            (currentUrl.includes('cafepress.com') && !currentUrl.includes('cafepress.ca') && !currentUrl.includes('cafepress.co.uk') && !currentUrl.includes('cafepress.com.au'))) {
-            siteName = 'CAFUS';
-        }
-        else if (currentUrl.includes('cafca-cpsw-web') || currentUrl.includes('cafepress.ca')) {
-            siteName = 'CAFCA';
-        }
-        else if (currentUrl.includes('cafuk-cpsw-web') || currentUrl.includes('cafepress.co.uk')) {
-            siteName = 'CAFUK';
-        }
-        else if (currentUrl.includes('cafau-cpsw-web') || currentUrl.includes('cafepress.com.au')) {
-            siteName = 'CAFAU';
-        }
+        // Determine site name based on current URL using unified config
+        const region = CONFIG.detectRegion(currentUrl);
+        const siteName = CONFIG.getSiteName(region);
         
         // Environment switcher content (only show on product pages)
         let envSwitcherContent = '';
@@ -5206,48 +5166,25 @@ console.log('Current URL:', window.location.href);
         const searchParams = urlObj.search;
         const fullPath = productPath + searchParams;
         
-        // Generate environments based on site type
-        const siteConfigs = {
-            'US': {
-                pre: 'cafus-cpsw-web.pre.planetart.com',
-                stage: 'cafus-cpsw-web.stage.planetart.com',
-                live: 'www.cafepress.com'
-            },
-            'CA': {
-                pre: 'cafca-cpsw-web.pre.planetart.com',
-                stage: 'cafca-cpsw-web.stage.planetart.com',
-                live: 'www.cafepress.ca'
-            },
-            'UK': {
-                pre: 'cafuk-cpsw-web.pre.planetart.com',
-                stage: 'cafuk-cpsw-web.stage.planetart.com',
-                live: 'www.cafepress.co.uk'
-            },
-            'AU': {
-                pre: 'cafau-cpsw-web.pre.planetart.com',
-                stage: 'cafau-cpsw-web.stage.planetart.com',
-                live: 'www.cafepress.com.au'
-            }
-        };
-        
-        const config = siteConfigs[siteType];
+        // Generate environments based on site type using unified config
+        const config = CONFIG.getSiteConfig(siteType);
         if (!config) return null;
         
         const environments = [
             {
                 name: 'Pre',
-                url: `https://${config.pre}${fullPath}`,
-                current: currentUrl.includes(config.pre)
+                url: `https://${config.PRE}${fullPath}`,
+                current: currentUrl.includes(config.PRE)
             },
             {
                 name: 'Stage', 
-                url: `https://${config.stage}${fullPath}`,
-                current: currentUrl.includes(config.stage)
+                url: `https://${config.STAGE}${fullPath}`,
+                current: currentUrl.includes(config.STAGE)
             },
             {
                 name: 'Live',
-                url: `https://${config.live}${fullPath}`,
-                current: currentUrl.includes(config.live)
+                url: `https://${config.LIVE}${fullPath}`,
+                current: currentUrl.includes(config.LIVE)
             }
         ];
         

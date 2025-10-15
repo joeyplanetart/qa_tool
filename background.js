@@ -1,4 +1,7 @@
 // Background script for Cafepress QA Tools
+// Import unified configuration
+importScripts('config.js');
+
 console.log('Cafepress QA Tools background script loaded');
 
 // Handle order fetch requests from content script
@@ -7,7 +10,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log('🔍 Background: Fetching order from Admin:', request.orderId);
         
         // Use custom URL if provided, otherwise default to order_tab_overview.php
-        const adminUrl = request.url || `https://admin.planetart.com/orders/order_tab_overview.php?order_id=${request.orderId}`;
+        const adminUrl = request.url || `${CONFIG.ADMIN.LIVE}${CONFIG.API_ENDPOINTS.ORDER_TAB_OVERVIEW}?order_id=${request.orderId}`;
         console.log('Background: Admin URL:', adminUrl);
         
         fetch(adminUrl, {
@@ -60,15 +63,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const environment = request.environment || 'pre'; // Default to pre
         const statusNo = action === 'approve' ? 1 : -1; // 1 for approve, -1 for block
         
-        // Determine Admin API URL based on environment
-        const apiBaseUrls = {
-            'pre': 'https://admin-cpsw-web.pre.planetart.com',
-            'stage': 'https://admin-cpsw-web.stage.planetart.com',
-            'live': 'https://admin.planetart.com'
-        };
-        
-        const apiBaseUrl = apiBaseUrls[environment] || apiBaseUrls['pre'];
-        const apiUrl = `${apiBaseUrl}/ajax/ajax_cp_cup_tool_approve.php`;
+        // Determine Admin API URL based on environment using unified config
+        const apiUrl = CONFIG.getAdminApiUrl(environment, CONFIG.API_ENDPOINTS.APPROVE_IMAGE);
         
         console.log(`Environment: ${environment}`);
         console.log(`API URL: ${apiUrl}`);
@@ -144,15 +140,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const swCustomerId = request.swCustomerId || '';
         const environment = request.environment || 'pre';
         
-        // Determine Admin API URL based on environment
-        const apiBaseUrls = {
-            'pre': 'https://admin-cpsw-web.pre.planetart.com',
-            'stage': 'https://admin-cpsw-web.stage.planetart.com',
-            'live': 'https://admin.planetart.com'
-        };
-        
-        const apiBaseUrl = apiBaseUrls[environment] || apiBaseUrls['pre'];
-        const apiUrl = `${apiBaseUrl}/ajax/ajax_cp_seller_store.php`;
+        // Determine Admin API URL based on environment using unified config
+        const apiUrl = CONFIG.getAdminApiUrl(environment, CONFIG.API_ENDPOINTS.SELLER_STORE);
         
         console.log(`Environment: ${environment}`);
         console.log(`API URL: ${apiUrl}`);
@@ -232,29 +221,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 chrome.action.onClicked.addListener((tab) => {
     console.log('Extension icon clicked on tab:', tab.url);
     
-    // Check if we're on a supported domain
-    const supportedDomains = [
-        // US sites
-        'cafus-cpsw-web.pre.planetart.com',
-        'cafus-cpsw-web.stage.planetart.com', 
-        'www.cafepress.com',
-        'cafepress.com',
-        // CA sites
-        'cafca-cpsw-web.pre.planetart.com',
-        'cafca-cpsw-web.stage.planetart.com',
-        'www.cafepress.ca',
-        'cafepress.ca',
-        // UK sites
-        'cafuk-cpsw-web.pre.planetart.com',
-        'cafuk-cpsw-web.stage.planetart.com',
-        'www.cafepress.co.uk',
-        'cafepress.co.uk',
-        // AU sites
-        'cafau-cpsw-web.pre.planetart.com',
-        'cafau-cpsw-web.stage.planetart.com',
-        'www.cafepress.com.au',
-        'cafepress.com.au'
-    ];
+    // Check if we're on a supported domain using unified config
+    const supportedDomains = CONFIG.getSupportedDomains();
     
     const isSupported = supportedDomains.some(domain => tab.url && tab.url.includes(domain));
     

@@ -52,7 +52,7 @@
         "*://www.cafepress.com.au/*",
         "*://cafepress.com.au/*"
       ],
-      "js": ["content.js"],
+      "js": ["config.js", "content.js"],
       "run_at": "document_idle"
     }
   ],
