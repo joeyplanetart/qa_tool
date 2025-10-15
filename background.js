@@ -101,18 +101,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })
         .then(response => {
             console.log('Background: Response status:', response.status);
+            console.log('Background: Response content-type:', response.headers.get('content-type'));
             
             if (!response.ok) {
                 if (response.status === 401 || response.status === 403) {
-                    throw new Error('Unauthorized - Please login via SSO first');
+                    throw new Error('请先点击 SSO Login 按钮登录');
                 }
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.warn('Background: Response is not JSON, likely HTML (login page)');
+                throw new Error('未登录或登录已过期，请先点击 SSO Login 按钮登录');
             }
             
             return response.json();
         })
         .then(data => {
             console.log('Background: API response data:', data);
+            
+            // Check if API returned an error
+            if (data.error || data.success === false) {
+                throw new Error(data.message || data.error || 'API 返回错误');
+            }
             
             sendResponse({
                 success: true,
@@ -123,9 +136,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })
         .catch(error => {
             console.error('Background: Error:', error);
+            
+            // Improve error message
+            let errorMessage = error.message;
+            if (errorMessage.includes('Unexpected token')) {
+                errorMessage = '未登录或登录已过期，请先点击 SSO Login 按钮登录';
+            }
+            
             sendResponse({
                 success: false,
-                error: error.message
+                error: errorMessage
             });
         });
         
