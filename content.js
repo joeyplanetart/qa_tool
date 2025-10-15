@@ -5260,6 +5260,19 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         }
                     },
                 ]
+            },
+            {
+                name: 'PLP',
+                links: [
+                    { 
+                        title: 'PLP Tool', 
+                        urls: {
+                            live: null,
+                            pre: null,
+                            stage: 'https://plptool-stage.cafepress.io/'
+                        }
+                    },
+                ]
             }
         ];
         
