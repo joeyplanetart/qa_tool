@@ -139,7 +139,7 @@ const CONFIG = {
         
         // Pattern: {region}-{branch}.{environment}.planetart.com
         // Examples: cafus-cpsw-web.pre.planetart.com, cafca-master.stage.planetart.com
-        const preStagePattern = /^caf(?:us|ca|uk|au|)-([^.]+)\.(pre|stage)\.planetart\.com$/;
+        const preStagePattern = /^caf(?:us|ca|uk|au)-([^.]+)\.(pre|stage)\.planetart\.com$/;
         const adminPattern = /^admin-([^.]+)\.(pre|stage)\.planetart\.com$/;
         
         let match = hostname.match(preStagePattern);
@@ -357,20 +357,23 @@ const CONFIG = {
     },
     
     /**
-     * Detect region from URL
-     * @param {string} url - URL to check
+     * Detect region from URL or hostname
+     * @param {string} url - URL or hostname to check
      * @returns {string|null} Region code ('US', 'CA', 'UK', 'AU') or null
      */
     detectRegion(url) {
-        if (url.includes('cafus-cpsw-web') || 
+        if (!url) return null;
+        
+        // Check for pre/stage environment domains with any branch name
+        if (/cafus-[^.]+\.(pre|stage)\.planetart\.com/.test(url) || 
             (url.includes('cafepress.com') && !url.includes('cafepress.ca') && 
              !url.includes('cafepress.co.uk') && !url.includes('cafepress.com.au'))) {
             return 'US';
-        } else if (url.includes('cafca-cpsw-web') || url.includes('cafepress.ca')) {
+        } else if (/cafca-[^.]+\.(pre|stage)\.planetart\.com/.test(url) || url.includes('cafepress.ca')) {
             return 'CA';
-        } else if (url.includes('cafuk-cpsw-web') || url.includes('cafepress.co.uk')) {
+        } else if (/cafuk-[^.]+\.(pre|stage)\.planetart\.com/.test(url) || url.includes('cafepress.co.uk')) {
             return 'UK';
-        } else if (url.includes('cafau-cpsw-web') || url.includes('cafepress.com.au')) {
+        } else if (/cafau-[^.]+\.(pre|stage)\.planetart\.com/.test(url) || url.includes('cafepress.com.au')) {
             return 'AU';
         }
         return null;

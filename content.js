@@ -5393,12 +5393,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 max-height: 500px;
                 overflow-y: auto;
             ">
-                <div style="
-                    color: #fff;
-                    font-size: 14px;
-                    font-weight: bold;
-                    margin-bottom: 12px;
-                ">Test Links & APIs</div>
                 ${categoriesHtml}
             </div>
         `;
