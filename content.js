@@ -3117,6 +3117,65 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 }
             });
             
+            // Add Test Links button event listener
+            const testLinksBtn = content.querySelector('#floating-test-links-btn');
+            const testLinksPanel = content.querySelector('#floating-test-links-panel');
+            let isTestLinksPanelVisible = false;
+            
+            if (testLinksBtn && testLinksPanel) {
+                testLinksBtn.addEventListener('click', () => {
+                    isTestLinksPanelVisible = !isTestLinksPanelVisible;
+                    
+                    if (isTestLinksPanelVisible) {
+                        // Show panel and generate content
+                        testLinksPanel.innerHTML = createTestLinksPanel();
+                        testLinksPanel.style.display = 'block';
+                        testLinksBtn.textContent = '🔗 Hide Links';
+                        
+                        // Add event listeners for copy and open buttons
+                        const copyBtns = testLinksPanel.querySelectorAll('.test-link-copy-btn');
+                        copyBtns.forEach(btn => {
+                            btn.addEventListener('click', async () => {
+                                const url = btn.getAttribute('data-url');
+                                try {
+                                    await navigator.clipboard.writeText(url);
+                                    const originalText = btn.innerHTML;
+                                    btn.innerHTML = '✅ Copied!';
+                                    btn.style.background = 'rgba(76, 175, 80, 0.3)';
+                                    btn.style.color = '#81c784';
+                                    
+                                    setTimeout(() => {
+                                        btn.innerHTML = originalText;
+                                        btn.style.background = 'rgba(33, 150, 243, 0.2)';
+                                        btn.style.color = '#64b5f6';
+                                    }, 2000);
+                                } catch (err) {
+                                    console.error('Failed to copy:', err);
+                                    btn.innerHTML = '❌ Failed';
+                                    setTimeout(() => {
+                                        btn.innerHTML = '📋 Copy';
+                                    }, 2000);
+                                }
+                            });
+                        });
+                        
+                        const openBtns = testLinksPanel.querySelectorAll('.test-link-open-btn');
+                        openBtns.forEach(btn => {
+                            btn.addEventListener('click', () => {
+                                const url = btn.getAttribute('data-url');
+                                window.open(url, '_blank');
+                            });
+                        });
+                    } else {
+                        // Hide panel
+                        testLinksPanel.style.display = 'none';
+                        testLinksBtn.textContent = '🔗 Test Links';
+                    }
+                });
+                
+                console.log('✓ Test Links button event listener added');
+            }
+            
             // Add debug button event listener
             const debugBtn = content.querySelector('#cp-debug-btn');
             if (debugBtn) {
@@ -3988,6 +4047,36 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     >Block</button>
                 </div>
                 </div>
+                
+                <!-- Test Links Button -->
+                <div style="
+                    padding: 6px;
+                    border-top: 1px solid rgba(255,255,255,0.1);
+                    display: flex;
+                    justify-content: center;
+                ">
+                    <button 
+                        id="floating-test-links-btn"
+                        style="
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: #fff;
+                            border: none;
+                            padding: 8px 20px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: bold;
+                            transition: all 0.2s ease;
+                            width: 100%;
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                        "
+                        onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.3)';"
+                        onmouseout="this.style.transform=''; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
+                    >🔗 Test Links</button>
+                </div>
+                
+                <!-- Test Links Panel (hidden by default) -->
+                <div id="floating-test-links-panel" style="display: none;"></div>
                 
                 <!-- Toggle Button -->
                 <div style="
@@ -5121,6 +5210,186 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         white-space: nowrap;
                     "
                 >← Back</button>
+            </div>
+        `;
+    }
+    
+    // Create Test Links Panel with categories
+    function createTestLinksPanel() {
+        const currentUrl = window.location.href;
+        const hostname = window.location.hostname;
+        const region = CONFIG.detectRegion(currentUrl);
+        const detectedBranch = CONFIG.autoDetectBranch(hostname);
+        
+        // Detect environment
+        let env = 'live';
+        if (hostname.includes('.pre.planetart.com')) {
+            env = 'pre';
+        } else if (hostname.includes('.stage.planetart.com')) {
+            env = 'stage';
+        }
+        
+        // Get base domains
+        const branch = detectedBranch || CONFIG.BRANCH.CURRENT;
+        let siteBaseUrl = '';
+        let adminBaseUrl = '';
+        
+        if (env === 'live') {
+            siteBaseUrl = CONFIG.getSiteConfig(region)?.LIVE || '';
+            adminBaseUrl = CONFIG.ADMIN.LIVE;
+        } else if (env === 'pre') {
+            siteBaseUrl = CONFIG.buildDomain(region, 'pre', branch);
+            adminBaseUrl = CONFIG.buildAdminDomain('pre', branch);
+        } else if (env === 'stage') {
+            siteBaseUrl = CONFIG.buildDomain(region, 'stage', branch);
+            adminBaseUrl = CONFIG.buildAdminDomain('stage', branch);
+        }
+        
+        // Define link categories
+        const linkCategories = [
+            {
+                name: '🏠 常用页面',
+                links: [
+                    { title: '首页', url: `https://${siteBaseUrl}` },
+                    { title: '搜索页面', url: `https://${siteBaseUrl}/search/` },
+                    { title: 'Create Your Own', url: `https://${siteBaseUrl}/create-your-own` },
+                    { title: 'Designer Studio', url: `https://${siteBaseUrl}/designer` },
+                ]
+            },
+            {
+                name: '🔧 Admin 工具',
+                links: [
+                    { title: 'Admin Panel', url: `https://${adminBaseUrl}` },
+                    { title: 'Image Approval', url: `https://${adminBaseUrl}/cp/image-approve.aspx` },
+                    { title: 'Product Management', url: `https://${adminBaseUrl}/cp/product-management.aspx` },
+                    { title: 'Order Search', url: `https://${adminBaseUrl}/cp/order-search.aspx` },
+                ]
+            },
+            {
+                name: '🔌 API 端点',
+                links: [
+                    { title: 'API Base', url: CONFIG.getAdminBaseUrl(env) },
+                    { title: 'Image Approve API', url: `${CONFIG.getAdminApiUrl(env)}/api/sw/cpadmin/productimage/approve` },
+                    { title: 'Image Block API', url: `${CONFIG.getAdminApiUrl(env)}/api/sw/cpadmin/productimage/block` },
+                    { title: 'Store Search API', url: `${CONFIG.getAdminApiUrl(env)}/api/storeinfo/searchcpstores` },
+                ]
+            },
+            {
+                name: '📄 测试页面',
+                links: [
+                    { title: '测试产品 1', url: `https://${siteBaseUrl}/+test-product-1` },
+                    { title: '测试产品 2', url: `https://${siteBaseUrl}/+test-product-2` },
+                    { title: 'QA Test Page', url: `https://${siteBaseUrl}/qa-test` },
+                ]
+            }
+        ];
+        
+        // Generate HTML for each category
+        let categoriesHtml = '';
+        linkCategories.forEach(category => {
+            let linksHtml = '';
+            category.links.forEach(link => {
+                linksHtml += `
+                    <div style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        padding: 8px 10px;
+                        background: rgba(255,255,255,0.05);
+                        border-radius: 6px;
+                        margin-bottom: 6px;
+                        transition: background 0.2s ease;
+                    " onmouseover="this.style.background='rgba(255,255,255,0.1)';"
+                       onmouseout="this.style.background='rgba(255,255,255,0.05)';">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="
+                                color: #fff;
+                                font-size: 12px;
+                                font-weight: 600;
+                                margin-bottom: 3px;
+                            ">${link.title}</div>
+                            <div style="
+                                color: rgba(255,255,255,0.6);
+                                font-size: 10px;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                white-space: nowrap;
+                            " title="${link.url}">${link.url}</div>
+                        </div>
+                        <div style="display: flex; gap: 6px; margin-left: 8px;">
+                            <button class="test-link-copy-btn" data-url="${link.url}" style="
+                                background: rgba(33, 150, 243, 0.2);
+                                border: 1px solid rgba(33, 150, 243, 0.4);
+                                color: #64b5f6;
+                                padding: 4px 10px;
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 10px;
+                                font-weight: bold;
+                                white-space: nowrap;
+                                transition: all 0.2s ease;
+                            " onmouseover="this.style.background='rgba(33, 150, 243, 0.3)';"
+                               onmouseout="this.style.background='rgba(33, 150, 243, 0.2)';"
+                            >📋 Copy</button>
+                            <button class="test-link-open-btn" data-url="${link.url}" style="
+                                background: rgba(76, 175, 80, 0.2);
+                                border: 1px solid rgba(76, 175, 80, 0.4);
+                                color: #81c784;
+                                padding: 4px 10px;
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 10px;
+                                font-weight: bold;
+                                white-space: nowrap;
+                                transition: all 0.2s ease;
+                            " onmouseover="this.style.background='rgba(76, 175, 80, 0.3)';"
+                               onmouseout="this.style.background='rgba(76, 175, 80, 0.2)';"
+                            >🔗 Open</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            categoriesHtml += `
+                <div style="margin-bottom: 16px;">
+                    <div style="
+                        color: #ffeb3b;
+                        font-size: 13px;
+                        font-weight: bold;
+                        margin-bottom: 8px;
+                        padding-bottom: 6px;
+                        border-bottom: 2px solid rgba(255,235,59,0.3);
+                    ">${category.name}</div>
+                    ${linksHtml}
+                </div>
+            `;
+        });
+        
+        return `
+            <div style="
+                padding: 12px;
+                background: rgba(0,0,0,0.3);
+                border-top: 1px solid rgba(255,255,255,0.1);
+                max-height: 500px;
+                overflow-y: auto;
+            ">
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 12px;
+                ">
+                    <div style="
+                        color: #fff;
+                        font-size: 14px;
+                        font-weight: bold;
+                    ">📚 Test Links & APIs</div>
+                    <div style="
+                        color: rgba(255,255,255,0.6);
+                        font-size: 10px;
+                    ">Environment: ${env.toUpperCase()}</div>
+                </div>
+                ${categoriesHtml}
             </div>
         `;
     }
