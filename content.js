@@ -2101,8 +2101,11 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         `;
         ssoButton.addEventListener('click', () => {
             console.log('SSO Login clicked');
-            // Open SSO login page in new tab using unified config
-            window.open(CONFIG.AUTH.SSO_URL, '_blank');
+            // Open SSO login page in new tab with redirect to Pre environment
+            const redirectUrl = encodeURIComponent('https://admin-master.pre.planetart.com/index?app=cstools');
+            const ssoUrl = `${CONFIG.AUTH.SSO_URL}?redirect_uri=${redirectUrl}`;
+            console.log('SSO URL with redirect:', ssoUrl);
+            window.open(ssoUrl, '_blank');
             
             // Update button text to show logged in status
             setTimeout(() => {
