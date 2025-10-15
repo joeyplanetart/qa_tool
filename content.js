@@ -5022,52 +5022,73 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     function createEnvironmentSwitcher() {
         const currentUrl = window.location.href;
-        const environments = getEnvironmentInfo(currentUrl);
+        const hostname = window.location.hostname;
         
-        // Determine site name based on current URL using unified config
+        // 检测当前站点、环境和分支信息（独立于 Product Info）
         const region = CONFIG.detectRegion(currentUrl);
         const siteName = CONFIG.getSiteName(region);
+        const siteId = region ? CONFIG.getSiteId(region) : 'N/A';
+        const detectedBranch = CONFIG.autoDetectBranch(hostname);
         
-        // Environment switcher content (only show on product pages)
-        let envSwitcherContent = '';
-        if (environments && environments.length > 0) {
-            envSwitcherContent = `
-                <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
-                    <div style="
-                        font-size: 12px;
-                        color: #fff;
-                        font-weight: normal;
-                        opacity: 0.9;
-                        white-space: nowrap;
-                    ">${siteName}</div>
-                    <div style="display: flex; gap: 6px; flex-wrap: nowrap;">
-                        ${environments.map(env => `
-                            <button 
-                                class="env-switch-btn" 
-                                data-url="${env.url}"
-                                style="
-                                    padding: 6px 12px;
-                                    border: 1px solid ${env.current ? '#ffeb3b' : 'rgba(255,255,255,0.3)'};
-                                    background: ${env.current ? '#ffeb3b' : 'rgba(255,255,255,0.1)'};
-                                    color: ${env.current ? '#333' : '#fff'};
-                                    border-radius: 4px;
-                                    font-size: 11px;
-                                    cursor: ${env.current ? 'default' : 'pointer'};
-                                    font-weight: ${env.current ? 'bold' : 'normal'};
-                                    min-width: 50px;
-                                    text-align: center;
-                                    transition: all 0.2s ease;
-                                    white-space: nowrap;
-                                "
-                                ${env.current ? 'disabled' : ''}
-                                onmouseover="if(!this.disabled) { this.style.background='rgba(255,255,255,0.2)'; this.style.borderColor='rgba(255,255,255,0.5)'; }"
-                                onmouseout="if(!this.disabled) { this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.3)'; }"
-                            >${env.name}</button>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
+        // 检测当前环境
+        let currentEnv = 'Live';
+        if (hostname.includes('.pre.planetart.com')) {
+            currentEnv = 'Pre';
+        } else if (hostname.includes('.stage.planetart.com')) {
+            currentEnv = 'Stage';
         }
+        
+        // 站点信息显示（始终显示，不依赖 Product Info）
+        const siteInfoContent = `
+            <div style="display: flex; align-items: center; gap: 8px; flex: 1; flex-wrap: wrap;">
+                <!-- 站点名称 -->
+                <div style="
+                    font-size: 13px;
+                    color: #c5cae9;
+                    font-weight: bold;
+                    padding: 4px 10px;
+                    background: rgba(255,255,255,0.15);
+                    border-radius: 4px;
+                    white-space: nowrap;
+                ">${siteName}</div>
+                
+                <!-- 站点 ID -->
+                <div style="
+                    font-size: 11px;
+                    color: #ffeb3b;
+                    padding: 3px 8px;
+                    background: rgba(255,235,59,0.15);
+                    border: 1px solid rgba(255,235,59,0.3);
+                    border-radius: 4px;
+                    white-space: nowrap;
+                ">ID: ${siteId}</div>
+                
+                <!-- 分支名称（如果有） -->
+                ${detectedBranch ? `
+                    <div style="
+                        font-size: 11px;
+                        color: #81c784;
+                        padding: 3px 8px;
+                        background: rgba(129,199,132,0.15);
+                        border: 1px solid rgba(129,199,132,0.3);
+                        border-radius: 4px;
+                        white-space: nowrap;
+                    ">🔱 ${detectedBranch}</div>
+                ` : ''}
+                
+                <!-- 当前环境 -->
+                <div style="
+                    font-size: 11px;
+                    color: ${currentEnv === 'Live' ? '#ff9800' : currentEnv === 'Stage' ? '#9c27b0' : '#2196f3'};
+                    padding: 3px 8px;
+                    background: ${currentEnv === 'Live' ? 'rgba(255,152,0,0.15)' : currentEnv === 'Stage' ? 'rgba(156,39,176,0.15)' : 'rgba(33,150,243,0.15)'};
+                    border: 1px solid ${currentEnv === 'Live' ? 'rgba(255,152,0,0.3)' : currentEnv === 'Stage' ? 'rgba(156,39,176,0.3)' : 'rgba(33,150,243,0.3)'};
+                    border-radius: 4px;
+                    font-weight: bold;
+                    white-space: nowrap;
+                ">${currentEnv}</div>
+            </div>
+        `;
         
         return `
             <div style="
@@ -5078,12 +5099,12 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 border-radius: 10px;
                 border: 1px solid rgba(255,255,255,0.2);
                 display: flex;
-                justify-content: ${environments && environments.length > 0 ? 'space-between' : 'flex-end'};
+                justify-content: space-between;
                 align-items: center;
                 gap: 12px;
             ">
-                <!-- Left: Environment Switcher (only on product pages) -->
-                ${envSwitcherContent}
+                <!-- Left: 站点信息（始终显示） -->
+                ${siteInfoContent}
                 
                 <!-- Right: Back Button (always show) -->
                 <button 
