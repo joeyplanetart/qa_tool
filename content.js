@@ -2911,8 +2911,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     searchStoreBtn.textContent = 'Searching...';
                     
                     try {
-                        const environment = detectEnvironment();
-                        console.log('Current environment:', environment);
+                        // Temporarily use Live environment (same as Search Order & Approve)
+                        const environment = 'live';
+                        console.log('Using environment:', environment);
                         
                         const response = await chrome.runtime.sendMessage({
                             type: 'SEARCH_STORE',
@@ -3713,17 +3714,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     async function approveImage(imageId) {
         console.log('🔍 Approving image:', imageId);
         
-        const environment = detectEnvironment();
-        const detectedBranch = CONFIG.autoDetectBranch() || CONFIG.BRANCH.CURRENT;
-        console.log('Current environment:', environment);
-        console.log('Current branch:', detectedBranch);
+        // Temporarily use Live environment (same as Search Order)
+        // TODO: Switch to dynamic environment when Live is fully deployed
+        const environment = 'live';
+        console.log('Using environment:', environment);
         
         const response = await chrome.runtime.sendMessage({
             type: 'APPROVE_BLOCK_IMAGE',
             imageId: imageId,
             action: 'approve',
-            environment: environment,
-            branch: detectedBranch
+            environment: environment
         });
         
         if (!response.success) {
@@ -3738,17 +3738,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     async function blockImage(imageId) {
         console.log('🔍 Blocking image:', imageId);
         
-        const environment = detectEnvironment();
-        const detectedBranch = CONFIG.autoDetectBranch() || CONFIG.BRANCH.CURRENT;
-        console.log('Current environment:', environment);
-        console.log('Current branch:', detectedBranch);
+        // Temporarily use Live environment (same as Search Order)
+        // TODO: Switch to dynamic environment when Live is fully deployed
+        const environment = 'live';
+        console.log('Using environment:', environment);
         
         const response = await chrome.runtime.sendMessage({
             type: 'APPROVE_BLOCK_IMAGE',
             imageId: imageId,
             action: 'block',
-            environment: environment,
-            branch: detectedBranch
+            environment: environment
         });
         
         if (!response.success) {
