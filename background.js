@@ -107,6 +107,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 'Accept': 'application/json, text/javascript, */*; q=0.01',
                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                 'X-Requested-With': 'XMLHttpRequest',
+                'Origin': adminBaseUrl,
                 'Referer': `${adminBaseUrl}/cstools/cp/cup_tool.php`
             },
             body: formData.toString()
@@ -202,6 +203,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 'Accept': 'application/json, text/javascript, */*; q=0.01',
                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                 'X-Requested-With': 'XMLHttpRequest',
+                'Origin': adminBaseUrl,
                 'Referer': `${adminBaseUrl}/cstools/cp/cup_tool.php`
             },
             body: formData.toString()
