@@ -5267,7 +5267,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     { 
                         title: 'PLP Tool', 
                         urls: {
-                            live: null,
+                            live: 'https://plptool-live.cafepress.io/',
                             pre: null,
                             stage: 'https://plptool-stage.cafepress.io/'
                         }
