@@ -2101,11 +2101,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         `;
         ssoButton.addEventListener('click', () => {
             console.log('SSO Login clicked');
-            // Open SSO login page in new tab with redirect to Pre environment
-            const redirectUrl = encodeURIComponent('https://admin-master.pre.planetart.com/index?app=cstools');
-            const ssoUrl = `${CONFIG.AUTH.SSO_URL}?redirect_uri=${redirectUrl}`;
-            console.log('SSO URL with redirect:', ssoUrl);
-            window.open(ssoUrl, '_blank');
+            // Get SSO configuration based on current environment
+            const ssoConfig = CONFIG.getSsoConfig();
+            console.log('SSO Config:', ssoConfig);
+            console.log('Environment:', ssoConfig.environment);
+            console.log('Branch:', ssoConfig.branch);
+            console.log('Login URL:', ssoConfig.loginUrl);
+            
+            // Open environment-specific login page
+            // Each environment maintains its own login session via ADFS
+            window.open(ssoConfig.loginUrl, '_blank');
             
             // Update button text to show logged in status
             setTimeout(() => {

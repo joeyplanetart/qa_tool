@@ -69,11 +69,21 @@ const CONFIG = {
         };
     },
     
-    // Authentication related domains
-    // Using Pre environment (master branch) as Live is not yet released
-    AUTH: {
-        LOGIN_DOMAIN: 'https://login-master.pre.planetart.com',
-        SSO_URL: 'https://login-master.pre.planetart.com/sso'
+    // Authentication related domains (dynamic based on environment)
+    // 认证域名（根据环境动态生成）
+    // Note: All environments use /login page which redirects to ADFS, then back to respective environment
+    get AUTH() {
+        const branch = this.BRANCH.CURRENT;
+        return {
+            // Pre/Stage environments use branch-specific login domains
+            PRE_LOGIN_DOMAIN: `https://login-${branch}.${this.BASE_DOMAIN.PRE}`,
+            PRE_LOGIN_URL: `https://login-${branch}.${this.BASE_DOMAIN.PRE}/login`,
+            STAGE_LOGIN_DOMAIN: `https://login-${branch}.${this.BASE_DOMAIN.STAGE}`,
+            STAGE_LOGIN_URL: `https://login-${branch}.${this.BASE_DOMAIN.STAGE}/login`,
+            // Live environment
+            LIVE_LOGIN_DOMAIN: 'https://login.planetart.com',
+            LIVE_LOGIN_URL: 'https://login.planetart.com/login'
+        };
     },
     
     // Site ID mapping by region
@@ -406,6 +416,47 @@ const CONFIG = {
      */
     getSiteConfig(region) {
         return this.SITES[region] || null;
+    },
+    
+    /**
+     * Get SSO configuration (login URL) based on current environment
+     * 根据当前环境获取 SSO 登录配置
+     * Each environment has its own /login page which handles ADFS authentication
+     * and maintains separate login sessions
+     * @param {string} hostname - Optional hostname (uses window.location.hostname if not provided)
+     * @returns {Object} { loginUrl, environment, branch }
+     */
+    getSsoConfig(hostname = null) {
+        // Auto-detect environment and branch
+        if (!hostname && typeof window !== 'undefined') {
+            hostname = window.location.hostname;
+        }
+        
+        const detectedEnv = this.detectEnvironment(hostname || '');
+        const detectedBranch = this.autoDetectBranch(hostname) || this.BRANCH.CURRENT;
+        
+        let loginUrl;
+        
+        if (detectedEnv === 'live') {
+            // Live environment
+            loginUrl = this.AUTH.LIVE_LOGIN_URL;
+        } else if (detectedEnv === 'pre') {
+            // Pre environment - use detected branch
+            loginUrl = `https://login-${detectedBranch}.${this.BASE_DOMAIN.PRE}/login`;
+        } else if (detectedEnv === 'stage') {
+            // Stage environment - use detected branch
+            loginUrl = `https://login-${detectedBranch}.${this.BASE_DOMAIN.STAGE}/login`;
+        } else {
+            // Fallback to Pre with current branch
+            console.warn(`Unknown environment, falling back to Pre with branch: ${this.BRANCH.CURRENT}`);
+            loginUrl = this.AUTH.PRE_LOGIN_URL;
+        }
+        
+        return {
+            loginUrl,
+            environment: detectedEnv,
+            branch: detectedBranch
+        };
     }
 };
 
