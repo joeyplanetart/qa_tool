@@ -4,34 +4,12 @@ console.log('Script loaded at:', new Date().toISOString());
 console.log('Document ready state:', document.readyState);
 console.log('Current URL:', window.location.href);
 
-// Check if current domain is supported
-function isSupportedDomain() {
-    const hostname = window.location.hostname;
-    
-    // Supported patterns
-    const supportedPatterns = [
-        /^cafus-.*\.pre\.planetart\.com$/,
-        /^cafus-.*\.stage\.planetart\.com$/,
-        /^cafca-.*\.pre\.planetart\.com$/,
-        /^cafca-.*\.stage\.planetart\.com$/,
-        /^cafuk-.*\.pre\.planetart\.com$/,
-        /^cafuk-.*\.stage\.planetart\.com$/,
-        /^cafau-.*\.pre\.planetart\.com$/,
-        /^cafau-.*\.stage\.planetart\.com$/,
-        /^(www\.)?cafepress\.com$/,
-        /^(www\.)?cafepress\.ca$/,
-        /^(www\.)?cafepress\.co\.uk$/,
-        /^(www\.)?cafepress\.com\.au$/
-    ];
-    
-    return supportedPatterns.some(pattern => pattern.test(hostname));
-}
-
 // Only run on supported domains
-if (!isSupportedDomain()) {
+if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location.hostname)) {
     console.log('⚠️ Not a supported Cafepress domain, script will not run');
+    console.log('   Current hostname:', window.location.hostname);
 } else {
-    console.log('✅ Supported domain detected');
+    console.log('✅ Supported domain detected:', window.location.hostname);
     
     // Auto-detect branch from current URL
     if (typeof CONFIG !== 'undefined') {

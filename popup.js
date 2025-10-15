@@ -5,18 +5,29 @@ console.log('=== POPUP SCRIPT STARTING ===');
 if (typeof CONFIG !== 'undefined') {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         if (tabs[0] && tabs[0].url) {
-            const url = new URL(tabs[0].url);
-            const hostname = url.hostname;
-            
-            // Try to detect branch from current tab
-            const preStagePattern = /^caf(?:us|ca|uk|au|)-([^.]+)\.(pre|stage)\.planetart\.com$/;
-            const adminPattern = /^admin-([^.]+)\.(pre|stage)\.planetart\.com$/;
-            
-            let match = hostname.match(preStagePattern) || hostname.match(adminPattern);
-            if (match) {
-                const detectedBranch = match[1];
-                console.log(`🔍 Auto-detected branch from tab: ${detectedBranch}`);
-                CONFIG.BRANCH.CURRENT = detectedBranch;
+            try {
+                const url = new URL(tabs[0].url);
+                const hostname = url.hostname;
+                
+                console.log('🔍 Popup checking hostname:', hostname);
+                
+                // Check if it's a supported domain
+                if (CONFIG.isSupportedHostname(hostname)) {
+                    console.log('✅ Popup: Supported domain detected');
+                    
+                    // Try to detect branch
+                    const detectedBranch = CONFIG.autoDetectBranch(hostname);
+                    if (detectedBranch) {
+                        console.log(`🔍 Auto-detected branch from tab: ${detectedBranch}`);
+                        CONFIG.BRANCH.CURRENT = detectedBranch;
+                    } else {
+                        console.log('📌 Using configured branch:', CONFIG.BRANCH.CURRENT);
+                    }
+                } else {
+                    console.log('⚠️ Popup: Not a supported domain');
+                }
+            } catch (e) {
+                console.error('Error parsing tab URL:', e);
             }
         }
     });

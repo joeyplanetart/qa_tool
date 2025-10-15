@@ -97,14 +97,45 @@ const CONFIG = {
     // Helper methods
     
     /**
-     * Auto-detect branch name from current URL
-     * 从当前 URL 自动检测分支名称
+     * Check if a hostname matches supported domain patterns
+     * 检查主机名是否匹配支持的域名模式
+     * @param {string} hostname - Hostname to check
+     * @returns {boolean} True if supported
+     */
+    isSupportedHostname(hostname) {
+        if (!hostname) return false;
+        
+        const supportedPatterns = [
+            /^cafus-.*\.pre\.planetart\.com$/,
+            /^cafus-.*\.stage\.planetart\.com$/,
+            /^cafca-.*\.pre\.planetart\.com$/,
+            /^cafca-.*\.stage\.planetart\.com$/,
+            /^cafuk-.*\.pre\.planetart\.com$/,
+            /^cafuk-.*\.stage\.planetart\.com$/,
+            /^cafau-.*\.pre\.planetart\.com$/,
+            /^cafau-.*\.stage\.planetart\.com$/,
+            /^(www\.)?cafepress\.com$/,
+            /^(www\.)?cafepress\.ca$/,
+            /^(www\.)?cafepress\.co\.uk$/,
+            /^(www\.)?cafepress\.com\.au$/
+        ];
+        
+        return supportedPatterns.some(pattern => pattern.test(hostname));
+    },
+    
+    /**
+     * Auto-detect branch name from hostname
+     * 从主机名自动检测分支名称
+     * @param {string} hostname - Optional hostname (uses window.location.hostname if not provided)
      * @returns {string|null} Detected branch name or null if not found
      */
-    autoDetectBranch() {
-        if (typeof window === 'undefined') return null;
+    autoDetectBranch(hostname = null) {
+        // If no hostname provided, try to get from window
+        if (!hostname && typeof window !== 'undefined') {
+            hostname = window.location.hostname;
+        }
         
-        const hostname = window.location.hostname;
+        if (!hostname) return null;
         
         // Pattern: {region}-{branch}.{environment}.planetart.com
         // Examples: cafus-cpsw-web.pre.planetart.com, cafca-master.stage.planetart.com
