@@ -5278,35 +5278,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             };
         }
         
-        // Define link categories with all environment URLs
-        const linkCategories = [
-            {
-                name: 'Chatbot',
-                links: [
-                    { 
-                        title: 'View Chat', 
-                        urls: {
-                            live: 'https://ai-pri.planetart.com/admin2/chat-viewer/cp-1-2b040c0a-cc01-4a8f-9eee-c11b14d8428a-cpus',
-                            pre: null,
-                            stage: null
-                        }
-                    },
-                ]
-            },
-            {
-                name: 'PLP',
-                links: [
-                    { 
-                        title: 'PLP Tool', 
-                        urls: {
-                            live: 'https://plptool-live.cafepress.io/',
-                            pre: null,
-                            stage: 'https://plptool-stage.cafepress.io/'
-                        }
-                    },
-                ]
-            }
-        ];
+        // Get link categories from config (editable in config.js)
+        const linkCategories = CONFIG.TEST_LINKS.categories;
         
         // Generate HTML for each category
         let categoriesHtml = '';

@@ -457,6 +457,42 @@ const CONFIG = {
             environment: detectedEnv,
             branch: detectedBranch
         };
+    },
+    
+    /**
+     * Test Links Configuration
+     * 测试链接配置
+     * 可以在这里添加、编辑或删除测试链接
+     */
+    TEST_LINKS: {
+        categories: [
+            {
+                name: 'Chatbot',
+                links: [
+                    {
+                        title: 'View Chat',
+                        urls: {
+                            live: 'https://ai-pri.planetart.com/admin2/chat-viewer/cp-1-2b040c0a-cc01-4a8f-9eee-c11b14d8428a-cpus',
+                            pre: null,
+                            stage: null
+                        }
+                    }
+                ]
+            },
+            {
+                name: 'PLP',
+                links: [
+                    {
+                        title: 'PLP Tool',
+                        urls: {
+                            live: 'https://plptool-live.cafepress.io/',
+                            pre: null,
+                            stage: 'https://plptool-stage.cafepress.io/'
+                        }
+                    }
+                ]
+            }
+        ]
     }
 };
 
