@@ -3179,8 +3179,13 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         const openBtns = testLinksPanel.querySelectorAll('.test-link-open-btn');
                         openBtns.forEach(btn => {
                             btn.addEventListener('click', () => {
-                                const url = btn.getAttribute('data-url');
+                                let url = btn.getAttribute('data-url');
                                 if (url) {
+                                    // Ensure URL has protocol to avoid being treated as relative path
+                                    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                                        url = 'https://' + url;
+                                        console.log('Added https:// to URL:', url);
+                                    }
                                     window.open(url, '_blank');
                                 }
                             });

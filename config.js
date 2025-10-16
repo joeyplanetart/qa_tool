@@ -467,6 +467,56 @@ const CONFIG = {
     TEST_LINKS: {
         categories: [
             {
+                name: 'SW Tools',
+                links: [
+                    {
+                        title: 'Dev Tools',
+                        urls: {
+                            live: 'https://devtools.planetart.com/',
+                            pre: null,
+                            stage: null
+                        }
+                    },
+                    {
+                        title: 'DB Tools',
+                        urls: {
+                            live: 'https://db.planetart.com/',
+                            pre: null,
+                            stage: null
+                        }
+                    },
+                    {
+                        title: 'Splunk',
+                        urls: {
+                            live: 'https://planetart.splunkcloud.com/en-US/app/search/search',
+                            pre: null,
+                            stage: null
+                        }
+                    },
+                    {
+                        title: 'argocd',
+                        urls: {
+                            live: 'https://argocd.planetartnet.com/applications',
+                            pre: null,
+                            stage: null
+                        }
+                    }
+                ]
+            },
+            {
+                name: 'Vendorlibs',
+                links: [
+                    {
+                        title: 'VL admin',
+                        urls: {
+                            live: 'https://vendorlib-admin.planetart.com/admin/',
+                            pre: null,
+                            stage: 'https://vvdr-master-api.yastage.planetart.com/admin/login'
+                        }
+                    }
+                ]
+            },
+            {
                 name: 'Chatbot',
                 links: [
                     {
@@ -491,7 +541,52 @@ const CONFIG = {
                         }
                     }
                 ]
-            }
+            },
+            {
+                name: 'Third Party',
+                links: [
+                    {
+                        title: 'OneTrust',
+                        urls: {
+                            live: 'https://app.onetrust.com/cookies/script-integration',
+                            pre: null,
+                            stage: null
+                        }
+                    },
+                    {
+                        title: 'Google Analytics',
+                        urls: {
+                            live: 'https://analytics.google.com/analytics/web/#/a93335189p431296353/reports/intelligenthome',
+                            pre: null,
+                            stage: null
+                        }
+                    },
+                    {
+                        title: 'Google Tag Manager',
+                        urls: {
+                            live: 'https://tagmanager.google.com/#/home',
+                            pre: null,
+                            stage: null
+                        }
+                    },
+                    {
+                        title: 'Cordial',
+                        urls: {
+                            live: 'https://admin.cordial.io/#login',
+                            pre: null,
+                            stage: null
+                        }
+                    },
+                    {
+                        title: 'Kount',
+                        urls: {
+                            live: 'https://portal.kount.net/portal/login',
+                            pre: null,
+                            stage: 'https://awc.test.kount.net/'
+                        }
+                    }
+                ]
+            },
         ]
     }
 };
