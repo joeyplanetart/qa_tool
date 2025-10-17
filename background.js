@@ -307,6 +307,113 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Return true to indicate async response
         return true;
     }
+    
+    if (request.type === 'CANCEL_ORDER') {
+        console.log('🔍 Background: Cancel Order request:', request);
+        
+        const orderId = request.orderId;
+        const environment = request.environment || 'pre';
+        const branch = request.branch || CONFIG.BRANCH.CURRENT;
+        
+        // Temporarily set the branch for this request
+        const originalBranch = CONFIG.BRANCH.CURRENT;
+        CONFIG.BRANCH.CURRENT = branch;
+        
+        // Determine Admin API URL based on environment using unified config
+        const apiUrl = CONFIG.getAdminApiUrl(environment, CONFIG.API_ENDPOINTS.EDIT_ORDER_AJAX);
+        const adminBaseUrl = CONFIG.getAdminBaseUrl(environment);
+        
+        // Restore original branch
+        CONFIG.BRANCH.CURRENT = originalBranch;
+        
+        console.log('========== CANCEL ORDER REQUEST DEBUG ==========');
+        console.log(`Environment: ${environment}`);
+        console.log(`Branch: ${branch}`);
+        console.log(`API URL: ${apiUrl}`);
+        console.log(`Admin Base URL: ${adminBaseUrl}`);
+        console.log(`Order ID: ${orderId}`);
+        
+        // Construct form data
+        const formData = new URLSearchParams();
+        formData.append('action', 'cancel_order_complete');
+        formData.append('order_id', orderId);
+        formData.append('reason_code', '101');
+        formData.append('reason_comment', '');
+        formData.append('need_email', '0');
+        formData.append('cancel_cost', '0');
+        formData.append('cancel_with_vendor', '0');
+        
+        console.log('FormData:', {
+            'action': 'cancel_order_complete',
+            'order_id': orderId,
+            'reason_code': '101',
+            'reason_comment': '',
+            'need_email': '0',
+            'cancel_cost': '0',
+            'cancel_with_vendor': '0'
+        });
+        console.log('FormData string:', formData.toString());
+        
+        fetch(apiUrl, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Accept': '*/*',
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Origin': adminBaseUrl,
+                'Referer': `${adminBaseUrl}/orders/order_tab_index.php?order_id=${orderId}`
+            },
+            body: formData.toString()
+        })
+        .then(async response => {
+            console.log('========== CANCEL ORDER RESPONSE DEBUG ==========');
+            console.log('Background: Response status:', response.status);
+            console.log('Background: Response statusText:', response.statusText);
+            console.log('Background: Response ok:', response.ok);
+            console.log('Background: Response content-type:', response.headers.get('content-type'));
+            
+            if (!response.ok) {
+                // Get response body for debugging
+                const responseText = await response.text();
+                console.error('Background: Error response body (first 1000 chars):', responseText.substring(0, 1000));
+                
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error(`Unauthorized (${response.status}) - Please login via SSO first`);
+                }
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            // Get response as text
+            const responseText = await response.text();
+            console.log('Background: Response body:', responseText);
+            
+            return { success: true, result: responseText };
+        })
+        .then(data => {
+            console.log('Background: Cancel order response:', JSON.stringify(data, null, 2));
+            console.log('✅ Cancel order success!');
+            
+            sendResponse({
+                success: true,
+                data: data
+            });
+        })
+        .catch(error => {
+            console.error('========== CANCEL ORDER ERROR ==========');
+            console.error('Background: Error type:', error.name);
+            console.error('Background: Error message:', error.message);
+            console.error('Background: Error stack:', error.stack);
+            
+            sendResponse({
+                success: false,
+                error: error.message
+            });
+        });
+        
+        // Return true to indicate async response
+        return true;
+    }
 });
 
 // Handle extension icon click

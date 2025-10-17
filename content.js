@@ -5086,7 +5086,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     }
     
     // Cancel order in floating window
-    function cancelOrderInFloatingWindow() {
+    async function cancelOrderInFloatingWindow() {
         const input = document.getElementById('floating-order-id-input');
         const cancelOrderBtn = document.getElementById('floating-cancel-order-btn');
         
@@ -5099,19 +5099,59 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             return;
         }
         
-        console.log('Canceling order ID:', orderId);
+        // Validate order ID format (should be numeric)
+        if (!/^\d+$/.test(orderId)) {
+            showToastNotification('Order ID must be numeric', 'warning');
+            return;
+        }
+        
+        console.log('Cancelling order ID:', orderId);
         
         // Show canceling state
-        cancelOrderBtn.textContent = 'Canceling...';
+        cancelOrderBtn.textContent = 'Cancelling...';
         cancelOrderBtn.disabled = true;
         
-        // TODO: Implement actual cancel order API call
-        // For now, just show a placeholder message
-        setTimeout(() => {
-            showToastNotification('Cancel Order feature coming soon', 'info');
+        try {
+            // Detect environment and branch from current page
+            const currentUrl = window.location.href;
+            const detectedBranch = CONFIG.autoDetectBranch() || CONFIG.BRANCH.CURRENT;
+            const environment = CONFIG.detectEnvironment(window.location.hostname);
+            
+            console.log('Detected environment:', environment);
+            console.log('Detected branch:', detectedBranch);
+            
+            // Send cancel order request to background script
+            const response = await chrome.runtime.sendMessage({
+                type: 'CANCEL_ORDER',
+                orderId: orderId,
+                environment: environment,
+                branch: detectedBranch
+            });
+            
+            if (response.success) {
+                console.log('✅ Order cancelled successfully:', response.data);
+                showToastNotification(`Order ${orderId} has been cancelled successfully`, 'success');
+                
+                // If we're showing order details, refresh them
+                const orderDetailDiv = document.getElementById('floating-order-detail');
+                if (orderDetailDiv && orderDetailDiv.style.display !== 'none') {
+                    // Refresh order details after a short delay to allow backend to update
+                    setTimeout(() => {
+                        searchOrderById();
+                    }, 1000);
+                }
+            } else {
+                console.error('❌ Order cancellation failed:', response.error);
+                showToastNotification(`Cancellation failed: ${response.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('❌ Error cancelling order:', error);
+            showToastNotification(`Cancellation failed: ${error.message}`, 'error');
+        } finally {
+            // Restore button state
             cancelOrderBtn.textContent = 'Cancel Order';
             cancelOrderBtn.disabled = false;
-        }, 1000);
+        }
     }
     
     // Show PDP (Product Detail Page) info - default view

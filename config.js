@@ -102,7 +102,8 @@ const CONFIG = {
         ORDER_TAB_OVERVIEW: '/orders/order_tab_overview.php',
         ORDER_TAB_ITEMS: '/orders/order_tab_items.php',
         ORDER_TAB_ITEM_AJAX: '/orders/order_tab_item_ajax.php',
-        ORDER_TAB_CUSTOMER: '/orders/order_tab_customer.php'
+        ORDER_TAB_CUSTOMER: '/orders/order_tab_customer.php',
+        EDIT_ORDER_AJAX: '/orders/edit_order_ajax.php'
     },
     
     // Helper methods
