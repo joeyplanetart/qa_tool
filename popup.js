@@ -63,6 +63,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const orderDetailPanel = document.getElementById('orderDetailPanel');
     const orderDetails = document.getElementById('orderDetails');
     
+    // PTN Search functionality elements
+    const ptnInput = document.getElementById('ptnInput');
+    const ptnSearchBtn = document.getElementById('ptnSearchBtn');
+    const ptnResultPanel = document.getElementById('ptnResultPanel');
+    const ptnResults = document.getElementById('ptnResults');
+    
+    // PTN Results View elements
+    const ptnResultsView = document.getElementById('ptnResultsView');
+    const ptnBackBtn = document.getElementById('ptnBackBtn');
+    const ptnSearchTermDisplay = document.getElementById('ptnSearchTermDisplay');
+    const ptnResultsCount = document.getElementById('ptnResultsCount');
+    const ptnResultsList = document.getElementById('ptnResultsList');
+    
     // Show toast notification
     function showToast(message, type = 'error') {
         toast.textContent = message;
@@ -111,23 +124,45 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('📧 Admin domain - Email cookie:', emailCookie);
             console.log('👤 Admin domain - UserId cookie:', userIdCookie);
             
-            // If not found in admin, try login.planetart.com
+            // If not found in admin, try login domains (Pre, Stage, Live)
             if (!emailCookie || !emailCookie.value) {
-                console.log('🔍 Email not found in admin domain, checking login.planetart.com...');
-                emailCookie = await chrome.cookies.get({
-                    url: CONFIG.AUTH.LOGIN_DOMAIN,
-                    name: 'attntv_mstore_email'
-                });
-                console.log('📧 Login domain - Email cookie:', emailCookie);
+                console.log('🔍 Email not found in admin domain, checking login domains...');
+                const loginDomains = [
+                    CONFIG.AUTH.PRE_LOGIN_DOMAIN,
+                    CONFIG.AUTH.STAGE_LOGIN_DOMAIN,
+                    CONFIG.AUTH.LIVE_LOGIN_DOMAIN
+                ];
+                
+                for (const loginDomain of loginDomains) {
+                    emailCookie = await chrome.cookies.get({
+                        url: loginDomain,
+                        name: 'attntv_mstore_email'
+                    });
+                    if (emailCookie && emailCookie.value) {
+                        console.log(`📧 Login domain (${loginDomain}) - Email cookie:`, emailCookie);
+                        break;
+                    }
+                }
             }
             
             if (!userIdCookie || !userIdCookie.value) {
-                console.log('🔍 UserId not found in admin domain, checking login.planetart.com...');
-                userIdCookie = await chrome.cookies.get({
-                    url: CONFIG.AUTH.LOGIN_DOMAIN,
-                    name: 'stiadmin_user_id'
-                });
-                console.log('👤 Login domain - UserId cookie:', userIdCookie);
+                console.log('🔍 UserId not found in admin domain, checking login domains...');
+                const loginDomains = [
+                    CONFIG.AUTH.PRE_LOGIN_DOMAIN,
+                    CONFIG.AUTH.STAGE_LOGIN_DOMAIN,
+                    CONFIG.AUTH.LIVE_LOGIN_DOMAIN
+                ];
+                
+                for (const loginDomain of loginDomains) {
+                    userIdCookie = await chrome.cookies.get({
+                        url: loginDomain,
+                        name: 'stiadmin_user_id'
+                    });
+                    if (userIdCookie && userIdCookie.value) {
+                        console.log(`👤 Login domain (${loginDomain}) - UserId cookie:`, userIdCookie);
+                        break;
+                    }
+                }
             }
             
             if (emailCookie && emailCookie.value) {
@@ -1050,6 +1085,217 @@ document.addEventListener('DOMContentLoaded', function() {
         orderDetailPanel.style.display = 'block';
     }
     
+    // PTN Data cache
+    let ptnDataCache = null;
+    
+    // Parse CSV line with proper quote handling
+    function parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            const nextChar = line[i + 1];
+            
+            if (char === '"' && inQuotes && nextChar === '"') {
+                // Escaped quote
+                current += '"';
+                i++; // Skip next quote
+            } else if (char === '"') {
+                // Toggle quote mode
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                // Field separator
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        
+        // Push last field
+        result.push(current.trim());
+        return result;
+    }
+    
+    // Load PTN CSV data
+    async function loadPTNData() {
+        if (ptnDataCache) {
+            return ptnDataCache;
+        }
+        
+        try {
+            const response = await fetch(chrome.runtime.getURL('cpdata/cafepress_product_types.csv'));
+            const csvText = await response.text();
+            
+            // Parse CSV
+            const lines = csvText.split('\n');
+            const data = [];
+            
+            // Skip header line
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                const fields = parseCSVLine(line);
+                if (fields.length >= 4) {
+                    data.push({
+                        ptn: fields[0],
+                        caption: fields[1],
+                        stockMessage: fields[2],
+                        active: fields[3]
+                    });
+                }
+            }
+            
+            ptnDataCache = data;
+            console.log('PTN data loaded:', data.length, 'records');
+            return data;
+        } catch (error) {
+            console.error('Error loading PTN data:', error);
+            showToast('Error loading PTN data', 'error');
+            return [];
+        }
+    }
+    
+    // Hide all main views
+    function hideAllMainViews() {
+        if (loginStatusPanel) loginStatusPanel.style.display = 'none';
+        if (document.querySelector('.search-panel')) {
+            const searchPanels = document.querySelectorAll('.search-panel');
+            searchPanels.forEach(panel => panel.style.display = 'none');
+        }
+        if (ptnResultPanel) ptnResultPanel.style.display = 'none';
+        if (orderDetailPanel) orderDetailPanel.style.display = 'none';
+        if (loadingDiv) loadingDiv.style.display = 'none';
+        if (contentDiv) contentDiv.style.display = 'none';
+        if (noDataDiv) noDataDiv.style.display = 'none';
+    }
+    
+    // Show all main views
+    function showAllMainViews() {
+        checkLoginStatus(); // Re-check login status
+        const searchPanels = document.querySelectorAll('.search-panel');
+        searchPanels.forEach(panel => panel.style.display = 'block');
+        // Show the current content based on data
+        loadData();
+    }
+    
+    // Show PTN Results View (full page in popup)
+    function showPTNResultsView(results, searchTerm) {
+        hideAllMainViews();
+        ptnResultsView.style.display = 'block';
+        
+        ptnSearchTermDisplay.textContent = searchTerm;
+        
+        if (!results || results.length === 0) {
+            ptnResultsCount.textContent = 'No results found';
+            ptnResultsCount.style.color = '#ff9800';
+            ptnResultsList.innerHTML = '<div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.6);">No PTN records found</div>';
+            return;
+        }
+        
+        ptnResultsCount.textContent = `Found ${results.length} record${results.length > 1 ? 's' : ''}`;
+        ptnResultsCount.style.color = '#1de9b6';
+        
+        // Generate results HTML
+        let resultsHtml = '';
+        results.forEach(item => {
+            const activeClass = item.active === 'TRUE' ? 'active-yes' : 'active-no';
+            const activeText = item.active === 'TRUE' ? 'Yes' : 'No';
+            
+            let stockClass = '';
+            if (item.stockMessage.includes('In Stock')) {
+                stockClass = 'stock-in';
+            } else if (item.stockMessage.includes('Out of Stock')) {
+                stockClass = 'stock-out';
+            } else if (item.stockMessage.includes('Temporarily')) {
+                stockClass = 'stock-temp';
+            }
+            
+            resultsHtml += `
+                <div class="ptn-result-card">
+                    <div class="ptn-result-row">
+                        <span class="ptn-result-label">PTN Number:</span>
+                        <span class="ptn-result-value ptn-number">${item.ptn}</span>
+                    </div>
+                    <div class="ptn-result-row">
+                        <span class="ptn-result-label">Product Name:</span>
+                        <span class="ptn-result-value">${item.caption}</span>
+                    </div>
+                    <div class="ptn-result-row">
+                        <span class="ptn-result-label">Stock Status:</span>
+                        <span class="ptn-result-value ${stockClass}">${item.stockMessage}</span>
+                    </div>
+                    <div class="ptn-result-row">
+                        <span class="ptn-result-label">Active:</span>
+                        <span class="ptn-result-value ${activeClass}">${activeText}</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        ptnResultsList.innerHTML = resultsHtml;
+    }
+    
+    // Go back to main view
+    function goBackToMain() {
+        ptnResultsView.style.display = 'none';
+        showAllMainViews();
+    }
+    
+    // Search PTN function
+    async function searchPTN() {
+        const searchTerm = ptnInput.value.trim();
+        
+        if (!searchTerm) {
+            showToast('Please enter PTN number or name', 'warning');
+            return;
+        }
+        
+        console.log('Searching for PTN:', searchTerm);
+        
+        // Show loading state
+        ptnSearchBtn.textContent = 'Searching...';
+        ptnSearchBtn.disabled = true;
+        
+        try {
+            const ptnData = await loadPTNData();
+            
+            // Check if search term is a number (PTN ID)
+            const isNumericSearch = /^\d+$/.test(searchTerm);
+            
+            let results;
+            
+            if (isNumericSearch) {
+                // If searching by ID (numeric), filter by PTN number
+                results = ptnData.filter(item => 
+                    item.ptn === searchTerm && 
+                    item.active === 'TRUE' && 
+                    item.stockMessage.includes('In Stock')
+                );
+            } else {
+                // If searching by name, search by caption
+                const searchLower = searchTerm.toLowerCase();
+                results = ptnData.filter(item => 
+                    item.caption.toLowerCase().includes(searchLower) &&
+                    item.active === 'TRUE' && 
+                    item.stockMessage.includes('In Stock')
+                );
+            }
+            
+            // Show results in full page view
+            showPTNResultsView(results, searchTerm);
+            
+        } catch (error) {
+            console.error('Error searching PTN:', error);
+            showToast('Search error', 'error');
+        } finally {
+            ptnSearchBtn.textContent = 'Search';
+            ptnSearchBtn.disabled = false;
+        }
+    }
     // Search order function
     function searchOrder() {
         const orderId = orderIdInput.value.trim();
@@ -1079,6 +1325,27 @@ document.addEventListener('DOMContentLoaded', function() {
             searchBtn.textContent = 'Search';
             searchBtn.disabled = false;
         }, 1000);
+    }
+    
+    // Bind PTN search functionality
+    if (ptnSearchBtn) {
+        ptnSearchBtn.addEventListener('click', searchPTN);
+        console.log('✓ PTN Search button event listener added');
+    }
+    
+    if (ptnInput) {
+        ptnInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchPTN();
+            }
+        });
+        console.log('✓ PTN input enter key listener added');
+    }
+    
+    // Bind PTN back button
+    if (ptnBackBtn) {
+        ptnBackBtn.addEventListener('click', goBackToMain);
+        console.log('✓ PTN back button event listener added');
     }
     
     // Bind search functionality

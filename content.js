@@ -1969,7 +1969,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             max-height: 720px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 30px rgba(255,255,255,0.1);
             z-index: 10000;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             color: white;
@@ -2320,7 +2320,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 height: 60px;
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 border-radius: 50%;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                box-shadow: 0 4px 20px rgba(255,255,255,0.1);
                 z-index: 10000;
                 cursor: pointer;
                 display: flex;
@@ -2353,7 +2353,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 @keyframes pulse {
                     0%, 100% {
                         transform: scale(1);
-                        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                        box-shadow: 0 4px 20px rgba(255,255,255,0.1);
                     }
                     50% {
                         transform: scale(1.05);
@@ -2372,7 +2372,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             
             floatingBall.addEventListener('mouseleave', () => {
                 floatingBall.style.transform = 'scale(1)';
-                floatingBall.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
+                floatingBall.style.boxShadow = '0 4px 20px rgba(255,255,255,0.1)';
             });
             
             document.body.appendChild(floatingBall);
@@ -3190,6 +3190,91 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 }
                             });
                         });
+                        
+                        // Add PTN Search functionality
+                        const ptnSearchInput = testLinksPanel.querySelector('#ptnSearchInput');
+                        const ptnSearchButton = testLinksPanel.querySelector('#ptnSearchButton');
+                        const ptnSearchResults = testLinksPanel.querySelector('#ptnSearchResults');
+                        
+                        // Get panel elements
+                        const ptnSearchPanel = testLinksPanel.querySelector('#ptnSearchPanel');
+                        const navLinksCard = testLinksPanel.querySelector('#navLinksCard');
+                        const ptnResultsView = testLinksPanel.querySelector('#ptnResultsView');
+                        const ptnBackButton = testLinksPanel.querySelector('#ptnBackButton');
+                        
+                        if (ptnSearchInput && ptnSearchButton) {
+                            // PTN search function - Display results inline
+                            async function performPTNSearch() {
+                                const searchTerm = ptnSearchInput.value.trim();
+                                
+                                if (!searchTerm) {
+                                    alert('PTN or PTN Caption');
+                                    return;
+                                }
+                                
+                                ptnSearchButton.textContent = 'Searching...';
+                                ptnSearchButton.disabled = true;
+                                
+                                try {
+                                    // Load PTN data
+                                    const ptnData = await loadPTNDataFromCSV();
+                                    
+                                    // Check if search term is a number (PTN ID)
+                                    const isNumericSearch = /^\d+$/.test(searchTerm);
+                                    
+                                    let results;
+                                    
+                                    if (isNumericSearch) {
+                                        // If searching by ID (numeric), filter by PTN number
+                                        results = ptnData.filter(item => 
+                                            item.ptn === searchTerm && 
+                                            item.active === 'TRUE' && 
+                                            item.stockMessage.includes('In Stock')
+                                        );
+                                    } else {
+                                        // If searching by name, search by caption
+                                        const searchLower = searchTerm.toLowerCase();
+                                        results = ptnData.filter(item => 
+                                            item.caption.toLowerCase().includes(searchLower) &&
+                                            item.active === 'TRUE' && 
+                                            item.stockMessage.includes('In Stock')
+                                        );
+                                    }
+                                    
+                                    // Display results (this will hide search panel and nav links)
+                                    displayPTNSearchResults(results, searchTerm, ptnSearchPanel, navLinksCard, ptnResultsView);
+                                    
+                                    // Clear input
+                                    ptnSearchInput.value = '';
+                                    
+                                } catch (error) {
+                                    console.error('PTN search error:', error);
+                                    alert('Search error, please try again');
+                                } finally {
+                                    ptnSearchButton.textContent = 'Search';
+                                    ptnSearchButton.disabled = false;
+                                }
+                            }
+                            
+                            // Bind search button
+                            ptnSearchButton.addEventListener('click', performPTNSearch);
+                            
+                            // Bind Enter key
+                            ptnSearchInput.addEventListener('keypress', (e) => {
+                                if (e.key === 'Enter') {
+                                    performPTNSearch();
+                                }
+                            });
+                            
+                            // Bind back button
+                            if (ptnBackButton) {
+                                ptnBackButton.addEventListener('click', () => {
+                                    showPTNSearchPanel(ptnSearchPanel, navLinksCard, ptnResultsView);
+                                });
+                            }
+                            
+                            console.log('✓ PTN Search event listeners added');
+                        }
                     } else {
                         // Hide panel
                         testLinksPanel.style.display = 'none';
@@ -3657,7 +3742,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             color: white;
             padding: 12px 20px;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(255,255,255,0.1);
             z-index: 10001;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 14px;
@@ -4098,12 +4183,11 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             cursor: pointer;
                             font-size: 12px;
                             font-weight: bold;
-                            transition: all 0.2s ease;
                             width: 100%;
                             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                            display: block;
+                            box-sizing: border-box;
                         "
-                        onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.3)';"
-                        onmouseout="this.style.transform=''; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
                     >Test Links</button>
                 </div>
                 
@@ -4113,7 +4197,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 <!-- Toggle Button -->
                 <div style="
                     padding: 4px 6px;
-                    border-top: 1px solid rgba(255,255,255,0.1);
+                    border-top: 1px solid rgba(255,255,255,0.0);
                     display: flex;
                     justify-content: center;
                     align-items: center;
@@ -5298,6 +5382,173 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         `;
     }
     
+    // PTN Data cache for content script
+    let ptnDataCacheContent = null;
+    
+    // Parse CSV line with proper quote handling
+    function parseCSVLineContent(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            const nextChar = line[i + 1];
+            
+            if (char === '"' && inQuotes && nextChar === '"') {
+                // Escaped quote
+                current += '"';
+                i++; // Skip next quote
+            } else if (char === '"') {
+                // Toggle quote mode
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                // Field separator
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        
+        // Push last field
+        result.push(current.trim());
+        return result;
+    }
+    
+    // Load PTN CSV data
+    async function loadPTNDataFromCSV() {
+        if (ptnDataCacheContent) {
+            return ptnDataCacheContent;
+        }
+        
+        try {
+            const response = await fetch(chrome.runtime.getURL('cpdata/cafepress_product_types.csv'));
+            const csvText = await response.text();
+            
+            // Parse CSV
+            const lines = csvText.split('\n');
+            const data = [];
+            
+            // Skip header line
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                const fields = parseCSVLineContent(line);
+                if (fields.length >= 4) {
+                    data.push({
+                        ptn: fields[0],
+                        caption: fields[1],
+                        stockMessage: fields[2],
+                        active: fields[3]
+                    });
+                }
+            }
+            
+            ptnDataCacheContent = data;
+            console.log('PTN data loaded in content script:', data.length, 'records');
+            return data;
+        } catch (error) {
+            console.error('Error loading PTN data in content script:', error);
+            throw error;
+        }
+    }
+    
+    // Display PTN search results
+    function displayPTNSearchResults(results, searchTerm, ptnSearchPanel, navLinksCard, ptnResultsView) {
+        // Hide search panel and nav links
+        if (ptnSearchPanel) ptnSearchPanel.style.display = 'none';
+        if (navLinksCard) navLinksCard.style.display = 'none';
+        
+        // Show results view
+        if (ptnResultsView) ptnResultsView.style.display = 'block';
+        
+        // Update search term display
+        const ptnSearchTermEl = ptnResultsView.querySelector('#ptnSearchTerm');
+        const ptnResultsCountEl = ptnResultsView.querySelector('#ptnResultsCount');
+        const ptnSearchResultsEl = ptnResultsView.querySelector('#ptnSearchResults');
+        
+        if (ptnSearchTermEl) ptnSearchTermEl.textContent = searchTerm;
+        
+        if (!results || results.length === 0) {
+            if (ptnResultsCountEl) {
+                ptnResultsCountEl.textContent = 'No results found';
+                ptnResultsCountEl.style.color = '#ff9800';
+            }
+            if (ptnSearchResultsEl) {
+                ptnSearchResultsEl.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.6); font-size: 12px;">
+                        No PTN records found
+                    </div>
+                `;
+            }
+            return;
+        }
+        
+        // Update count
+        if (ptnResultsCountEl) {
+            ptnResultsCountEl.textContent = `Found ${results.length} record${results.length > 1 ? 's' : ''}`;
+            ptnResultsCountEl.style.color = '#27ae60';
+        }
+        
+        // Generate results HTML
+        let resultsHtml = '';
+        results.forEach((item, index) => {
+            const activeColor = item.active === 'TRUE' ? '#27ae60' : '#f44336';
+            const activeText = item.active === 'TRUE' ? 'Yes' : 'No';
+            
+            let stockColor = '#fff';
+            if (item.stockMessage.includes('In Stock')) {
+                stockColor = '#27ae60';
+            } else if (item.stockMessage.includes('Out of Stock')) {
+                stockColor = '#f44336';
+            } else if (item.stockMessage.includes('Temporarily')) {
+                stockColor = '#ff9800';
+            }
+            
+            resultsHtml += `
+                <div style="
+                    background: rgba(255,255,255,0.08);
+                    border: 1px solid rgba(255,255,255,0.15);
+                    border-radius: 6px;
+                    padding: 10px;
+                    margin-bottom: 10px;
+                    transition: all 0.2s ease;
+                " onmouseover="this.style.background='rgba(255,255,255,0.12)'; this.style.borderColor='#ffeb3b';" 
+                   onmouseout="this.style.background='rgba(255,255,255,0.08)'; this.style.borderColor='rgba(255,255,255,0.15)';">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <span style="color: rgba(255,255,255,0.7); font-size: 11px;">PTN No:</span>
+                        <span style="color: #ffeb3b; font-weight: bold; font-size: 13px;">${item.ptn}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <span style="color: rgba(255,255,255,0.7); font-size: 11px;">PTN Caption:</span>
+                        <span style="color: #fff; font-size: 11px; text-align: right; max-width: 200px;">${item.caption}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <span style="color: rgba(255,255,255,0.7); font-size: 11px;">Stock Status:</span>
+                        <span style="color: ${stockColor}; font-size: 11px; font-weight: bold;">${item.stockMessage}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: rgba(255,255,255,0.7); font-size: 11px;">Active:</span>
+                        <span style="color: ${activeColor}; font-weight: bold; font-size: 11px;">${activeText}</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        if (ptnSearchResultsEl) {
+            ptnSearchResultsEl.innerHTML = resultsHtml;
+        }
+    }
+    
+    // Show PTN search panel (hide results)
+    function showPTNSearchPanel(ptnSearchPanel, navLinksCard, ptnResultsView) {
+        if (ptnSearchPanel) ptnSearchPanel.style.display = 'block';
+        if (navLinksCard) navLinksCard.style.display = 'block';
+        if (ptnResultsView) ptnResultsView.style.display = 'none';
+    }
+    
     // Create Test Links Panel with categories
     function createTestLinksPanel() {
         const currentUrl = window.location.href;
@@ -5438,12 +5689,125 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         return `
             <div style="
                 padding: 12px;
-                background: rgba(0,0,0,0.3);
+                background: rgba(255,255,255,0.1);
                 border-top: 1px solid rgba(255,255,255,0.1);
                 max-height: 500px;
                 overflow-y: auto;
             ">
-                ${categoriesHtml}
+                <!-- PTN Search Panel -->
+                <div id="ptnSearchPanel" style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; backdrop-filter: blur(10px);">
+                    <div style="
+                        color: #ffeb3b;
+                        font-size: 14px;
+                        font-weight: bold;
+                        margin-bottom: 12px;
+                    ">Search PTN</div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input 
+                            type="text" 
+                            id="ptnSearchInput" 
+                            placeholder="PTN No or PTN Caption..." 
+                            autocomplete="off"
+                            style="
+                                flex: 1;
+                                padding: 8px 12px;
+                                border: none;
+                                border-radius: 6px;
+                                background: rgba(0, 0, 0, 0.4);
+                                color: #fff;
+                                font-size: 12px;
+                                font-weight: 500;
+                                outline: none;
+                                transition: background 0.2s ease;
+                            "
+                        />
+                        <style>
+                            #ptnSearchInput::placeholder {
+                                color: rgba(255, 255, 255, 0.6);
+                                opacity: 1;
+                            }
+                        </style>
+                        <button 
+                            id="ptnSearchButton" 
+                            style="
+                                background: #ffeb3b;
+                                color: #333;
+                                border: none;
+                                padding: 8px 16px;
+                                border-radius: 5px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                font-weight: bold;
+                                white-space: nowrap;
+                                transition: all 0.2s ease;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                            "
+                            onmouseover="this.style.background='#fff'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(255,255,255,0.1)';"
+                            onmouseout="this.style.background='#ffeb3b'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
+                        >Search</button>
+                    </div>
+                </div>
+                
+                <!-- PTN Results View -->
+                <div id="ptnResultsView" style="display: none;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                        <button 
+                            id="ptnBackButton" 
+                            style="
+                                background: rgba(255,255,255,0.1);
+                                border: 1px solid rgba(255,255,255,0.2);
+                                color: white;
+                                padding: 8px 16px;
+                                border-radius: 5px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                font-weight: bold;
+                                transition: all 0.2s ease;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                            "
+                            onmouseover="this.style.background='rgba(255,255,255,0.2)'; this.style.transform='translateY(-1px)';"
+                            onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(0)';"
+                        >← Back</button>
+                        <div style="
+                            color: #ffeb3b;
+                            font-size: 14px;
+                            font-weight: bold;
+                        ">PTN Search Results</div>
+                    </div>
+                    <div style="
+                        background: rgba(255,255,255,0.08);
+                        border: 1px solid rgba(255,255,255,0.15);
+                        border-radius: 8px;
+                        padding: 12px;
+                        margin-bottom: 15px;
+                        backdrop-filter: blur(10px);
+                    ">
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.9);">
+                        Search Term: <span id="ptnSearchTerm" style="color: #ffeb3b; font-weight: bold;"></span>
+                    </div>
+                    <div id="ptnResultsCount" style="font-size: 12px; color: #27ae60; font-weight: bold; margin-top: 6px;"></div>
+                </div>
+                    <div id="ptnSearchResults" style="max-height: 350px; overflow-y: auto;"></div>
+                </div>
+                
+                <!-- Navigation Links Card -->
+                <div id="navLinksCard" style="
+                    background: rgba(255,255,255,0.0);
+                    border: 1px solid rgba(255,255,255,0.15);
+                    border-radius: 8px;
+                    padding: 15px;
+                    backdrop-filter: blur(10px);
+                ">
+                    <div style="
+                        color: #ffeb3b;
+                        font-size: 18px;
+                        font-weight: bold;
+                        margin-bottom: 12px;
+                        padding-bottom: 8px;
+                        border-bottom: 1px solid rgba(255,255,255,0.15);
+                    ">Navigation Links</div>
+                    ${categoriesHtml}
+                </div>
             </div>
         `;
     }

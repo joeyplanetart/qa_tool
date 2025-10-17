@@ -375,6 +375,65 @@
             animation: slideUp 0.3s ease-out;
         }
         
+        /* PTN Results Styles */
+        .ptn-result-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .ptn-result-card:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: #ffeb3b;
+            transform: translateX(5px);
+        }
+        
+        .ptn-result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 12px;
+        }
+        
+        .ptn-result-label {
+            color: rgba(255,255,255,0.7);
+            font-weight: 500;
+        }
+        
+        .ptn-result-value {
+            color: #fff;
+            font-weight: bold;
+            text-align: right;
+        }
+        
+        .ptn-result-value.ptn-number {
+            color: #ffeb3b;
+            font-size: 14px;
+        }
+        
+        .ptn-result-value.active-yes {
+            color: #1de9b6;
+        }
+        
+        .ptn-result-value.active-no {
+            color: #f44336;
+        }
+        
+        .ptn-result-value.stock-in {
+            color: #1de9b6;
+        }
+        
+        .ptn-result-value.stock-out {
+            color: #f44336;
+        }
+        
+        .ptn-result-value.stock-temp {
+            color: #ff9800;
+        }
+        
     </style>
 </head>
 <body>
@@ -400,6 +459,45 @@
                 <span class="login-label">User ID:</span>
                 <span id="loginUserId" class="login-value">-</span>
             </div>
+        </div>
+    </div>
+    
+    <!-- PTN Search Panel -->
+    <div class="search-panel">
+        <div class="search-title">Search PTN</div>
+        <div class="search-form">
+            <input type="text" id="ptnInput" class="search-input" placeholder="PTN Number or Name..." autocomplete="off" style="width: 150px;">
+            <button id="ptnSearchBtn" class="search-btn">Search</button>
+        </div>
+    </div>
+    
+    <!-- PTN Result Panel -->
+    <div id="ptnResultPanel" class="order-detail-panel">
+        <div class="order-detail-title">PTN Details</div>
+        <div id="ptnResults"></div>
+    </div>
+    
+    <!-- PTN Results View (Full Page) -->
+    <div id="ptnResultsView" style="display: none;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+            <button id="ptnBackBtn" class="refresh-btn" style="width: auto; padding: 8px 16px; margin: 0;">
+                ← Back
+            </button>
+            <div style="color: #ffeb3b; font-size: 14px; font-weight: bold;">
+                PTN Search Results
+            </div>
+        </div>
+        
+        <div style="background: rgba(255,255,255,0.1); border-radius: 10px; padding: 12px; margin-bottom: 15px;">
+            <div style="font-size: 12px; color: rgba(255,255,255,0.8);">
+                Search Term: <span id="ptnSearchTermDisplay" style="color: #ffeb3b; font-weight: bold;">-</span>
+            </div>
+            <div id="ptnResultsCount" style="font-size: 12px; color: #1de9b6; font-weight: bold; margin-top: 5px;">
+            </div>
+        </div>
+        
+        <div id="ptnResultsList" style="max-height: 450px; overflow-y: auto;">
+            <!-- Results will be inserted here -->
         </div>
     </div>
     
