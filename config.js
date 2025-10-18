@@ -588,6 +588,147 @@ const CONFIG = {
                     }
                 ]
             },
+            {
+                name: 'Sites Url',
+                links: [
+                    {
+                        title: 'stius',
+                        urls: {
+                            live: null,
+                            pre: 'https://stius-master.pre.planetart.com/',
+                            stage: 'https://stius-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'stiuk',
+                        urls: {
+                            live: null,
+                            pre: 'https://stiuk-master.pre-eu.planetart.com/',
+                            stage: 'https://stiuk-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'photo',
+                        urls: {
+                            live: null,
+                            pre: 'https://photo-master.pre.planetart.com/',
+                            stage: 'https://photo-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'canvs',
+                        urls: {
+                            live: null,
+                            pre: 'https://canvs-master.pre.planetart.com/',
+                            stage: 'https://canvs-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'mccus',
+                        urls: {
+                            live: null,
+                            pre: 'https://mccus-master.pre.planetart.com/',
+                            stage: 'https://mccus-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'llane',
+                        urls: {
+                            live: 'https://www.legacylane.com/',
+                            pre: 'https://llane-master.pre.planetart.com/',
+                            stage: 'https://llane-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'pkpip',
+                        urls: {
+                            live: 'https://www.parkerandpip.com/',
+                            pre: 'https://pkpip-master.pre.planetart.com/',
+                            stage: 'https://pkpip-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'gifts',
+                        urls: {
+                            live: 'https://www.gifts.com/',
+                            pre: 'https://gifts-master.pre.planetart.com/',
+                            stage: 'https://gifts-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'bauuk',
+                        urls: {
+                            live: 'https://www.baubles.co.uk/',
+                            pre: 'https://bauuk-master.pre.planetart.com/',
+                            stage: 'https://bauuk-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'stkus',
+                        urls: {
+                            live: 'https://www.stockingshop.com/',
+                            pre: 'https://stkus-master.pre.planetart.com/',
+                            stage: 'https://stkus-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'stkuk',
+                        urls: {
+                            live: 'https://www.stockingshop.com/',
+                            pre: 'https://stkuk-master.pre.planetart.com/',
+                            stage: 'https://stkuk-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'ornus',
+                        urls: {
+                            live: 'https://www.ornamentstreet.com/',
+                            pre: 'https://owdus-master.pre.planetart.com/',
+                            stage: 'https://owdus-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'pcrus',
+                        urls: {
+                            live: 'https://www.personalcreations.com/',
+                            pre: 'https://pcrus-master.pre.planetart.com/',
+                            stage: 'https://pcrus-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'pcruk',
+                        urls: {
+                            live: 'https://www.personalcreations.com/',
+                            pre: null,
+                            stage: null
+                        }
+                    },
+                    {
+                        title: 'cpbus',
+                        urls: {
+                            live: 'https://www.cafepress.com/',
+                            pre: 'https://cpbus-master.pre.planetart.com/',
+                            stage: 'https://cpbus-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'bou',
+                        urls: {
+                            live: 'https://www.bookofus.com/',
+                            pre: null,
+                            stage: null
+                        }
+                    },
+                    {
+                        title: 'admin',
+                        urls: {
+                            live: null,
+                            pre: 'https://admin-master.pre.planetart.com/',
+                            stage: 'https://admin-master.stage.planetart.com/'
+                        }
+                    }
+                ]
+            }
         ]
     }
 };

@@ -2436,7 +2436,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             if (hasValidProductData) {
                 // Start product info card
                 productInfoHtml += `
-                    <div style="
+                    <div id="floating-product-info-card" style="
                         background: rgba(255, 255, 255, 0.1);
                         border-radius: 8px;
                         overflow: hidden;
@@ -2716,6 +2716,41 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 productInfoDiv.innerHTML = productInfoHtml;
                 productInfoDiv.style.display = 'block';
             }
+            
+            // 异步获取并显示 PHPSESSID (在 DOM 创建后执行)
+            // 通过 background script 获取 cookie（因为 content script 不能访问 chrome.cookies）
+            chrome.runtime.sendMessage({
+                type: 'GET_PHPSESSID',
+                url: window.location.href
+            }, (response) => {
+                if (response && response.success && response.value) {
+                    const sessionId = response.value;
+                    const container = content.querySelector('#phpsessid-container');
+                    if (container) {
+                        container.innerHTML = `
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="
+                                    font-size: 10px;
+                                    color: rgba(255,255,255,0.6);
+                                    white-space: nowrap;
+                                ">PHPSESSID:</div>
+                                <div style="
+                                    font-size: 10px;
+                                    color: #ffeb3b;
+                                    font-family: monospace;
+                                    overflow: hidden;
+                                    text-overflow: ellipsis;
+                                    white-space: nowrap;
+                                    max-width: 280px;
+                                " title="${sessionId}">${sessionId}</div>
+                            </div>
+                        `;
+                        console.log('✅ PHPSESSID loaded:', sessionId);
+                    }
+                } else {
+                    console.log('ℹ️ No PHPSESSID cookie found');
+                }
+            });
             
             // Add search functionality event listeners
             const searchBtn = content.querySelector('#floating-search-btn');
@@ -3144,6 +3179,12 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         testLinksPanel.style.display = 'block';
                         testLinksBtn.textContent = 'Hide Links';
                         
+                        // Hide Product Info card when Test Links panel is shown
+                        const productInfoCard = content.querySelector('#floating-product-info-card');
+                        if (productInfoCard) {
+                            productInfoCard.style.display = 'none';
+                        }
+                        
                         // Add event listeners for Copy buttons
                         const copyBtns = testLinksPanel.querySelectorAll('.test-link-copy-btn');
                         copyBtns.forEach(btn => {
@@ -3279,6 +3320,12 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         // Hide panel
                         testLinksPanel.style.display = 'none';
                         testLinksBtn.textContent = 'Test Links';
+                        
+                        // Show Product Info card when Test Links panel is hidden
+                        const productInfoCard = content.querySelector('#floating-product-info-card');
+                        if (productInfoCard) {
+                            productInfoCard.style.display = 'block';
+                        }
                     }
                 });
                 
@@ -5295,10 +5342,12 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             currentEnv = 'Stage';
         }
         
+        // PHPSESSID 将在 DOM 创建后异步加载
+        
         // 站点信息显示（始终显示，不依赖 Product Info）- 固定2行布局
         const siteInfoContent = `
             <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
-                <!-- 第1行：站点名称 + ID + 分支 -->
+                <!-- 第1行：站点名称 + ID + 分支 + 环境标签 -->
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <!-- 站点名称 - 突出显示 -->
                     <div style="
@@ -5324,25 +5373,26 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             color: #fff;
                             padding: 2px 0;
                             white-space: nowrap;
-                            max-width: 200px;
+                            max-width: 150px;
                             overflow: hidden;
                             text-overflow: ellipsis;
                         " title="${detectedBranch}">${detectedBranch}</div>
                     ` : ''}
-                </div>
-                
-                <!-- 第2行：当前环境 -->
-                <div style="display: flex; align-items: center;">
+                    
+                    <!-- 环境标签 -->
                     <div style="
-                        font-size: 12px;
+                        font-size: 11px;
                         color: #fff;
-                        padding: 4px 12px;
+                        padding: 3px 10px;
                         background: ${currentEnv === 'Live' ? '#ff9800' : currentEnv === 'Stage' ? '#9c27b0' : '#2196f3'};
                         border-radius: 4px;
                         font-weight: bold;
                         white-space: nowrap;
                     ">${currentEnv}</div>
                 </div>
+                
+                <!-- 第2行：PHPSESSID 容器（动态加载） -->
+                <div id="phpsessid-container"></div>
             </div>
         `;
         
@@ -5621,7 +5671,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                         font-weight: bold;
                                         white-space: nowrap;
                                         padding: 2px 6px;
-                                        background: rgba(${env.color === '#ff9800' ? '255,152,0' : env.color === '#2196f3' ? '33,150,243' : '156,39,176'},0.15);
+                                        background: ${env.color};
                                         border-radius: 3px;
                                     ">${env.name}</div>
                                     <div style="
@@ -5689,13 +5739,13 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         return `
             <div style="
                 padding: 12px;
-                background: rgba(255,255,255,0.1);
+                background: rgba(255,255,255,0.0);
                 border-top: 1px solid rgba(255,255,255,0.1);
                 max-height: 500px;
                 overflow-y: auto;
             ">
                 <!-- PTN Search Panel -->
-                <div id="ptnSearchPanel" style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; backdrop-filter: blur(10px);">
+                <div id="ptnSearchPanel" style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.0); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; backdrop-filter: blur(10px);">
                     <div style="
                         color: #ffeb3b;
                         font-size: 14px;
@@ -5706,7 +5756,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         <input 
                             type="text" 
                             id="ptnSearchInput" 
-                            placeholder="PTN No or PTN Caption..." 
+                            placeholder="PTN No or Caption" 
                             autocomplete="off"
                             style="
                                 flex: 1;
@@ -5750,7 +5800,12 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 
                 <!-- PTN Results View -->
                 <div id="ptnResultsView" style="display: none;">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                        <div style="
+                            color: #ffeb3b;
+                            font-size: 14px;
+                            font-weight: bold;
+                        ">PTN Search Results</div>
                         <button 
                             id="ptnBackButton" 
                             style="
@@ -5768,11 +5823,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             onmouseover="this.style.background='rgba(255,255,255,0.2)'; this.style.transform='translateY(-1px)';"
                             onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(0)';"
                         >← Back</button>
-                        <div style="
-                            color: #ffeb3b;
-                            font-size: 14px;
-                            font-weight: bold;
-                        ">PTN Search Results</div>
                     </div>
                     <div style="
                         background: rgba(255,255,255,0.08);
@@ -5792,8 +5842,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 
                 <!-- Navigation Links Card -->
                 <div id="navLinksCard" style="
-                    background: rgba(255,255,255,0.0);
-                    border: 1px solid rgba(255,255,255,0.15);
+                    background: rgba(255, 255, 255, 0.0);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
                     border-radius: 8px;
                     padding: 15px;
                     backdrop-filter: blur(10px);

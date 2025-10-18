@@ -6,6 +6,33 @@ console.log('Cafepress QA Tools background script loaded');
 
 // Handle order fetch requests from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'GET_PHPSESSID') {
+        console.log('🔍 Background: Getting PHPSESSID cookie');
+        
+        const url = request.url || sender.url;
+        
+        chrome.cookies.getAll({ url: url }, (cookies) => {
+            const phpSessionCookie = cookies.find(cookie => cookie.name === 'PHPSESSID');
+            
+            if (phpSessionCookie) {
+                console.log('✅ Background: PHPSESSID found:', phpSessionCookie.value);
+                sendResponse({
+                    success: true,
+                    value: phpSessionCookie.value
+                });
+            } else {
+                console.log('ℹ️ Background: No PHPSESSID cookie found');
+                sendResponse({
+                    success: false,
+                    value: null
+                });
+            }
+        });
+        
+        // Return true to indicate async response
+        return true;
+    }
+    
     if (request.type === 'FETCH_ORDER_FROM_ADMIN') {
         console.log('🔍 Background: Fetching order from Admin:', request.orderId);
         
