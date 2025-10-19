@@ -3127,6 +3127,150 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 console.log('✓ Block button event listener added');
             }
             
+            // Add Gen PromoCode button event listener
+            const genPromoCodeBtn = content.querySelector('#floating-gen-promocode-btn');
+            const pcCodeDisplay = content.querySelector('#pc-code-display');
+            
+            // Restore last generated promo code from storage
+            if (pcCodeDisplay) {
+                chrome.storage.local.get(['lastPromoCode', 'lastPromoPercent'], (result) => {
+                    if (result.lastPromoCode && result.lastPromoPercent) {
+                        pcCodeDisplay.textContent = `Code: ${result.lastPromoCode} (${result.lastPromoPercent}%Off)`;
+                        pcCodeDisplay.style.display = 'block';
+                        console.log('✅ Restored last promo code:', result.lastPromoCode);
+                    }
+                });
+            }
+            
+            if (genPromoCodeBtn) {
+                genPromoCodeBtn.addEventListener('click', async function() {
+                    console.log('🎟️ Gen PromoCode button clicked');
+                    
+                    // Disable button and show loading state
+                    genPromoCodeBtn.disabled = true;
+                    genPromoCodeBtn.textContent = 'Generating...';
+                    genPromoCodeBtn.style.opacity = '0.6';
+                    genPromoCodeBtn.style.cursor = 'not-allowed';
+                    
+                    // Hide code display during generation
+                    if (pcCodeDisplay) {
+                        pcCodeDisplay.style.display = 'none';
+                    }
+                    
+                    // Generate code: QACODE + MMDDHHMM
+                    const today = new Date();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    const hour = String(today.getHours()).padStart(2, '0');
+                    const minute = String(today.getMinutes()).padStart(2, '0');
+                    const pcId = `QACODE${month}${day}${hour}${minute}`;
+                    
+                    // Random sale_percent between 10-50
+                    const salePercent = Math.floor(Math.random() * 41) + 10;
+                    
+                    // Random voucher_max_value between 1-5
+                    const voucherMaxValue = Math.floor(Math.random() * 5) + 1;
+                    
+                    // Date format: MM/DD/YYYY
+                    const year = today.getFullYear();
+                    const dateStr = `${month}/${day}/${year}`;
+                    
+                    // Description
+                    const description = `${pcId}-${salePercent}%Off`;
+                    
+                    const siteIds = ['170', '171', '172', '173'];
+                    const siteNames = ['CAFUS', 'CAFAU', 'CAFUK', 'CAFCA'];
+                    
+                    // Auto-detect environment
+                    const hostname = window.location.hostname;
+                    let environment = 'live';
+                    if (hostname.includes('.pre.planetart.com')) {
+                        environment = 'pre';
+                    } else if (hostname.includes('.stage.planetart.com')) {
+                        environment = 'stage';
+                    }
+                    
+                    console.log(`📝 Promo Code Details:`);
+                    console.log(`  Environment: ${environment}`);
+                    console.log(`  ID: ${pcId}`);
+                    console.log(`  Sale Percent: ${salePercent}%`);
+                    console.log(`  Voucher Max Value: $${voucherMaxValue}`);
+                    console.log(`  Date: ${dateStr}`);
+                    console.log(`  Description: ${description}`);
+                    console.log(`  Sites: ${siteIds.join(', ')}`);
+                    
+                    try {
+                        // Send request to background script
+                        const response = await new Promise((resolve) => {
+                            chrome.runtime.sendMessage({
+                                type: 'GEN_PROMOCODE',
+                                pcId: pcId,
+                                salePercent: salePercent,
+                                voucherMaxValue: voucherMaxValue,
+                                dateStr: dateStr,
+                                description: description,
+                                siteIds: siteIds,
+                                environment: environment
+                            }, resolve);
+                        });
+                        
+                        if (response.success) {
+                            console.log('✅ Promo Codes generated successfully:', response.results);
+                            
+                            // Build success message
+                            let message = `Generated ${pcId} (${salePercent}%Off)\n`;
+                            response.results.forEach((result, index) => {
+                                if (result.success) {
+                                    message += `✓ ${siteNames[index]}\n`;
+                                } else {
+                                    message += `✗ ${siteNames[index]}: ${result.error}\n`;
+                                }
+                            });
+                            
+                            showToastNotification(message, 'success', 5000);
+                            
+                            // Display the generated code
+                            if (pcCodeDisplay) {
+                                pcCodeDisplay.textContent = `Code: ${pcId} (${salePercent}%Off)`;
+                                pcCodeDisplay.style.display = 'block';
+                            }
+                            
+                            // Save to storage for persistence
+                            chrome.storage.local.set({
+                                lastPromoCode: pcId,
+                                lastPromoPercent: salePercent,
+                                lastPromoTime: new Date().toISOString()
+                            });
+                        } else {
+                            console.error('❌ Error generating promo codes:', response.error);
+                            showToastNotification(`Error: ${response.error}`, 'error');
+                        }
+                    } catch (error) {
+                        console.error('❌ Exception:', error);
+                        showToastNotification(`Exception: ${error.message}`, 'error');
+                    } finally {
+                        // Re-enable button
+                        genPromoCodeBtn.disabled = false;
+                        genPromoCodeBtn.textContent = 'Gen PromoCode';
+                        genPromoCodeBtn.style.opacity = '1';
+                        genPromoCodeBtn.style.cursor = 'pointer';
+                    }
+                });
+                
+                genPromoCodeBtn.addEventListener('mouseenter', () => {
+                    if (!genPromoCodeBtn.disabled) {
+                        genPromoCodeBtn.style.background = '#ffa726';
+                    }
+                });
+                genPromoCodeBtn.addEventListener('mouseleave', () => {
+                    if (!genPromoCodeBtn.disabled) {
+                        genPromoCodeBtn.style.background = '#ff9800';
+                    }
+                });
+                
+                console.log('✓ Gen PromoCode button event listener added');
+            }
+            
             // Add Gen Giftcerts button event listener
             const genGiftcertsBtn = content.querySelector('#floating-gen-giftcerts-btn');
             const gcCodeDisplay = content.querySelector('#gc-code-display');
@@ -4342,6 +4486,45 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             white-space: nowrap;
                         "
                     >Block</button>
+                </div>
+                
+                <!-- Gen PromoCode Button and Code Display -->
+                <div style="
+                    padding: 6px 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                ">
+                    <button 
+                        id="floating-gen-promocode-btn"
+                        style="
+                            background: #ff9800;
+                            color: #fff;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: bold;
+                            transition: all 0.2s ease;
+                            white-space: nowrap;
+                            flex-shrink: 0;
+                        "
+                    >Gen PromoCode</button>
+                    <div 
+                        id="pc-code-display"
+                        style="
+                            display: none;
+                            color: #ffeb3b;
+                            font-size: 11px;
+                            font-weight: bold;
+                            font-family: monospace;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            white-space: nowrap;
+                            flex: 1;
+                        "
+                    ></div>
                 </div>
                 
                 <!-- Gen Giftcerts Button and Code Display -->

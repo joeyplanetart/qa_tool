@@ -553,6 +553,136 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Return true to indicate async response
         return true;
     }
+    
+    if (request.type === 'GEN_PROMOCODE') {
+        console.log('🎟️ Background: Generate Promo Code request:', request);
+        
+        const { pcId, salePercent, voucherMaxValue, dateStr, description, siteIds, environment } = request;
+        const env = environment || 'stage';
+        const branch = CONFIG.BRANCH.CURRENT;
+        
+        console.log('========== GEN PROMOCODE REQUEST DEBUG ==========');
+        console.log(`Environment: ${env}`);
+        console.log(`Branch: ${branch}`);
+        console.log(`Promo Code ID: ${pcId}`);
+        console.log(`Sale Percent: ${salePercent}%`);
+        console.log(`Voucher Max Value: $${voucherMaxValue}`);
+        console.log(`Date: ${dateStr}`);
+        console.log(`Description: ${description}`);
+        console.log(`Site IDs: ${siteIds.join(', ')}`);
+        
+        // Temporarily set the branch for this request
+        const originalBranch = CONFIG.BRANCH.CURRENT;
+        CONFIG.BRANCH.CURRENT = branch;
+        
+        const adminBaseUrl = CONFIG.getAdminBaseUrl(env);
+        
+        // Restore original branch
+        CONFIG.BRANCH.CURRENT = originalBranch;
+        
+        const apiUrl = `${adminBaseUrl}/catalog/promos/promos_edit.php`;
+        
+        // Generate promo codes for all site IDs
+        const promises = siteIds.map(async (siteId) => {
+            console.log(`📤 Generating Promo Code for Site ${siteId}`);
+            
+            // Construct form data
+            const formData = new URLSearchParams();
+            formData.append('single_use', '1');
+            formData.append('auto_apply_gen', '0');
+            formData.append('action', 'create_promo_code');
+            formData.append('id', pcId);
+            formData.append('site_id', siteId);
+            formData.append('start_day', dateStr);
+            formData.append('start_hour', '01');
+            formData.append('start_min', '00');
+            formData.append('start_sec', '00');
+            formData.append('end_day', dateStr);
+            formData.append('end_hour', '23');
+            formData.append('end_min', '59');
+            formData.append('end_sec', '59');
+            formData.append('sale_percent', salePercent);
+            formData.append('min_subtotal', '1');
+            formData.append('voucher_max_value', voucherMaxValue);
+            formData.append('shipping_discount', 'free_2day_shipping');
+            formData.append('description', description);
+            formData.append('allow_shopping_cart_description_override', 'on');
+            formData.append('shopping_cart_description_override', description);
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': '*/*',
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Origin': adminBaseUrl,
+                        'Referer': `${adminBaseUrl}/catalog/promos/promos.php?single_use=1&site_id=${siteId}&filter=`
+                    },
+                    body: formData.toString()
+                });
+                
+                console.log(`Site ${siteId} Response status:`, response.status);
+                
+                if (!response.ok) {
+                    const responseText = await response.text();
+                    console.error(`Site ${siteId} Error response:`, responseText.substring(0, 500));
+                    
+                    if (response.status === 401 || response.status === 403) {
+                        throw new Error('Unauthorized - Please login via SSO first');
+                    }
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const responseText = await response.text();
+                console.log(`✅ Site ${siteId} success, response length:`, responseText.length);
+                
+                return {
+                    siteId,
+                    success: true,
+                    response: responseText.substring(0, 200)
+                };
+            } catch (error) {
+                console.error(`❌ Site ${siteId} error:`, error.message);
+                return {
+                    siteId,
+                    success: false,
+                    error: error.message
+                };
+            }
+        });
+        
+        // Wait for all requests to complete
+        Promise.all(promises)
+            .then(results => {
+                console.log('========== GEN PROMOCODE RESULTS ==========');
+                results.forEach(result => {
+                    if (result.success) {
+                        console.log(`✅ Site ${result.siteId}: Success`);
+                    } else {
+                        console.log(`❌ Site ${result.siteId}: ${result.error}`);
+                    }
+                });
+                
+                sendResponse({
+                    success: true,
+                    results: results
+                });
+            })
+            .catch(error => {
+                console.error('========== GEN PROMOCODE ERROR ==========');
+                console.error('Error:', error);
+                
+                sendResponse({
+                    success: false,
+                    error: error.message
+                });
+            });
+        
+        // Return true to indicate async response
+        return true;
+    }
 });
 
 // Handle extension icon click
