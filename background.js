@@ -441,6 +441,118 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Return true to indicate async response
         return true;
     }
+    
+    if (request.type === 'GEN_GIFTCERTS') {
+        console.log('🎁 Background: Generate Gift Certificates request:', request);
+        
+        const { gcNumber, gcAmount, notes, siteIds, environment } = request;
+        const env = environment || 'stage'; // 使用传递的环境，默认 stage
+        const branch = CONFIG.BRANCH.CURRENT;
+        
+        console.log('========== GEN GIFTCERTS REQUEST DEBUG ==========');
+        console.log(`Environment: ${env}`);
+        console.log(`Branch: ${branch}`);
+        console.log(`GC Number: ${gcNumber}`);
+        console.log(`GC Amount: ${gcAmount}`);
+        console.log(`Notes: ${notes}`);
+        console.log(`Site IDs: ${siteIds.join(', ')}`);
+        
+        // Temporarily set the branch for this request
+        const originalBranch = CONFIG.BRANCH.CURRENT;
+        CONFIG.BRANCH.CURRENT = branch;
+        
+        const adminBaseUrl = CONFIG.getAdminBaseUrl(env);
+        
+        // Restore original branch
+        CONFIG.BRANCH.CURRENT = originalBranch;
+        
+        // Generate gift certificates for all site IDs
+        const promises = siteIds.map(async (siteId) => {
+            const url = `${adminBaseUrl}/catalog/promos/giftcerts.php?site_id=${siteId}`;
+            
+            console.log(`📤 Generating for Site ${siteId}: ${url}`);
+            
+            // Construct form data
+            const formData = new URLSearchParams();
+            formData.append('gc_number', gcNumber);
+            formData.append('emails', '');
+            formData.append('gc_amount', gcAmount);
+            formData.append('notes', notes);
+            formData.append('site_id', siteId);
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Origin': adminBaseUrl,
+                        'Referer': url
+                    },
+                    body: formData.toString()
+                });
+                
+                console.log(`Site ${siteId} Response status:`, response.status);
+                
+                if (!response.ok) {
+                    const responseText = await response.text();
+                    console.error(`Site ${siteId} Error response:`, responseText.substring(0, 500));
+                    
+                    if (response.status === 401 || response.status === 403) {
+                        throw new Error('Unauthorized - Please login via SSO first');
+                    }
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const responseText = await response.text();
+                console.log(`✅ Site ${siteId} success, response length:`, responseText.length);
+                
+                return {
+                    siteId,
+                    success: true,
+                    response: responseText.substring(0, 200)
+                };
+            } catch (error) {
+                console.error(`❌ Site ${siteId} error:`, error.message);
+                return {
+                    siteId,
+                    success: false,
+                    error: error.message
+                };
+            }
+        });
+        
+        // Wait for all requests to complete
+        Promise.all(promises)
+            .then(results => {
+                console.log('========== GEN GIFTCERTS RESULTS ==========');
+                results.forEach(result => {
+                    if (result.success) {
+                        console.log(`✅ Site ${result.siteId}: Success`);
+                    } else {
+                        console.log(`❌ Site ${result.siteId}: ${result.error}`);
+                    }
+                });
+                
+                sendResponse({
+                    success: true,
+                    results: results
+                });
+            })
+            .catch(error => {
+                console.error('========== GEN GIFTCERTS ERROR ==========');
+                console.error('Error:', error);
+                
+                sendResponse({
+                    success: false,
+                    error: error.message
+                });
+            });
+        
+        // Return true to indicate async response
+        return true;
+    }
 });
 
 // Handle extension icon click

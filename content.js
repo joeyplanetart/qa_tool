@@ -3127,6 +3127,139 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 console.log('✓ Block button event listener added');
             }
             
+            // Add Gen Giftcerts button event listener
+            const genGiftcertsBtn = content.querySelector('#floating-gen-giftcerts-btn');
+            const gcCodeDisplay = content.querySelector('#gc-code-display');
+            
+            // Restore last generated gift cert code from storage
+            if (gcCodeDisplay) {
+                chrome.storage.local.get(['lastGiftCertCode', 'lastGiftCertAmount'], (result) => {
+                    if (result.lastGiftCertCode && result.lastGiftCertAmount) {
+                        gcCodeDisplay.textContent = `Code: ${result.lastGiftCertCode} ($${result.lastGiftCertAmount})`;
+                        gcCodeDisplay.style.display = 'block';
+                        console.log('✅ Restored last gift cert code:', result.lastGiftCertCode);
+                    }
+                });
+            }
+            
+            if (genGiftcertsBtn) {
+                genGiftcertsBtn.addEventListener('click', async function() {
+                    console.log('🎁 Gen Giftcerts button clicked');
+                    
+                    // Disable button and show loading state
+                    genGiftcertsBtn.disabled = true;
+                    genGiftcertsBtn.textContent = 'Generating...';
+                    genGiftcertsBtn.style.opacity = '0.6';
+                    genGiftcertsBtn.style.cursor = 'not-allowed';
+                    
+                    // Hide code display during generation
+                    if (gcCodeDisplay) {
+                        gcCodeDisplay.style.display = 'none';
+                    }
+                    
+                    // Generate code: QAGiftCode + MMDDHHMM (例如: QAGiftCode10191430)
+                    const today = new Date();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    const hour = String(today.getHours()).padStart(2, '0');
+                    const minute = String(today.getMinutes()).padStart(2, '0');
+                    const gcNumber = `QAGiftCode${month}${day}${hour}${minute}`;
+                    
+                    // Random amount between 1-10
+                    const gcAmount = Math.floor(Math.random() * 10) + 1;
+                    
+                    // Notes
+                    const notes = `${gcNumber}-${gcAmount}`;
+                    
+                    const siteIds = ['170', '171', '172', '173'];
+                    const siteNames = ['CAFUS', 'CAFAU', 'CAFUK', 'CAFCA'];
+                    
+                    // Auto-detect environment
+                    const hostname = window.location.hostname;
+                    let environment = 'live';
+                    if (hostname.includes('.pre.planetart.com')) {
+                        environment = 'pre';
+                    } else if (hostname.includes('.stage.planetart.com')) {
+                        environment = 'stage';
+                    }
+                    
+                    console.log(`📝 Gift Certificate Details:`);
+                    console.log(`  Environment: ${environment}`);
+                    console.log(`  Code: ${gcNumber}`);
+                    console.log(`  Amount: $${gcAmount}`);
+                    console.log(`  Notes: ${notes}`);
+                    console.log(`  Sites: ${siteIds.join(', ')}`);
+                    
+                    try {
+                        // Send request to background script
+                        const response = await new Promise((resolve) => {
+                            chrome.runtime.sendMessage({
+                                type: 'GEN_GIFTCERTS',
+                                gcNumber: gcNumber,
+                                gcAmount: gcAmount,
+                                notes: notes,
+                                siteIds: siteIds,
+                                environment: environment
+                            }, resolve);
+                        });
+                        
+                        if (response.success) {
+                            console.log('✅ Gift Certificates generated successfully:', response.results);
+                            
+                            // Build success message
+                            let message = `Generated ${gcNumber} ($${gcAmount})\n`;
+                            response.results.forEach((result, index) => {
+                                if (result.success) {
+                                    message += `✓ ${siteNames[index]}\n`;
+                                } else {
+                                    message += `✗ ${siteNames[index]}: ${result.error}\n`;
+                                }
+                            });
+                            
+                            showToastNotification(message, 'success', 5000);
+                            
+                            // Display the generated code
+                            if (gcCodeDisplay) {
+                                gcCodeDisplay.textContent = `Code: ${gcNumber} ($${gcAmount})`;
+                                gcCodeDisplay.style.display = 'block';
+                            }
+                            
+                            // Save to storage for persistence
+                            chrome.storage.local.set({
+                                lastGiftCertCode: gcNumber,
+                                lastGiftCertAmount: gcAmount,
+                                lastGiftCertTime: new Date().toISOString()
+                            });
+                        } else {
+                            console.error('❌ Error generating gift certificates:', response.error);
+                            showToastNotification(`Error: ${response.error}`, 'error');
+                        }
+                    } catch (error) {
+                        console.error('❌ Exception:', error);
+                        showToastNotification(`Exception: ${error.message}`, 'error');
+                    } finally {
+                        // Re-enable button
+                        genGiftcertsBtn.disabled = false;
+                        genGiftcertsBtn.textContent = 'Gen Giftcerts';
+                        genGiftcertsBtn.style.opacity = '1';
+                        genGiftcertsBtn.style.cursor = 'pointer';
+                    }
+                });
+                
+                genGiftcertsBtn.addEventListener('mouseenter', () => {
+                    if (!genGiftcertsBtn.disabled) {
+                        genGiftcertsBtn.style.background = '#ab47bc';
+                    }
+                });
+                genGiftcertsBtn.addEventListener('mouseleave', () => {
+                    if (!genGiftcertsBtn.disabled) {
+                        genGiftcertsBtn.style.background = '#9c27b0';
+                    }
+                });
+                
+                console.log('✓ Gen Giftcerts button event listener added');
+            }
+            
             // Add refresh button event listener
             const refreshBtn = content.querySelector('#cp-refresh-btn');
             if (refreshBtn) {
@@ -4209,6 +4342,45 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             white-space: nowrap;
                         "
                     >Block</button>
+                </div>
+                
+                <!-- Gen Giftcerts Button and Code Display -->
+                <div style="
+                    padding: 6px 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                ">
+                    <button 
+                        id="floating-gen-giftcerts-btn"
+                        style="
+                            background: #9c27b0;
+                            color: #fff;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: bold;
+                            transition: all 0.2s ease;
+                            white-space: nowrap;
+                            flex-shrink: 0;
+                        "
+                    >Gen Giftcerts</button>
+                    <div 
+                        id="gc-code-display"
+                        style="
+                            display: none;
+                            color: #ffeb3b;
+                            font-size: 11px;
+                            font-weight: bold;
+                            font-family: monospace;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            white-space: nowrap;
+                            flex: 1;
+                        "
+                    ></div>
                 </div>
                 </div>
                 
