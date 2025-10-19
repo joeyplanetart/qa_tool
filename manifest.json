@@ -22,7 +22,8 @@
     "*://www.cafepress.com.au/*",
     "*://cafepress.com.au/*",
     "*://admin.planetart.com/*",
-    "*://login.planetart.com/*"
+    "*://login.planetart.com/*",
+    "*://api.mymemory.translated.net/*"
   ],
   "content_scripts": [
     {

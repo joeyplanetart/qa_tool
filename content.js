@@ -2430,6 +2430,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             // Add environment switcher at the top (always show, but env buttons only on product pages)
             html += createEnvironmentSwitcher();
             
+            // Add translation tool
+            html += createTranslationTool();
+            
             // Add search panel
             html += createSearchPanel();
             
@@ -3402,6 +3405,182 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 });
                 
                 console.log('✓ Gen Giftcerts button event listener added');
+            }
+            
+            // Add Translation Tool button event listener
+            const openTranslationToolBtn = content.querySelector('#open-translation-tool-btn');
+            const translationCard = content.querySelector('#translation-card');
+            const searchPanel = content.querySelector('#floating-product-info');
+            const functionPanel = content.querySelector('#cp-function-panel');
+            let isTranslationToolOpen = false;
+            
+            if (openTranslationToolBtn && translationCard) {
+                openTranslationToolBtn.addEventListener('click', () => {
+                    console.log('🌐 Toggle Translation Tool');
+                    
+                    isTranslationToolOpen = !isTranslationToolOpen;
+                    
+                    if (isTranslationToolOpen) {
+                        // Show translation card
+                        translationCard.style.display = 'block';
+                        openTranslationToolBtn.textContent = 'Close Translation Tool';
+                        openTranslationToolBtn.style.borderRadius = '10px 10px 0 0';
+                        
+                        // Hide all content below the button (including function panel)
+                        if (searchPanel) {
+                            searchPanel.style.display = 'none';
+                        }
+                        if (functionPanel) {
+                            functionPanel.style.display = 'none';
+                        }
+                    } else {
+                        // Hide translation card
+                        translationCard.style.display = 'none';
+                        openTranslationToolBtn.textContent = 'Translation Tool';
+                        openTranslationToolBtn.style.borderRadius = '10px';
+                        
+                        // Show all content below the button
+                        if (searchPanel) {
+                            searchPanel.style.display = 'block';
+                        }
+                        if (functionPanel) {
+                            functionPanel.style.display = 'block';
+                        }
+                    }
+                });
+                
+                // Get common translation tool elements
+                const translateBtn = content.querySelector('#translate-btn');
+                const sourceTextareaEl = content.querySelector('#translation-source');
+                const targetTextareaEl = content.querySelector('#translation-target');
+                const langSwitchEl = content.querySelector('#lang-switch');
+                const sourceLabel = content.querySelector('#source-label');
+                const targetLabel = content.querySelector('#target-label');
+                const langSwitchSlider = content.querySelector('#lang-switch-slider');
+                
+                // Add Translate button event listener
+                if (translateBtn && sourceTextareaEl && targetTextareaEl) {
+                    // Function to call MyMemory API
+                    async function translateText() {
+                        const text = sourceTextareaEl.value.trim();
+                        if (!text) {
+                            console.log('⚠️ No text to translate');
+                            showToastNotification('Please enter text to translate', 'warning');
+                            return;
+                        }
+                        
+                        // Determine language pair based on switch state
+                        const langPair = langSwitchEl && langSwitchEl.checked ? 'en|zh' : 'zh|en';
+                        
+                        // Disable button and show loading state
+                        translateBtn.disabled = true;
+                        translateBtn.textContent = 'Translating...';
+                        targetTextareaEl.value = 'Translating...';
+                        
+                        try {
+                            // Call MyMemory API
+                            const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`;
+                            const response = await fetch(apiUrl);
+                            
+                            if (!response.ok) {
+                                throw new Error(`API request failed: ${response.status}`);
+                            }
+                            
+                            const data = await response.json();
+                            
+                            if (data.responseStatus === 200 && data.responseData) {
+                                targetTextareaEl.value = data.responseData.translatedText;
+                                console.log('✅ Translation successful');
+                            } else {
+                                throw new Error('Translation failed');
+                            }
+                        } catch (error) {
+                            console.error('❌ Translation error:', error);
+                            targetTextareaEl.value = '';
+                            showToastNotification(`❌ Translation failed: ${error.message}`, 'error');
+                        } finally {
+                            translateBtn.disabled = false;
+                            translateBtn.textContent = 'Translate';
+                        }
+                    }
+                    
+                    // Click event
+                    translateBtn.addEventListener('click', translateText);
+                    
+                    // Enter key event in source textarea
+                    sourceTextareaEl.addEventListener('keydown', (e) => {
+                        if (e.ctrlKey && e.key === 'Enter') {
+                            e.preventDefault();
+                            translateText();
+                        }
+                    });
+                    
+                    console.log('✓ Translate button event listener added');
+                }
+                
+                // Add Clear button event listener
+                const clearSourceBtn = content.querySelector('#clear-source-btn');
+                if (clearSourceBtn && sourceTextareaEl && targetTextareaEl) {
+                    clearSourceBtn.addEventListener('click', () => {
+                        sourceTextareaEl.value = '';
+                        targetTextareaEl.value = '';
+                    });
+                }
+                
+                // Add Copy button event listener
+                const copyTranslationBtn = content.querySelector('#copy-translation-btn');
+                if (copyTranslationBtn && targetTextareaEl) {
+                    copyTranslationBtn.addEventListener('click', async () => {
+                        if (targetTextareaEl.value) {
+                            try {
+                                await navigator.clipboard.writeText(targetTextareaEl.value);
+                                const originalText = copyTranslationBtn.innerHTML;
+                                copyTranslationBtn.innerHTML = '✅ Copied!';
+                                setTimeout(() => {
+                                    copyTranslationBtn.innerHTML = originalText;
+                                }, 2000);
+                            } catch (error) {
+                                console.error('Failed to copy:', error);
+                            }
+                        }
+                    });
+                }
+                
+                // Add Language Switch button event listener
+                if (langSwitchEl && sourceLabel && targetLabel && sourceTextareaEl && targetTextareaEl) {
+                    langSwitchEl.addEventListener('change', () => {
+                        if (langSwitchEl.checked) {
+                            // Switch to English -> Chinese (input English, output Chinese)
+                            sourceLabel.textContent = 'English';
+                            targetLabel.textContent = 'Chinese';
+                            sourceTextareaEl.placeholder = 'Enter text to translate...';
+                            targetTextareaEl.placeholder = '翻译结果将显示在这里...';
+                            if (langSwitchSlider) langSwitchSlider.style.left = '27px';
+                        } else {
+                            // Default: Chinese -> English (input Chinese, output English)
+                            sourceLabel.textContent = 'Chinese';
+                            targetLabel.textContent = 'English';
+                            sourceTextareaEl.placeholder = '输入要翻译的文本...';
+                            targetTextareaEl.placeholder = 'Translation will appear here...';
+                            if (langSwitchSlider) langSwitchSlider.style.left = '3px';
+                        }
+                        // Clear both textareas when switching
+                        sourceTextareaEl.value = '';
+                        targetTextareaEl.value = '';
+                    });
+                }
+                
+                // Add custom style for placeholder color
+                const style = document.createElement('style');
+                style.textContent = `
+                    #translation-source::placeholder,
+                    #translation-target::placeholder {
+                        color: rgba(255, 255, 255, 0.5) !important;
+                    }
+                `;
+                document.head.appendChild(style);
+                
+                console.log('✓ Translation Tool button event listener added');
             }
             
             // Add refresh button event listener
@@ -5675,6 +5854,213 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             ">
                 <span style="color: #fff; user-select: text; cursor: text; white-space: nowrap;">${label}</span>
                 <span style="color: #ffeb3b; font-weight: bold; user-select: text; cursor: text; word-break: break-all; text-align: right;">${value}</span>
+            </div>
+        `;
+    }
+    
+    function createTranslationTool() {
+        return `
+            <div id="translation-tool-container" style="
+                margin-bottom: 10px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 10px;
+                border: 1px solid rgba(255,255,255,0.2);
+                padding: 0;
+            ">
+                <button 
+                    id="open-translation-tool-btn"
+                    style="
+                        width: 100%;
+                        background: #ffeb3b;
+                        color: #333;
+                        border: none;
+                        padding: 12px 20px;
+                        border-radius: 10px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: bold;
+                        transition: all 0.2s ease;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                    "
+                    onmouseover="this.style.boxShadow='0 4px 8px rgba(0,0,0,0.3)';"
+                    onmouseout="this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
+                >Translation Tool</button>
+                
+                <!-- Translation Card (hidden by default) -->
+                <div id="translation-card" style="display: none; padding: 15px;">
+                    <!-- Language Selector -->
+                    <div style="
+                        background: rgba(255,255,255,0.15);
+                        border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 8px;
+                        padding: 15px;
+                        margin-bottom: 15px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                    ">
+                        <div id="lang-left" style="
+                            font-size: 16px;
+                            font-weight: bold;
+                            color: #fff;
+                        ">English</div>
+                        
+                        <div style="
+                            display: flex;
+                            align-items: center;
+                            gap: 10px;
+                        ">
+                            <label style="
+                                position: relative;
+                                display: inline-block;
+                                width: 50px;
+                                height: 26px;
+                                cursor: pointer;
+                            ">
+                                <input type="checkbox" id="lang-switch" style="opacity: 0; width: 0; height: 0;">
+                                <span id="lang-switch-bg" style="
+                                    position: absolute;
+                                    cursor: pointer;
+                                    top: 0;
+                                    left: 0;
+                                    right: 0;
+                                    bottom: 0;
+                                    background: #ffeb3b;
+                                    transition: 0.3s;
+                                    border-radius: 26px;
+                                ">
+                                    <span id="lang-switch-slider" style="
+                                        position: absolute;
+                                        content: '';
+                                        height: 20px;
+                                        width: 20px;
+                                        left: 3px;
+                                        bottom: 3px;
+                                        background: white;
+                                        transition: 0.3s;
+                                        border-radius: 50%;
+                                    "></span>
+                                </span>
+                            </label>
+                            <div style="
+                                font-size: 20px;
+                                color: rgba(255,255,255,0.8);
+                            ">⇄</div>
+                        </div>
+                        
+                        <div id="lang-right" style="
+                            font-size: 16px;
+                            font-weight: bold;
+                            color: #fff;
+                        ">Chinese</div>
+                    </div>
+                    
+                    <!-- Source Text Area -->
+                    <div style="margin-bottom: 15px;">
+                        <div id="source-label" style="
+                            font-size: 14px;
+                            font-weight: bold;
+                            color: #ffeb3b;
+                            margin-bottom: 8px;
+                        ">Chinese</div>
+                        <textarea 
+                            id="translation-source"
+                            placeholder="输入要翻译的文本..."
+                            style="
+                                width: 100%;
+                                min-height: 120px;
+                                padding: 12px;
+                                border: 1px solid rgba(255,255,255,0.2);
+                                border-radius: 8px;
+                                font-size: 14px;
+                                resize: vertical;
+                                box-sizing: border-box;
+                                background: rgba(255,255,255,0.1);
+                                color: #fff;
+                                outline: none;
+                            "
+                        ></textarea>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                            <button 
+                                id="translate-btn"
+                                style="
+                                    background: #ffeb3b;
+                                    color: #333;
+                                    border: none;
+                                    padding: 8px 24px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 13px;
+                                    font-weight: bold;
+                                    transition: all 0.2s ease;
+                                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                                "
+                                onmouseover="this.style.background='#ffd700'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.3)';"
+                                onmouseout="this.style.background='#ffeb3b'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
+                            >Translate</button>
+                            <button 
+                                id="clear-source-btn"
+                                style="
+                                    background: rgba(255,255,255,0.2);
+                                    color: #fff;
+                                    border: 1px solid rgba(255,255,255,0.3);
+                                    padding: 6px 16px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    transition: all 0.2s ease;
+                                "
+                                onmouseover="this.style.background='rgba(255,255,255,0.3)';"
+                                onmouseout="this.style.background='rgba(255,255,255,0.2)';"
+                            >Clear</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Target Text Area -->
+                    <div style="margin-bottom: 15px;">
+                        <div id="target-label" style="
+                            font-size: 14px;
+                            font-weight: bold;
+                            color: #ffeb3b;
+                            margin-bottom: 8px;
+                        ">English</div>
+                        <textarea 
+                            id="translation-target"
+                            placeholder="Translation will appear here..."
+                            readonly
+                            style="
+                                width: 100%;
+                                min-height: 120px;
+                                padding: 12px;
+                                border: 1px solid rgba(255,255,255,0.2);
+                                border-radius: 8px;
+                                font-size: 14px;
+                                resize: vertical;
+                                box-sizing: border-box;
+                                background: rgba(255,255,255,0.1);
+                                color: #fff;
+                                outline: none;
+                            "
+                        ></textarea>
+                        <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+                            <button 
+                                id="copy-translation-btn"
+                                style="
+                                    background: rgba(255,255,255,0.2);
+                                    color: #fff;
+                                    border: 1px solid rgba(255,255,255,0.3);
+                                    padding: 6px 16px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    transition: all 0.2s ease;
+                                "
+                                onmouseover="this.style.background='rgba(255,255,255,0.3)';"
+                                onmouseout="this.style.background='rgba(255,255,255,0.2)';"
+                            >Copy</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
     }
