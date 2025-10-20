@@ -3412,6 +3412,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const translationCard = content.querySelector('#translation-card');
             const searchPanel = content.querySelector('#floating-product-info');
             const functionPanel = content.querySelector('#cp-function-panel');
+            const navLinksCardEl = content.querySelector('#navLinksCard');
+            const environmentInfoPanel = content.querySelector('#environment-info-panel');
+            const translationBackBtnHeader = content.querySelector('#translation-back-btn');
             let isTranslationToolOpen = false;
             
             if (openTranslationToolBtn && translationCard) {
@@ -3423,28 +3426,46 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     if (isTranslationToolOpen) {
                         // Show translation card
                         translationCard.style.display = 'block';
-                        openTranslationToolBtn.textContent = 'Close Translation Tool';
-                        openTranslationToolBtn.style.borderRadius = '10px 10px 0 0';
                         
-                        // Hide all content below the button (including function panel)
+                        // Show Back button
+                        if (translationBackBtnHeader) {
+                            translationBackBtnHeader.style.display = 'block';
+                        }
+                        
+                        // Hide all content (environment info, search panel, function panel, navLinksCard)
+                        if (environmentInfoPanel) {
+                            environmentInfoPanel.style.display = 'none';
+                        }
                         if (searchPanel) {
                             searchPanel.style.display = 'none';
                         }
                         if (functionPanel) {
                             functionPanel.style.display = 'none';
                         }
+                        if (navLinksCardEl) {
+                            navLinksCardEl.style.display = 'none';
+                        }
                     } else {
                         // Hide translation card
                         translationCard.style.display = 'none';
-                        openTranslationToolBtn.textContent = 'Translation Tool';
-                        openTranslationToolBtn.style.borderRadius = '10px';
                         
-                        // Show all content below the button
+                        // Hide Back button
+                        if (translationBackBtnHeader) {
+                            translationBackBtnHeader.style.display = 'none';
+                        }
+                        
+                        // Show all content
+                        if (environmentInfoPanel) {
+                            environmentInfoPanel.style.display = 'flex';
+                        }
                         if (searchPanel) {
                             searchPanel.style.display = 'block';
                         }
                         if (functionPanel) {
                             functionPanel.style.display = 'block';
+                        }
+                        if (navLinksCardEl) {
+                            navLinksCardEl.style.display = 'block';
                         }
                     }
                 });
@@ -3453,10 +3474,12 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 const translateBtn = content.querySelector('#translate-btn');
                 const sourceTextareaEl = content.querySelector('#translation-source');
                 const targetTextareaEl = content.querySelector('#translation-target');
-                const langSwitchEl = content.querySelector('#lang-switch');
+                const langSwitchArrow = content.querySelector('#lang-switch-arrow');
                 const sourceLabel = content.querySelector('#source-label');
                 const targetLabel = content.querySelector('#target-label');
-                const langSwitchSlider = content.querySelector('#lang-switch-slider');
+                
+                // Track language direction (false = zh->en, true = en->zh)
+                let isEnglishToChinese = false;
                 
                 // Add Translate button event listener
                 if (translateBtn && sourceTextareaEl && targetTextareaEl) {
@@ -3470,7 +3493,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         }
                         
                         // Determine language pair based on switch state
-                        const langPair = langSwitchEl && langSwitchEl.checked ? 'en|zh' : 'zh|en';
+                        const langPair = isEnglishToChinese ? 'en|zh' : 'zh|en';
                         
                         // Disable button and show loading state
                         translateBtn.disabled = true;
@@ -3546,27 +3569,61 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     });
                 }
                 
-                // Add Language Switch button event listener
-                if (langSwitchEl && sourceLabel && targetLabel && sourceTextareaEl && targetTextareaEl) {
-                    langSwitchEl.addEventListener('change', () => {
-                        if (langSwitchEl.checked) {
+                // Add Language Switch Arrow click event listener
+                if (langSwitchArrow && sourceLabel && targetLabel && sourceTextareaEl && targetTextareaEl) {
+                    langSwitchArrow.addEventListener('click', () => {
+                        isEnglishToChinese = !isEnglishToChinese;
+                        
+                        if (isEnglishToChinese) {
                             // Switch to English -> Chinese (input English, output Chinese)
                             sourceLabel.textContent = 'English';
                             targetLabel.textContent = 'Chinese';
                             sourceTextareaEl.placeholder = 'Enter text to translate...';
                             targetTextareaEl.placeholder = '翻译结果将显示在这里...';
-                            if (langSwitchSlider) langSwitchSlider.style.left = '27px';
                         } else {
                             // Default: Chinese -> English (input Chinese, output English)
                             sourceLabel.textContent = 'Chinese';
                             targetLabel.textContent = 'English';
                             sourceTextareaEl.placeholder = '输入要翻译的文本...';
                             targetTextareaEl.placeholder = 'Translation will appear here...';
-                            if (langSwitchSlider) langSwitchSlider.style.left = '3px';
                         }
                         // Clear both textareas when switching
                         sourceTextareaEl.value = '';
                         targetTextareaEl.value = '';
+                        
+                        console.log('🔄 Language switched:', isEnglishToChinese ? 'EN→ZH' : 'ZH→EN');
+                    });
+                }
+                
+                // Add Back button event listener
+                if (translationBackBtnHeader) {
+                    translationBackBtnHeader.addEventListener('click', () => {
+                        console.log('← Back to main panel');
+                        
+                        // Hide translation card
+                        if (translationCard) {
+                            translationCard.style.display = 'none';
+                        }
+                        
+                        // Hide Back button
+                        translationBackBtnHeader.style.display = 'none';
+                        
+                        // Show all hidden panels
+                        if (environmentInfoPanel) {
+                            environmentInfoPanel.style.display = 'flex';
+                        }
+                        if (searchPanel) {
+                            searchPanel.style.display = 'block';
+                        }
+                        if (functionPanel) {
+                            functionPanel.style.display = 'block';
+                        }
+                        if (navLinksCardEl) {
+                            navLinksCardEl.style.display = 'block';
+                        }
+                        
+                        // Update translation tool open state
+                        isTranslationToolOpen = false;
                     });
                 }
                 
@@ -5865,29 +5922,49 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 border-radius: 10px;
                 border: 1px solid rgba(255,255,255,0.2);
-                padding: 0;
+                padding: 15px;
             ">
-                <button 
-                    id="open-translation-tool-btn"
-                    style="
-                        width: 100%;
-                        background: #ffeb3b;
-                        color: #333;
-                        border: none;
-                        padding: 12px 20px;
-                        border-radius: 10px;
-                        cursor: pointer;
-                        font-size: 14px;
-                        font-weight: bold;
-                        transition: all 0.2s ease;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                    "
-                    onmouseover="this.style.boxShadow='0 4px 8px rgba(0,0,0,0.3)';"
-                    onmouseout="this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
-                >Translation Tool</button>
+                <!-- Header with Translation label and Back button -->
+                <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 0;
+                ">
+                    <div 
+                        id="open-translation-tool-btn"
+                        style="
+                            background: transparent;
+                            color: #ffeb3b;
+                            border: none;
+                            padding: 0;
+                            cursor: pointer;
+                            font-size: 16px;
+                            font-weight: bold;
+                        "
+                    >Translation</div>
+                    
+                    <button 
+                        id="translation-back-btn"
+                        style="
+                            background: rgba(255,255,255,0.2);
+                            color: #fff;
+                            border: 1px solid rgba(255,255,255,0.3);
+                            padding: 8px 20px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 13px;
+                            transition: all 0.2s ease;
+                            display: none;
+                        "
+                        onmouseover="this.style.background='rgba(255,255,255,0.3)';"
+                        onmouseout="this.style.background='rgba(255,255,255,0.2)';"
+                    >← Back</button>
+                </div>
                 
                 <!-- Translation Card (hidden by default) -->
-                <div id="translation-card" style="display: none; padding: 15px;">
+                <div id="translation-card" style="display: none; padding: 0; margin-top: 15px;">
+                    
                     <!-- Language Selector -->
                     <div style="
                         background: rgba(255,255,255,0.15);
@@ -5905,48 +5982,19 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             color: #fff;
                         ">English</div>
                         
-                        <div style="
-                            display: flex;
-                            align-items: center;
-                            gap: 10px;
-                        ">
-                            <label style="
-                                position: relative;
-                                display: inline-block;
-                                width: 50px;
-                                height: 26px;
+                        <div 
+                            id="lang-switch-arrow"
+                            style="
+                                font-size: 24px;
+                                color: #ffeb3b;
                                 cursor: pointer;
-                            ">
-                                <input type="checkbox" id="lang-switch" style="opacity: 0; width: 0; height: 0;">
-                                <span id="lang-switch-bg" style="
-                                    position: absolute;
-                                    cursor: pointer;
-                                    top: 0;
-                                    left: 0;
-                                    right: 0;
-                                    bottom: 0;
-                                    background: #ffeb3b;
-                                    transition: 0.3s;
-                                    border-radius: 26px;
-                                ">
-                                    <span id="lang-switch-slider" style="
-                                        position: absolute;
-                                        content: '';
-                                        height: 20px;
-                                        width: 20px;
-                                        left: 3px;
-                                        bottom: 3px;
-                                        background: white;
-                                        transition: 0.3s;
-                                        border-radius: 50%;
-                                    "></span>
-                                </span>
-                            </label>
-                            <div style="
-                                font-size: 20px;
-                                color: rgba(255,255,255,0.8);
-                            ">⇄</div>
-                        </div>
+                                padding: 5px 15px;
+                                transition: all 0.2s ease;
+                                user-select: none;
+                            "
+                            onmouseover="this.style.transform='scale(1.2)';"
+                            onmouseout="this.style.transform='scale(1)';"
+                        >⇄</div>
                         
                         <div id="lang-right" style="
                             font-size: 16px;
@@ -6138,7 +6186,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         `;
         
         return `
-            <div style="
+            <div id="environment-info-panel" style="
                 margin-top: 2px;
                 margin-bottom: 8px;
                 padding: 8px 12px;
