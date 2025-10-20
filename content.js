@@ -3432,6 +3432,12 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             translationBackBtnHeader.style.display = 'block';
                         }
                         
+                        // Hide QR Code card if open
+                        const qrcodeCard = content.querySelector('#qrcode-card');
+                        if (qrcodeCard) {
+                            qrcodeCard.style.display = 'none';
+                        }
+                        
                         // Hide all content (environment info, search panel, function panel, navLinksCard)
                         if (environmentInfoPanel) {
                             environmentInfoPanel.style.display = 'none';
@@ -3638,6 +3644,183 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 document.head.appendChild(style);
                 
                 console.log('✓ Translation Tool button event listener added');
+            }
+            
+            // Add QR Code button event listener
+            const qrcodeBtn = content.querySelector('#qrcode-btn');
+            const qrcodeCard = content.querySelector('#qrcode-card');
+            let isQRCodeToolOpen = false;
+            
+            if (qrcodeBtn && qrcodeCard) {
+                // QR Code generation function
+                const qrcodeInput = content.querySelector('#qrcode-input');
+                const qrcodeDisplay = content.querySelector('#qrcode-display');
+                const generateQrcodeBtn = content.querySelector('#generate-qrcode-btn');
+                const clearQrcodeBtn = content.querySelector('#clear-qrcode-btn');
+                
+                function generateQRCode(text) {
+                    if (!text) {
+                        qrcodeDisplay.innerHTML = '<div style="color: #999; font-size: 14px; text-align: center;">Please enter text or URL to generate QR code</div>';
+                        return;
+                    }
+                    
+                    // Show loading state
+                    qrcodeDisplay.innerHTML = '<div style="color: #999; font-size: 14px; text-align: center;">Generating QR code...</div>';
+                    
+                    // Use QR Server API to generate QR code
+                    const encodedText = encodeURIComponent(text);
+                    const qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=' + encodedText;
+                    
+                    // Create image element
+                    const img = document.createElement('img');
+                    img.src = qrCodeUrl;
+                    img.alt = 'QR Code';
+                    img.style.maxWidth = '280px';
+                    img.style.maxHeight = '280px';
+                    img.style.display = 'block';
+                    
+                    img.onload = () => {
+                        qrcodeDisplay.innerHTML = '';
+                        qrcodeDisplay.appendChild(img);
+                        console.log('✓ QR Code generated successfully');
+                    };
+                    
+                    img.onerror = () => {
+                        qrcodeDisplay.innerHTML = '<div style="color: #f44336; font-size: 14px; text-align: center;">Failed to generate QR code. Please try again.</div>';
+                    };
+                }
+                
+                // QRcode button click event with auto-generation
+                qrcodeBtn.addEventListener('click', () => {
+                    console.log('📱 Toggle QR Code Tool');
+                    
+                    isQRCodeToolOpen = !isQRCodeToolOpen;
+                    
+                    if (isQRCodeToolOpen) {
+                        // First, show QR code card and UI
+                        qrcodeCard.style.display = 'block';
+                        
+                        // Show Back button
+                        if (translationBackBtnHeader) {
+                            translationBackBtnHeader.style.display = 'block';
+                        }
+                        
+                        // Hide translation card if open
+                        if (translationCard) {
+                            translationCard.style.display = 'none';
+                        }
+                        
+                        // Hide all content
+                        if (environmentInfoPanel) {
+                            environmentInfoPanel.style.display = 'none';
+                        }
+                        if (searchPanel) {
+                            searchPanel.style.display = 'none';
+                        }
+                        if (functionPanel) {
+                            functionPanel.style.display = 'none';
+                        }
+                        if (navLinksCardEl) {
+                            navLinksCardEl.style.display = 'none';
+                        }
+                        
+                        // Auto-fill current URL
+                        const currentUrl = window.location.href;
+                        if (qrcodeInput) {
+                            qrcodeInput.value = currentUrl;
+                        }
+                        
+                        // Then generate QR code in background
+                        setTimeout(() => {
+                            generateQRCode(currentUrl);
+                        }, 100);
+                        
+                    } else {
+                        // Hide QR code card
+                        qrcodeCard.style.display = 'none';
+                        
+                        // Hide Back button
+                        if (translationBackBtnHeader) {
+                            translationBackBtnHeader.style.display = 'none';
+                        }
+                        
+                        // Show all content
+                        if (environmentInfoPanel) {
+                            environmentInfoPanel.style.display = 'flex';
+                        }
+                        if (searchPanel) {
+                            searchPanel.style.display = 'block';
+                        }
+                        if (functionPanel) {
+                            functionPanel.style.display = 'block';
+                        }
+                        if (navLinksCardEl) {
+                            navLinksCardEl.style.display = 'block';
+                        }
+                    }
+                });
+                
+                // Generate QR Code button
+                if (generateQrcodeBtn && qrcodeInput) {
+                    generateQrcodeBtn.addEventListener('click', () => {
+                        const text = qrcodeInput.value.trim();
+                        generateQRCode(text);
+                    });
+                }
+                
+                // Clear Input button
+                if (clearQrcodeBtn && qrcodeInput) {
+                    clearQrcodeBtn.addEventListener('click', () => {
+                        qrcodeInput.value = '';
+                        qrcodeDisplay.innerHTML = '<div style="color: #999; font-size: 14px; text-align: center;">Your QR code will appear here</div>';
+                    });
+                }
+                
+                // Add placeholder styles for QR Code input
+                const qrcodeStyle = document.createElement('style');
+                qrcodeStyle.textContent = '#qrcode-input::placeholder { color: rgba(255, 255, 255, 0.5) !important; }';
+                document.head.appendChild(qrcodeStyle);
+                
+                console.log('✓ QR Code button event listener added');
+            }
+            
+            // Add Back button event listener for both Translation and QR Code
+            const translationBackBtn = content.querySelector('#translation-back-btn');
+            if (translationBackBtn) {
+                translationBackBtn.addEventListener('click', () => {
+                    console.log('← Back button clicked');
+                    
+                    // Hide both cards
+                    if (translationCard) {
+                        translationCard.style.display = 'none';
+                    }
+                    if (qrcodeCard) {
+                        qrcodeCard.style.display = 'none';
+                    }
+                    
+                    // Hide Back button
+                    translationBackBtn.style.display = 'none';
+                    
+                    // Show all content
+                    if (environmentInfoPanel) {
+                        environmentInfoPanel.style.display = 'flex';
+                    }
+                    if (searchPanel) {
+                        searchPanel.style.display = 'block';
+                    }
+                    if (functionPanel) {
+                        functionPanel.style.display = 'block';
+                    }
+                    if (navLinksCardEl) {
+                        navLinksCardEl.style.display = 'block';
+                    }
+                    
+                    // Reset states
+                    isTranslationToolOpen = false;
+                    isQRCodeToolOpen = false;
+                });
+                
+                console.log('✓ Back button event listener added');
             }
             
             // Add refresh button event listener
@@ -5924,25 +6107,40 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 border: 1px solid rgba(255,255,255,0.2);
                 padding: 15px;
             ">
-                <!-- Header with Translation label and Back button -->
+                <!-- Header with Translation label, QRcode button and Back button -->
                 <div style="
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
                     margin-bottom: 0;
                 ">
-                    <div 
-                        id="open-translation-tool-btn"
-                        style="
-                            background: transparent;
-                            color: #ffeb3b;
-                            border: none;
-                            padding: 0;
-                            cursor: pointer;
-                            font-size: 16px;
-                            font-weight: bold;
-                        "
-                    >Translation</div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div 
+                            id="open-translation-tool-btn"
+                            style="
+                                background: transparent;
+                                color: #ffeb3b;
+                                border: none;
+                                padding: 0;
+                                cursor: pointer;
+                                font-size: 16px;
+                                font-weight: bold;
+                            "
+                        >Translation</div>
+                        
+                        <div 
+                            id="qrcode-btn"
+                            style="
+                                background: transparent;
+                                color: #ffeb3b;
+                                border: none;
+                                padding: 0;
+                                cursor: pointer;
+                                font-size: 16px;
+                                font-weight: bold;
+                            "
+                        >QRcode</div>
+                    </div>
                     
                     <button 
                         id="translation-back-btn"
@@ -6107,6 +6305,107 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 onmouseout="this.style.background='rgba(255,255,255,0.2)';"
                             >Copy</button>
                         </div>
+                    </div>
+                </div>
+                
+                <!-- QR Code Card (hidden by default) -->
+                <div id="qrcode-card" style="display: none; padding: 0; margin-top: 15px;">
+                    
+                    <!-- Input Section -->
+                    <div style="
+                        background: rgba(255,255,255,0.15);
+                        border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 8px;
+                        padding: 12px;
+                        margin-bottom: 10px;
+                    ">
+                        <div style="
+                            font-size: 14px;
+                            font-weight: bold;
+                            color: #fff;
+                            margin-bottom: 8px;
+                        ">Enter Your Data</div>
+                        
+                        <textarea 
+                            id="qrcode-input"
+                            placeholder="Enter text or URL to generate QR code..."
+                            style="
+                                width: 100%;
+                                min-height: 50px;
+                                padding: 10px;
+                                border: 1px solid rgba(255,255,255,0.2);
+                                border-radius: 6px;
+                                font-size: 13px;
+                                resize: vertical;
+                                box-sizing: border-box;
+                                background: rgba(255,255,255,0.1);
+                                color: #fff;
+                                outline: none;
+                                margin-bottom: 10px;
+                            "
+                        ></textarea>
+                        
+                        <!-- Buttons -->
+                        <div style="display: flex; gap: 8px;">
+                            <button 
+                                id="generate-qrcode-btn"
+                                style="
+                                    flex: 1;
+                                    background: #a855f7;
+                                    color: #fff;
+                                    border: none;
+                                    padding: 8px 16px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 13px;
+                                    font-weight: bold;
+                                    transition: all 0.2s ease;
+                                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                                "
+                                onmouseover="this.style.background='#9333ea'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.3)';"
+                                onmouseout="this.style.background='#a855f7'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
+                            >Gen QRCode</button>
+                            
+                            <button 
+                                id="clear-qrcode-btn"
+                                style="
+                                    flex: 1;
+                                    background: rgba(255,255,255,0.2);
+                                    color: #fff;
+                                    border: 1px solid rgba(255,255,255,0.3);
+                                    padding: 8px 16px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 13px;
+                                    font-weight: bold;
+                                    transition: all 0.2s ease;
+                                "
+                                onmouseover="this.style.background='rgba(255,255,255,0.3)';"
+                                onmouseout="this.style.background='rgba(255,255,255,0.2)';"
+                            >Clear</button>
+                        </div>
+                    </div>
+                    
+                    <!-- QR Code Display Section -->
+                    <div 
+                        id="qrcode-display"
+                        style="
+                            background: #fff;
+                            border-radius: 8px;
+                            padding: 20px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            min-height: 280px;
+                            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                            margin-bottom: 10px;
+                        "
+                    >
+                        <div style="
+                            color: #999;
+                            font-size: 14px;
+                            text-align: center;
+                        ">Generating QR code...</div>
                     </div>
                 </div>
             </div>
