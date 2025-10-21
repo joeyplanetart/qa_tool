@@ -1143,7 +1143,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         
         // Multiple search attempts with different timings and polling
         let searchAttempts = 0;
-        const maxAttempts = 15;  // Increased attempts
+        const maxAttempts = 3;  // Reduced attempts for better performance
         let pollInterval;
         let foundProductOptions = false;
         
@@ -1687,7 +1687,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 console.log('Failed to find product_options after', maxAttempts, 'attempts');
                 
                 // Start continuous polling as last resort
-                console.log('Starting continuous polling every 2 seconds...');
+                console.log('Starting continuous polling every 3 seconds...');
                 pollInterval = setInterval(() => {
                     if (foundProductOptions) {
                         clearInterval(pollInterval);
@@ -1845,7 +1845,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         
                         clearInterval(pollInterval);
                     }
-                }, 2000);
+                }, 3000);
                 
                 // Stop polling after 60 seconds (increased from 30)
                 setTimeout(() => {
