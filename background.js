@@ -683,6 +683,178 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Return true to indicate async response
         return true;
     }
+    
+    // Handle GET_COOKIES request
+    if (request.type === 'GET_COOKIES') {
+        console.log('🍪 Background: Getting cookies for URL:', request.url);
+        
+        const url = request.url;
+        
+        chrome.cookies.getAll({ url: url }, (cookies) => {
+            console.log(`✅ Background: Found ${cookies.length} cookies`);
+            if (cookies.length > 0) {
+                console.log('Cookie names:', cookies.map(c => c.name).join(', '));
+            }
+            sendResponse(cookies);
+        });
+        
+        // Return true to indicate async response
+        return true;
+    }
+    
+    // Handle CLEAR_COOKIES request
+    if (request.type === 'CLEAR_COOKIES') {
+        console.log('🗑️ Background: Clearing cookies for URL:', request.url);
+        
+        const url = request.url;
+        
+        chrome.cookies.getAll({ url: url }, async (cookies) => {
+            console.log(`Found ${cookies.length} cookies to clear`);
+            
+            let cleared = 0;
+            let failed = 0;
+            
+            for (const cookie of cookies) {
+                try {
+                    const cookieUrl = `http${cookie.secure ? 's' : ''}://${cookie.domain}${cookie.path}`;
+                    await chrome.cookies.remove({
+                        url: cookieUrl,
+                        name: cookie.name
+                    });
+                    cleared++;
+                    console.log(`✅ Cleared cookie: ${cookie.name}`);
+                } catch (error) {
+                    failed++;
+                    console.error(`❌ Failed to clear cookie ${cookie.name}:`, error);
+                }
+            }
+            
+            console.log(`🍪 Cookie clearing complete: ${cleared} cleared, ${failed} failed`);
+            
+            sendResponse({
+                success: true,
+                cleared: cleared,
+                failed: failed,
+                total: cookies.length
+            });
+        });
+        
+        // Return true to indicate async response
+        return true;
+    }
+    
+    // Handle SET_COOKIE request
+    if (request.type === 'SET_COOKIE') {
+        console.log('🍪 Background: Setting cookie:', request.name);
+        console.log('Request details:', JSON.stringify(request, null, 2));
+        
+        const { name, value, domain, url } = request;
+        
+        try {
+            // Get current URL to determine protocol
+            const urlObj = new URL(url);
+            const protocol = urlObj.protocol;
+            const path = '/'; // Default path
+            
+            // For same-origin cookies, Chrome cookies API automatically handles the domain
+            // We should NOT set the domain property for same-origin cookies
+            // Only set domain if we explicitly want to share across subdomains
+            const cookieDetails = {
+                url: url,  // Chrome API uses URL to determine the correct domain automatically
+                name: name,
+                value: value,
+                path: path,
+                httpOnly: false,
+                sameSite: 'lax',  // Must be lowercase: 'lax', 'strict', 'no_restriction', or 'unspecified'
+                expirationDate: Date.now() / 1000 + 365 * 24 * 60 * 60 // 1 year from now
+            };
+            
+            // Only set secure flag if the page is using HTTPS
+            // Don't force secure on HTTP pages as it will fail
+            if (protocol === 'https:') {
+                cookieDetails.secure = true;
+            }
+            // If HTTP, don't set secure (Chrome API default is false for HTTP)
+            
+            // Don't set domain for same-origin cookies - Chrome API handles this automatically
+            // Only add domain if we want to share cookie across subdomains (not needed for basic use case)
+            
+            console.log('Setting cookie with details:', JSON.stringify(cookieDetails, null, 2));
+            
+            // Set cookie
+            chrome.cookies.set(cookieDetails, (cookie) => {
+                if (chrome.runtime.lastError) {
+                    console.error('❌ Error setting cookie:', chrome.runtime.lastError);
+                    console.error('Failed cookie details:', cookieDetails);
+                    sendResponse({
+                        success: false,
+                        error: chrome.runtime.lastError.message
+                    });
+                } else {
+                    console.log('✅ Cookie set successfully:', cookie);
+                    console.log('Cookie domain:', cookie.domain);
+                    console.log('Cookie path:', cookie.path);
+                    sendResponse({
+                        success: true,
+                        cookie: cookie
+                    });
+                }
+            });
+            
+            // Return true to indicate async response
+            return true;
+        } catch (error) {
+            console.error('❌ Error in SET_COOKIE:', error);
+            sendResponse({
+                success: false,
+                error: error.message
+            });
+            return false;
+        }
+    }
+    
+    // Handle DELETE_COOKIE request
+    if (request.type === 'DELETE_COOKIE') {
+        console.log('🗑️ Background: Deleting cookie:', request.name);
+        
+        const { name, domain, path, url } = request;
+        
+        try {
+            // Construct cookie URL
+            const urlObj = new URL(url);
+            const protocol = urlObj.protocol;
+            const cookieUrl = `${protocol}//${domain}${path}`;
+            
+            chrome.cookies.remove({
+                url: cookieUrl,
+                name: name
+            }, (details) => {
+                if (chrome.runtime.lastError) {
+                    console.error('❌ Error deleting cookie:', chrome.runtime.lastError);
+                    sendResponse({
+                        success: false,
+                        error: chrome.runtime.lastError.message
+                    });
+                } else {
+                    console.log('✅ Cookie deleted successfully:', name);
+                    sendResponse({
+                        success: true,
+                        name: name
+                    });
+                }
+            });
+            
+            // Return true to indicate async response
+            return true;
+        } catch (error) {
+            console.error('❌ Error in DELETE_COOKIE:', error);
+            sendResponse({
+                success: false,
+                error: error.message
+            });
+            return false;
+        }
+    }
 });
 
 // Handle extension icon click

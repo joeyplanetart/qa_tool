@@ -3432,10 +3432,24 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             translationBackBtnHeader.style.display = 'block';
                         }
                         
-                        // Hide QR Code card if open
+                        // Hide other cards
                         const qrcodeCard = content.querySelector('#qrcode-card');
+                        const cookieCard = content.querySelector('#cookie-card');
                         if (qrcodeCard) {
                             qrcodeCard.style.display = 'none';
+                        }
+                        if (cookieCard) {
+                            cookieCard.style.display = 'none';
+                        }
+                        
+                        // Hide other buttons - only show Translation
+                        const qrBtn = content.querySelector('#qrcode-btn');
+                        const cookieBtnEl = content.querySelector('#cookie-btn');
+                        if (qrBtn) {
+                            qrBtn.style.display = 'none';
+                        }
+                        if (cookieBtnEl) {
+                            cookieBtnEl.style.display = 'none';
                         }
                         
                         // Hide all content (environment info, search panel, function panel, navLinksCard)
@@ -3454,6 +3468,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     } else {
                         // Hide translation card
                         translationCard.style.display = 'none';
+                        
+                        // Show other buttons again
+                        const qrBtn = content.querySelector('#qrcode-btn');
+                        const cookieBtnEl = content.querySelector('#cookie-btn');
+                        if (qrBtn) {
+                            qrBtn.style.display = 'block';
+                        }
+                        if (cookieBtnEl) {
+                            cookieBtnEl.style.display = 'block';
+                        }
                         
                         // Hide Back button
                         if (translationBackBtnHeader) {
@@ -3705,9 +3729,23 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             translationBackBtnHeader.style.display = 'block';
                         }
                         
-                        // Hide translation card if open
+                        // Hide other cards
                         if (translationCard) {
                             translationCard.style.display = 'none';
+                        }
+                        const cookieCard = content.querySelector('#cookie-card');
+                        if (cookieCard) {
+                            cookieCard.style.display = 'none';
+                        }
+                        
+                        // Hide other buttons - only show QRcode
+                        const translationBtn = content.querySelector('#open-translation-tool-btn');
+                        const cookieBtnEl = content.querySelector('#cookie-btn');
+                        if (translationBtn) {
+                            translationBtn.style.display = 'none';
+                        }
+                        if (cookieBtnEl) {
+                            cookieBtnEl.style.display = 'none';
                         }
                         
                         // Hide all content
@@ -3738,6 +3776,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     } else {
                         // Hide QR code card
                         qrcodeCard.style.display = 'none';
+                        
+                        // Show other buttons again
+                        const translationBtn = content.querySelector('#open-translation-tool-btn');
+                        const cookieBtnEl = content.querySelector('#cookie-btn');
+                        if (translationBtn) {
+                            translationBtn.style.display = 'block';
+                        }
+                        if (cookieBtnEl) {
+                            cookieBtnEl.style.display = 'block';
+                        }
                         
                         // Hide Back button
                         if (translationBackBtnHeader) {
@@ -3784,18 +3832,354 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 console.log('✓ QR Code button event listener added');
             }
             
-            // Add Back button event listener for both Translation and QR Code
+            // Add Cookie Management button event listener
+            const cookieBtn = content.querySelector('#cookie-btn');
+            const cookieCard = content.querySelector('#cookie-card');
+            let isCookieToolOpen = false;
+            
+            if (cookieBtn && cookieCard) {
+                cookieBtn.addEventListener('click', () => {
+                    console.log('🍪 Toggle Cookie Management Tool');
+                    
+                    isCookieToolOpen = !isCookieToolOpen;
+                    
+                    if (isCookieToolOpen) {
+                        // Hide other cards
+                        if (translationCard) {
+                            translationCard.style.display = 'none';
+                        }
+                        if (qrcodeCard) {
+                            qrcodeCard.style.display = 'none';
+                        }
+                        
+                        // Hide other buttons - only show Cookie
+                        const translationBtn = content.querySelector('#open-translation-tool-btn');
+                        const qrBtn = content.querySelector('#qrcode-btn');
+                        if (translationBtn) {
+                            translationBtn.style.display = 'none';
+                        }
+                        if (qrBtn) {
+                            qrBtn.style.display = 'none';
+                        }
+                        
+                        // Show Cookie card
+                        cookieCard.style.display = 'block';
+                        
+                        // Show Back button
+                        if (translationBackBtn) {
+                            translationBackBtn.style.display = 'block';
+                        }
+                        
+                        // Hide other content
+                        if (environmentInfoPanel) {
+                            environmentInfoPanel.style.display = 'none';
+                        }
+                        if (searchPanel) {
+                            searchPanel.style.display = 'none';
+                        }
+                        if (functionPanel) {
+                            functionPanel.style.display = 'none';
+                        }
+                        if (navLinksCardEl) {
+                            navLinksCardEl.style.display = 'none';
+                        }
+                        
+                        // Load cookies automatically
+                        loadCookies();
+                    } else {
+                        cookieCard.style.display = 'none';
+                        
+                        // Show other buttons again
+                        const translationBtn = content.querySelector('#open-translation-tool-btn');
+                        const qrBtn = content.querySelector('#qrcode-btn');
+                        if (translationBtn) {
+                            translationBtn.style.display = 'block';
+                        }
+                        if (qrBtn) {
+                            qrBtn.style.display = 'block';
+                        }
+                        
+                        if (translationBackBtn) {
+                            translationBackBtn.style.display = 'none';
+                        }
+                        
+                        // Show all content
+                        if (environmentInfoPanel) {
+                            environmentInfoPanel.style.display = 'flex';
+                        }
+                        if (searchPanel) {
+                            searchPanel.style.display = 'block';
+                        }
+                        if (functionPanel) {
+                            functionPanel.style.display = 'block';
+                        }
+                        if (navLinksCardEl) {
+                            navLinksCardEl.style.display = 'block';
+                        }
+                    }
+                });
+                
+                // Add Refresh Cookies button event listener
+                const refreshCookiesBtn = content.querySelector('#refresh-cookies-btn');
+                if (refreshCookiesBtn) {
+                    refreshCookiesBtn.addEventListener('click', () => {
+                        console.log('🔄 Refreshing cookies...');
+                        loadCookies();
+                    });
+                }
+                
+                // Add Export Cookies button event listener
+                const exportCookiesBtn = content.querySelector('#export-cookies-btn');
+                if (exportCookiesBtn) {
+                    exportCookiesBtn.addEventListener('click', async () => {
+                        console.log('📋 Exporting cookies...');
+                        const currentUrl = window.location.href;
+                        
+                        try {
+                            const cookies = await chrome.runtime.sendMessage({
+                                type: 'GET_COOKIES',
+                                url: currentUrl
+                            });
+                            
+                            if (cookies && cookies.length > 0) {
+                                const cookieText = cookies.map(cookie => 
+                                    `${cookie.name}=${cookie.value}`
+                                ).join('; ');
+                                
+                                await navigator.clipboard.writeText(cookieText);
+                                showToastNotification('✅ Cookies copied to clipboard!', 'success');
+                            } else {
+                                showToastNotification('⚠️ No cookies found', 'warning');
+                            }
+                        } catch (error) {
+                            console.error('❌ Export cookies error:', error);
+                            showToastNotification('❌ Failed to export cookies', 'error');
+                        }
+                    });
+                }
+                
+                // Add Cookie button event listener
+                const addCookieBtn = content.querySelector('#add-cookie-btn');
+                const newCookieKeyInput = content.querySelector('#new-cookie-key');
+                const newCookieValueInput = content.querySelector('#new-cookie-value');
+                
+                if (addCookieBtn && newCookieKeyInput && newCookieValueInput) {
+                    // Enter key support for inputs
+                    const handleAddCookie = async () => {
+                        const key = newCookieKeyInput.value.trim();
+                        const value = newCookieValueInput.value.trim();
+                        
+                        if (!key || !value) {
+                            showToastNotification('⚠️ Please enter both Key and Value', 'warning');
+                            return;
+                        }
+                        
+                        const currentUrl = window.location.href;
+                        const urlObj = new URL(currentUrl);
+                        const domain = urlObj.hostname;
+                        
+                        // Disable button during operation
+                        addCookieBtn.disabled = true;
+                        const originalText = addCookieBtn.textContent;
+                        addCookieBtn.textContent = 'Adding...';
+                        
+                        try {
+                            const response = await chrome.runtime.sendMessage({
+                                type: 'SET_COOKIE',
+                                name: key,
+                                value: value,
+                                domain: domain,
+                                url: currentUrl
+                            });
+                            
+                            if (response && response.success) {
+                                console.log('✅ Cookie added successfully:', response.cookie);
+                                showToastNotification(`✅ Cookie "${key}" added successfully!`, 'success');
+                                
+                                // Clear inputs
+                                newCookieKeyInput.value = '';
+                                newCookieValueInput.value = '';
+                                
+                                // Wait a bit to ensure cookie is fully set before refreshing
+                                await new Promise(resolve => setTimeout(resolve, 300));
+                                
+                                // Refresh cookie list
+                                await loadCookies();
+                            } else {
+                                const errorMsg = response?.error || 'Unknown error';
+                                console.error('❌ Add cookie failed:', errorMsg);
+                                showToastNotification(`❌ Failed to add cookie: ${errorMsg}`, 'error');
+                            }
+                        } catch (error) {
+                            console.error('❌ Add cookie error:', error);
+                            showToastNotification('❌ Failed to add cookie', 'error');
+                        } finally {
+                            // Re-enable button
+                            addCookieBtn.disabled = false;
+                            addCookieBtn.textContent = originalText;
+                        }
+                    };
+                    
+                    addCookieBtn.addEventListener('click', handleAddCookie);
+                    
+                    newCookieKeyInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            newCookieValueInput.focus();
+                        }
+                    });
+                    
+                    newCookieValueInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            handleAddCookie();
+                        }
+                    });
+                }
+                
+                // Function to load and display cookies
+                async function loadCookies() {
+                    const cookieListEl = content.querySelector('#cookie-list');
+                    if (!cookieListEl) return;
+                    
+                    cookieListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px;">Loading...</div>';
+                    
+                    const currentUrl = window.location.href;
+                    
+                    try {
+                        const cookies = await chrome.runtime.sendMessage({
+                            type: 'GET_COOKIES',
+                            url: currentUrl
+                        });
+                        
+                        if (!cookies || cookies.length === 0) {
+                            cookieListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px;">No cookies found</div>';
+                            return;
+                        }
+                        
+                        let html = '';
+                        
+                        cookies.forEach((cookie, index) => {
+                            html += `
+                                <div style="
+                                    background: rgba(255,255,255,0.08);
+                                    border-radius: 6px;
+                                    padding: 12px;
+                                    margin-bottom: 10px;
+                                    display: flex;
+                                    align-items: flex-start;
+                                    gap: 12px;
+                                    border: 1px solid rgba(255,255,255,0.1);
+                                    transition: all 0.2s ease;
+                                " onmouseover="this.style.background='rgba(255,255,255,0.12)'; this.style.borderColor='rgba(255,255,255,0.2)';" onmouseout="this.style.background='rgba(255,255,255,0.08)'; this.style.borderColor='rgba(255,255,255,0.1)';">
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div style="
+                                            font-weight: bold;
+                                            color: #fff;
+                                            margin-bottom: 6px;
+                                            word-break: break-all;
+                                            font-size: 14px;
+                                        ">${cookie.name}</div>
+                                        <div style="
+                                            color: rgba(255,255,255,0.7);
+                                            font-size: 12px;
+                                            word-break: break-all;
+                                            font-family: monospace;
+                                            line-height: 1.5;
+                                        ">${cookie.value}</div>
+                                    </div>
+                                    <button 
+                                        class="delete-cookie-btn"
+                                        data-cookie-name="${cookie.name}"
+                                        data-cookie-domain="${cookie.domain}"
+                                        data-cookie-path="${cookie.path}"
+                                        style="
+                                            width: 32px;
+                                            height: 32px;
+                                            min-width: 32px;
+                                            background: #fff;
+                                            border: none;
+                                            border-radius: 50%;
+                                            color: #333;
+                                            cursor: pointer;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            font-size: 18px;
+                                            font-weight: bold;
+                                            flex-shrink: 0;
+                                        "
+                                        title="Delete cookie"
+                                    >×</button>
+                                </div>
+                            `;
+                        });
+                        
+                        cookieListEl.innerHTML = html;
+                        
+                        // Add delete button event listeners
+                        const deleteButtons = cookieListEl.querySelectorAll('.delete-cookie-btn');
+                        deleteButtons.forEach(btn => {
+                            btn.addEventListener('click', async (e) => {
+                                e.stopPropagation();
+                                const cookieName = btn.getAttribute('data-cookie-name');
+                                const cookieDomain = btn.getAttribute('data-cookie-domain');
+                                const cookiePath = btn.getAttribute('data-cookie-path');
+                                
+                                try {
+                                    await chrome.runtime.sendMessage({
+                                        type: 'DELETE_COOKIE',
+                                        name: cookieName,
+                                        domain: cookieDomain,
+                                        path: cookiePath,
+                                        url: currentUrl
+                                    });
+                                    
+                                    showToastNotification(`✅ Cookie "${cookieName}" deleted successfully!`, 'success');
+                                    loadCookies(); // Refresh the list
+                                } catch (error) {
+                                    console.error('❌ Delete cookie error:', error);
+                                    showToastNotification('❌ Failed to delete cookie', 'error');
+                                }
+                            });
+                        });
+                    } catch (error) {
+                        console.error('❌ Load cookies error:', error);
+                        cookieListEl.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 20px;">Failed to load cookies</div>';
+                    }
+                }
+                
+                console.log('✓ Cookie Management button event listener added');
+            }
+            
+            // Add Back button event listener for Translation, QR Code and Cookie
             const translationBackBtn = content.querySelector('#translation-back-btn');
             if (translationBackBtn) {
                 translationBackBtn.addEventListener('click', () => {
                     console.log('← Back button clicked');
                     
-                    // Hide both cards
+                    // Hide all cards
                     if (translationCard) {
                         translationCard.style.display = 'none';
                     }
                     if (qrcodeCard) {
                         qrcodeCard.style.display = 'none';
+                    }
+                    if (cookieCard) {
+                        cookieCard.style.display = 'none';
+                    }
+                    
+                    // Show all buttons again
+                    const translationBtn = content.querySelector('#open-translation-tool-btn');
+                    const qrBtn = content.querySelector('#qrcode-btn');
+                    const cookieBtnEl = content.querySelector('#cookie-btn');
+                    
+                    if (translationBtn) {
+                        translationBtn.style.display = 'block';
+                    }
+                    if (qrBtn) {
+                        qrBtn.style.display = 'block';
+                    }
+                    if (cookieBtnEl) {
+                        cookieBtnEl.style.display = 'block';
                     }
                     
                     // Hide Back button
@@ -3818,6 +4202,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     // Reset states
                     isTranslationToolOpen = false;
                     isQRCodeToolOpen = false;
+                    isCookieToolOpen = false;
                 });
                 
                 console.log('✓ Back button event listener added');
@@ -6140,6 +6525,19 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 font-weight: bold;
                             "
                         >QRcode</div>
+                        
+                        <div 
+                            id="cookie-btn"
+                            style="
+                                background: transparent;
+                                color: #ffeb3b;
+                                border: none;
+                                padding: 0;
+                                cursor: pointer;
+                                font-size: 16px;
+                                font-weight: bold;
+                            "
+                        >Cookie</div>
                     </div>
                     
                     <button 
@@ -6406,6 +6804,172 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             font-size: 14px;
                             text-align: center;
                         ">Generating QR code...</div>
+                    </div>
+                </div>
+                
+                <!-- Cookie Management Card (hidden by default) -->
+                <div id="cookie-card" style="display: none; padding: 0; margin-top: 15px;">
+                    
+                    <!-- Add New Cookie Section -->
+                    <div style="
+                        background: rgba(255,255,255,0.15);
+                        border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 8px;
+                        padding: 18px;
+                        margin-bottom: 15px;
+                    ">
+                        <div style="
+                            font-size: 16px;
+                            font-weight: bold;
+                            color: #fff;
+                            margin-bottom: 15px;
+                        ">Add New Cookie</div>
+                        
+                        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                            <div style="flex: 1;">
+                                <label style="
+                                    display: block;
+                                    font-size: 13px;
+                                    color: rgba(255,255,255,0.9);
+                                    margin-bottom: 6px;
+                                    font-weight: 500;
+                                ">Key</label>
+                                <input 
+                                    type="text" 
+                                    id="new-cookie-key"
+                                    placeholder="key"
+                                    style="
+                                        width: 100%;
+                                        padding: 10px 12px;
+                                        border: 1px solid rgba(255,255,255,0.3);
+                                        border-radius: 6px;
+                                        background: rgba(255,255,255,0.1);
+                                        color: #fff;
+                                        font-size: 13px;
+                                        outline: none;
+                                        box-sizing: border-box;
+                                    "
+                                    onfocus="this.style.borderColor='#ffeb3b'; this.style.background='rgba(255,255,255,0.15)';"
+                                    onblur="this.style.borderColor='rgba(255,255,255,0.3)'; this.style.background='rgba(255,255,255,0.1)';"
+                                />
+                            </div>
+                            
+                            <div style="flex: 1;">
+                                <label style="
+                                    display: block;
+                                    font-size: 13px;
+                                    color: rgba(255,255,255,0.9);
+                                    margin-bottom: 6px;
+                                    font-weight: 500;
+                                ">Value</label>
+                                <input 
+                                    type="text" 
+                                    id="new-cookie-value"
+                                    placeholder="value"
+                                    style="
+                                        width: 100%;
+                                        padding: 10px 12px;
+                                        border: 1px solid rgba(255,255,255,0.3);
+                                        border-radius: 6px;
+                                        background: rgba(255,255,255,0.1);
+                                        color: #fff;
+                                        font-size: 13px;
+                                        outline: none;
+                                        box-sizing: border-box;
+                                    "
+                                    onfocus="this.style.borderColor='#ffeb3b'; this.style.background='rgba(255,255,255,0.15)';"
+                                    onblur="this.style.borderColor='rgba(255,255,255,0.3)'; this.style.background='rgba(255,255,255,0.1)';"
+                                />
+                            </div>
+                        </div>
+                        
+                        <button 
+                            id="add-cookie-btn"
+                            style="
+                                width: 100%;
+                                background: #ffeb3b;
+                                color: #333;
+                                border: none;
+                                padding: 10px 16px;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                font-weight: bold;
+                                transition: all 0.2s ease;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                            "
+                            onmouseover="this.style.background='#ffd700'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.3)';"
+                            onmouseout="this.style.background='#ffeb3b'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
+                        >Add Cookie</button>
+                    </div>
+                    
+                    <!-- Existing Cookies Section -->
+                    <div style="
+                        background: rgba(255,255,255,0.15);
+                        border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 8px;
+                        padding: 18px;
+                    ">
+                        <div style="
+                            font-size: 16px;
+                            font-weight: bold;
+                            color: #fff;
+                            margin-bottom: 15px;
+                        ">Existing Cookies</div>
+                        
+                        <!-- Cookie List Display -->
+                        <div 
+                            id="cookie-list"
+                            style="
+                                max-height: 350px;
+                                overflow-y: auto;
+                                font-size: 12px;
+                                color: #fff;
+                            "
+                        >
+                            <div style="color: #999; text-align: center; padding: 20px;">Loading cookies...</div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div style="display: flex; gap: 8px; margin-top: 15px;">
+                            <button 
+                                id="refresh-cookies-btn"
+                                style="
+                                    flex: 1;
+                                    background: #10b981;
+                                    color: #fff;
+                                    border: none;
+                                    padding: 10px 16px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 13px;
+                                    font-weight: bold;
+                                    transition: all 0.2s ease;
+                                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                                "
+                                onmouseover="this.style.background='#059669'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.3)';"
+                                onmouseout="this.style.background='#10b981'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
+                            >Refresh</button>
+                            
+                            <button 
+                                id="export-cookies-btn"
+                                style="
+                                    flex: 1;
+                                    background: #3b82f6;
+                                    color: #fff;
+                                    border: none;
+                                    padding: 10px 16px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 13px;
+                                    font-weight: bold;
+                                    transition: all 0.2s ease;
+                                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                                "
+                                onmouseover="this.style.background='#2563eb'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.3)';"
+                                onmouseout="this.style.background='#3b82f6'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
+                            >Copy All</button>
+                        </div>
                     </div>
                 </div>
             </div>
