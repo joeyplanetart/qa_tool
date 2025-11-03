@@ -2020,8 +2020,90 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const existingBadge = productImage.parentElement.querySelector('.cp-product-id-badge');
             if (existingBadge) return;
             
-            // Build badge content - only show ID
-            const badgeContent = `ID: ${productId}`;
+            // Try to get PTN from PRODUCT_ITEMS array
+            let ptn = null;
+            try {
+                // Function to find PRODUCT_ITEMS in various locations
+                function findProductItemsArray() {
+                    // Try window objects first
+                    const windowArrays = [
+                        window.PRODUCT_ITEMS,
+                        window.product_items,
+                        window.productItems,
+                        window.products
+                    ].filter(arr => arr && Array.isArray(arr) && arr.length > 0);
+                    
+                    if (windowArrays.length > 0) {
+                        return windowArrays[0];
+                    }
+                    
+                    // Try to extract from script tags (for SSR)
+                    const scripts = document.querySelectorAll('script');
+                    for (let script of scripts) {
+                        const content = script.textContent || script.innerHTML;
+                        if (content && content.includes('PRODUCT_ITEMS')) {
+                            // Try to extract PRODUCT_ITEMS from script content
+                            try {
+                                // Look for var PRODUCT_ITEMS = [...] pattern
+                                const match = content.match(/var\s+PRODUCT_ITEMS\s*=\s*(\[[\s\S]*?\]);/);
+                                if (match && match[1]) {
+                                    const parsed = JSON.parse(match[1]);
+                                    if (Array.isArray(parsed) && parsed.length > 0) {
+                                        return parsed;
+                                    }
+                                }
+                                // Try without var keyword
+                                const match2 = content.match(/PRODUCT_ITEMS\s*=\s*(\[[\s\S]*?\]);/);
+                                if (match2 && match2[1]) {
+                                    const parsed = JSON.parse(match2[1]);
+                                    if (Array.isArray(parsed) && parsed.length > 0) {
+                                        return parsed;
+                                    }
+                                }
+                            } catch (e) {
+                                // Continue to next script
+                                continue;
+                            }
+                        }
+                    }
+                    
+                    return null;
+                }
+                
+                const productItems = findProductItemsArray();
+                if (productItems) {
+                    // URL ID is design_id, need to add 100000000000 to match product_items.design_id
+                    const designIdFromUrl = parseInt(productId);
+                    const fullDesignId = designIdFromUrl + 100000000000;
+                    
+                    // Search for matching item by design_id
+                    for (let i = 0; i < productItems.length; i++) {
+                        const item = productItems[i];
+                        if (!item) continue;
+                        
+                        const itemDesignId = item.design_id;
+                        if (itemDesignId === fullDesignId || 
+                            itemDesignId === designIdFromUrl ||
+                            String(itemDesignId) === String(fullDesignId) ||
+                            String(itemDesignId) === String(designIdFromUrl)) {
+                            ptn = item.product_type_no;
+                            if (ptn !== null && ptn !== undefined) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                // Silently fail, just proceed without PTN
+            }
+            
+            // Build badge content
+            let badgeContent = `ID: ${productId}`;
+            if (ptn !== null && ptn !== undefined) {
+                badgeContent += `\nPTN: ${ptn}`;
+            } else {
+                badgeContent += `\nPTN: N/A`;
+            }
             
             // Create product ID badge
             const badge = document.createElement('div');
@@ -2134,7 +2216,70 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             
             // Store productId on badge
             badge.setAttribute('data-product-id', productId);
+            
+            // If PTN not found, try to update it later (for delayed loading)
+            if (!ptn) {
+                setTimeout(() => {
+                    updateBadgePTN(badge, productId);
+                }, 2000);
+                setTimeout(() => {
+                    updateBadgePTN(badge, productId);
+                }, 5000);
+            }
         });
+    }
+    
+    // Function to update badge PTN if PRODUCT_ITEMS becomes available later
+    function updateBadgePTN(badge, productId) {
+        if (!badge || !productId) return;
+        
+        // Check if PTN is already set (not N/A)
+        const currentText = badge.textContent;
+        if (currentText && !currentText.includes('PTN: N/A')) {
+            return; // Already has PTN, no need to update
+        }
+        
+        let ptn = null;
+        try {
+            // Try to find PRODUCT_ITEMS
+            const windowArrays = [
+                window.PRODUCT_ITEMS,
+                window.product_items,
+                window.productItems,
+                window.products
+            ].filter(arr => arr && Array.isArray(arr) && arr.length > 0);
+            
+            const productItems = windowArrays.length > 0 ? windowArrays[0] : null;
+            
+            if (productItems) {
+                const designIdFromUrl = parseInt(productId);
+                const fullDesignId = designIdFromUrl + 100000000000;
+                
+                for (let i = 0; i < productItems.length; i++) {
+                    const item = productItems[i];
+                    if (!item) continue;
+                    
+                    const itemDesignId = item.design_id;
+                    if (itemDesignId === fullDesignId || 
+                        itemDesignId === designIdFromUrl ||
+                        String(itemDesignId) === String(fullDesignId) ||
+                        String(itemDesignId) === String(designIdFromUrl)) {
+                        ptn = item.product_type_no;
+                        if (ptn !== null && ptn !== undefined) {
+                            // Update badge content
+                            const lines = currentText.split('\n');
+                            if (lines.length >= 2) {
+                                lines[1] = `PTN: ${ptn}`;
+                                badge.textContent = lines.join('\n');
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            // Silently fail
+        }
     }
     
     // Initial call and observe for dynamic content
