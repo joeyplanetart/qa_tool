@@ -1952,6 +1952,255 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         setTimeout(extractProductInfo, 100);
     };
     
+    // Function to extract product ID from URL
+    function extractProductIdFromUrl(url) {
+        // Format: /+{seo-slug},{productId}
+        const match = url.match(/\/\+[^,]*?,(\d+)/);
+        if (match) {
+            return match[1];
+        }
+        // Format: ?productId={productId}
+        const productIdMatch = url.match(/[?&]productId=(\d+)/);
+        if (productIdMatch) {
+            return productIdMatch[1];
+        }
+        return null;
+    }
+    
+    // Function to check if we're on a product list page
+    function isProductListPage() {
+        const currentUrl = window.location.href;
+        // Product list page: URL contains /+xxx but doesn't have productId (no comma + number)
+        // Example: https://cafus-master.pre.planetart.com/+oven-mitts
+        const isListPattern = /\/\+[^/]+/.test(currentUrl);
+        const hasProductId = /\/\+[^,]*,\d+/.test(currentUrl);
+        return isListPattern && !hasProductId;
+    }
+    
+    // Function to display product IDs on product list page
+    function displayProductIdsOnListPage() {
+        if (!isProductListPage()) {
+            return;
+        }
+        
+        // Find all product links - try common patterns
+        // Look for links containing /+ pattern with comma and productId
+        const productLinks = document.querySelectorAll('a[href*="/+"]');
+        
+        productLinks.forEach((link, index) => {
+            const href = link.getAttribute('href');
+            if (!href) return;
+            
+            // Extract product ID from link
+            const productId = extractProductIdFromUrl(href);
+            if (!productId) return;
+            
+            // Find the product image (img tag) - search within the link or nearby
+            let productImage = link.querySelector('img');
+            
+            // If not found in link, search in parent elements
+            if (!productImage) {
+                let parent = link.parentElement;
+                let depth = 0;
+                const maxDepth = 5;
+                while (parent && depth < maxDepth) {
+                    productImage = parent.querySelector('img');
+                    if (productImage) break;
+                    parent = parent.parentElement;
+                    depth++;
+                }
+            }
+            
+            // If still no image found, skip this product
+            if (!productImage) {
+                return;
+            }
+            
+            // Check if badge already exists on this image
+            const existingBadge = productImage.parentElement.querySelector('.cp-product-id-badge');
+            if (existingBadge) return;
+            
+            // Build badge content - only show ID
+            const badgeContent = `ID: ${productId}`;
+            
+            // Create product ID badge
+            const badge = document.createElement('div');
+            badge.className = 'cp-product-id-badge';
+            badge.textContent = badgeContent;
+            badge.style.cssText = `
+                position: absolute;
+                bottom: 5px;
+                left: 5px;
+                background: rgba(255, 235, 59, 0.5);
+                color: #333;
+                padding: 6px 10px;
+                border-radius: 4px;
+                font-size: 10px;
+                font-weight: bold;
+                z-index: 1001;
+                pointer-events: auto;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                line-height: 1.4;
+                white-space: pre-line;
+                text-align: left;
+                max-width: 150px;
+                word-wrap: break-word;
+                cursor: pointer;
+                user-select: text;
+            `;
+            
+            // Add click handler to prevent navigation and enable copying
+            badge.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Calculate DesignId from CP Product ID (designId = cpProductId + 100000000000)
+                const designId = (parseInt(productId) + 100000000000).toString();
+                
+                // Try to copy ID to clipboard
+                const textToCopy = `ID: ${productId}\nDesignId: ${designId}`;
+                
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        // Show temporary feedback
+                        const originalText = badge.textContent;
+                        badge.textContent = 'Copied!';
+                        badge.style.background = 'rgba(76, 175, 80, 0.8)';
+                        setTimeout(() => {
+                            badge.textContent = originalText;
+                            badge.style.background = 'rgba(255, 235, 59, 0.5)';
+                        }, 1000);
+                    }).catch(err => {
+                        console.error('Failed to copy:', err);
+                    });
+                } else {
+                    // Fallback: select text
+                    const range = document.createRange();
+                    range.selectNodeContents(badge);
+                    const selection = window.getSelection();
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+            });
+            
+            // Prevent badge clicks from triggering link navigation
+            badge.addEventListener('mousedown', function(e) {
+                e.stopPropagation();
+            });
+            
+            badge.addEventListener('mouseup', function(e) {
+                e.stopPropagation();
+            });
+            
+            // Find the best container for the badge (should be the image's direct parent or a wrapper)
+            let imageContainer = productImage.parentElement;
+            
+            // If the image is directly inside a link, use the link as container
+            if (imageContainer === link && imageContainer.tagName === 'A') {
+                // Make sure the link has relative positioning
+                const linkStyle = window.getComputedStyle(imageContainer);
+                if (linkStyle.position === 'static') {
+                    imageContainer.style.position = 'relative';
+                }
+            } else {
+                // Look for the closest ancestor with relative/absolute positioning
+                let ancestor = imageContainer;
+                let foundPositioned = false;
+                
+                while (ancestor && ancestor !== document.body) {
+                    const ancestorStyle = window.getComputedStyle(ancestor);
+                    if (ancestorStyle.position === 'relative' || ancestorStyle.position === 'absolute') {
+                        imageContainer = ancestor;
+                        foundPositioned = true;
+                        break;
+                    }
+                    ancestor = ancestor.parentElement;
+                }
+                
+                // If no positioned ancestor found, use the image's direct parent and make it relative
+                if (!foundPositioned) {
+                    imageContainer = productImage.parentElement;
+                    const containerStyle = window.getComputedStyle(imageContainer);
+                    if (containerStyle.position === 'static') {
+                        imageContainer.style.position = 'relative';
+                    }
+                }
+            }
+            
+            // Ensure the badge is positioned relative to the image container
+            // Append badge to image container
+            imageContainer.appendChild(badge);
+            
+            // Store productId on badge
+            badge.setAttribute('data-product-id', productId);
+        });
+    }
+    
+    // Initial call and observe for dynamic content
+    function initProductListDisplay() {
+        // Initial check
+        if (isProductListPage()) {
+            setTimeout(displayProductIdsOnListPage, 1000);
+            
+            // Also try when window is fully loaded
+            if (document.readyState !== 'complete') {
+                window.addEventListener('load', () => {
+                    setTimeout(displayProductIdsOnListPage, 500);
+                }, { once: true });
+            }
+        }
+        
+        // Observe DOM changes for dynamically loaded products
+        const observer = new MutationObserver((mutations) => {
+            if (isProductListPage()) {
+                let shouldUpdate = false;
+                mutations.forEach((mutation) => {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1) { // Element node
+                            // Check if new product links were added
+                            if (node.querySelectorAll && node.querySelectorAll('a[href*="/+"]').length > 0) {
+                                shouldUpdate = true;
+                            }
+                            // Also check if the node itself is a product link
+                            if (node.tagName === 'A' && node.getAttribute('href') && node.getAttribute('href').includes('/+')) {
+                                shouldUpdate = true;
+                            }
+                        }
+                    });
+                });
+                
+                if (shouldUpdate) {
+                    setTimeout(displayProductIdsOnListPage, 300);
+                }
+            }
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // Also re-run on URL changes
+        let lastUrl = window.location.href;
+        setInterval(() => {
+            const currentUrl = window.location.href;
+            if (currentUrl !== lastUrl) {
+                lastUrl = currentUrl;
+                if (isProductListPage()) {
+                    setTimeout(displayProductIdsOnListPage, 500);
+                }
+            }
+        }, 500);
+    }
+    
+    // Initialize product list display
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initProductListDisplay);
+    } else {
+        initProductListDisplay();
+    }
+    
     // Create floating window
     function createFloatingWindow() {
         if (floatingWindow) {
