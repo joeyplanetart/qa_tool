@@ -3435,21 +3435,29 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         // Hide other cards
                         const qrcodeCard = content.querySelector('#qrcode-card');
                         const cookieCard = content.querySelector('#cookie-card');
+                        const shipAddressCardEl = content.querySelector('#ship-address-card');
                         if (qrcodeCard) {
                             qrcodeCard.style.display = 'none';
                         }
                         if (cookieCard) {
                             cookieCard.style.display = 'none';
                         }
+                        if (shipAddressCardEl) {
+                            shipAddressCardEl.style.display = 'none';
+                        }
                         
                         // Hide other buttons - only show Translation
                         const qrBtn = content.querySelector('#qrcode-btn');
                         const cookieBtnEl = content.querySelector('#cookie-btn');
+                        const shipAddressBtnEl = content.querySelector('#ship-address-btn');
                         if (qrBtn) {
                             qrBtn.style.display = 'none';
                         }
                         if (cookieBtnEl) {
                             cookieBtnEl.style.display = 'none';
+                        }
+                        if (shipAddressBtnEl) {
+                            shipAddressBtnEl.style.display = 'none';
                         }
                         
                         // Hide all content (environment info, search panel, function panel, navLinksCard)
@@ -3472,11 +3480,15 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         // Show other buttons again
                         const qrBtn = content.querySelector('#qrcode-btn');
                         const cookieBtnEl = content.querySelector('#cookie-btn');
+                        const shipAddressBtnEl = content.querySelector('#ship-address-btn');
                         if (qrBtn) {
                             qrBtn.style.display = 'block';
                         }
                         if (cookieBtnEl) {
                             cookieBtnEl.style.display = 'block';
+                        }
+                        if (shipAddressBtnEl) {
+                            shipAddressBtnEl.style.display = 'block';
                         }
                         
                         // Hide Back button
@@ -3734,18 +3746,26 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             translationCard.style.display = 'none';
                         }
                         const cookieCard = content.querySelector('#cookie-card');
+                        const shipAddressCardEl = content.querySelector('#ship-address-card');
                         if (cookieCard) {
                             cookieCard.style.display = 'none';
+                        }
+                        if (shipAddressCardEl) {
+                            shipAddressCardEl.style.display = 'none';
                         }
                         
                         // Hide other buttons - only show QRcode
                         const translationBtn = content.querySelector('#open-translation-tool-btn');
                         const cookieBtnEl = content.querySelector('#cookie-btn');
+                        const shipAddressBtnEl = content.querySelector('#ship-address-btn');
                         if (translationBtn) {
                             translationBtn.style.display = 'none';
                         }
                         if (cookieBtnEl) {
                             cookieBtnEl.style.display = 'none';
+                        }
+                        if (shipAddressBtnEl) {
+                            shipAddressBtnEl.style.display = 'none';
                         }
                         
                         // Hide all content
@@ -3780,11 +3800,15 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         // Show other buttons again
                         const translationBtn = content.querySelector('#open-translation-tool-btn');
                         const cookieBtnEl = content.querySelector('#cookie-btn');
+                        const shipAddressBtnEl = content.querySelector('#ship-address-btn');
                         if (translationBtn) {
                             translationBtn.style.display = 'block';
                         }
                         if (cookieBtnEl) {
                             cookieBtnEl.style.display = 'block';
+                        }
+                        if (shipAddressBtnEl) {
+                            shipAddressBtnEl.style.display = 'block';
                         }
                         
                         // Hide Back button
@@ -3836,6 +3860,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const cookieBtn = content.querySelector('#cookie-btn');
             const cookieCard = content.querySelector('#cookie-card');
             let isCookieToolOpen = false;
+            let lastAddedCookieName = null; // Track the most recently added cookie
             
             if (cookieBtn && cookieCard) {
                 cookieBtn.addEventListener('click', () => {
@@ -3851,15 +3876,23 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         if (qrcodeCard) {
                             qrcodeCard.style.display = 'none';
                         }
+                        const shipAddressCardEl = content.querySelector('#ship-address-card');
+                        if (shipAddressCardEl) {
+                            shipAddressCardEl.style.display = 'none';
+                        }
                         
                         // Hide other buttons - only show Cookie
                         const translationBtn = content.querySelector('#open-translation-tool-btn');
                         const qrBtn = content.querySelector('#qrcode-btn');
+                        const shipAddressBtnEl = content.querySelector('#ship-address-btn');
                         if (translationBtn) {
                             translationBtn.style.display = 'none';
                         }
                         if (qrBtn) {
                             qrBtn.style.display = 'none';
+                        }
+                        if (shipAddressBtnEl) {
+                            shipAddressBtnEl.style.display = 'none';
                         }
                         
                         // Show Cookie card
@@ -3892,11 +3925,15 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         // Show other buttons again
                         const translationBtn = content.querySelector('#open-translation-tool-btn');
                         const qrBtn = content.querySelector('#qrcode-btn');
+                        const shipAddressBtnEl = content.querySelector('#ship-address-btn');
                         if (translationBtn) {
                             translationBtn.style.display = 'block';
                         }
                         if (qrBtn) {
                             qrBtn.style.display = 'block';
+                        }
+                        if (shipAddressBtnEl) {
+                            shipAddressBtnEl.style.display = 'block';
                         }
                         
                         if (translationBackBtn) {
@@ -3996,6 +4033,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 console.log('✅ Cookie added successfully:', response.cookie);
                                 showToastNotification(`✅ Cookie "${key}" added successfully!`, 'success');
                                 
+                                // Track the newly added cookie
+                                lastAddedCookieName = key;
+                                
                                 // Clear inputs
                                 newCookieKeyInput.value = '';
                                 newCookieValueInput.value = '';
@@ -4055,9 +4095,19 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             return;
                         }
                         
+                        // Sort cookies: put the last added cookie first
+                        const sortedCookies = [...cookies].sort((a, b) => {
+                            if (a.name === lastAddedCookieName) return -1;
+                            if (b.name === lastAddedCookieName) return 1;
+                            return 0;
+                        });
+                        
+                        // Reset the tracking variable after first display (optional: keep it until next add)
+                        // lastAddedCookieName = null; // Uncomment if you want to reset after first display
+                        
                         let html = '';
                         
-                        cookies.forEach((cookie, index) => {
+                        sortedCookies.forEach((cookie, index) => {
                             html += `
                                 <div style="
                                     background: rgba(255,255,255,0.08);
@@ -4150,6 +4200,238 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 console.log('✓ Cookie Management button event listener added');
             }
             
+            // Add ShipAddress button event listener
+            const shipAddressBtn = content.querySelector('#ship-address-btn');
+            const shipAddressCard = content.querySelector('#ship-address-card');
+            let isShipAddressToolOpen = false;
+            
+            // Address generation data
+            const firstNames = ['Jo', 'John', 'Jane', 'Mike', 'Sarah', 'David', 'Emma', 'Chris', 'Lisa', 'Tom', 'Amy', 'Robert', 'Maria', 'James', 'Linda'];
+            const lastNames = ['Hultquist', 'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Wilson', 'Anderson'];
+            
+            const usStreetNames = ['E Francis Ave', 'N Main St', 'W Oak Blvd', 'S Park Dr', 'E Maple Ln', 'N Elm St', 'W Pine Ave', 'S Cedar Rd', 'E Birch Way', 'N Spruce Ct'];
+            const usCities = ['La Habra', 'Los Angeles', 'New York', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego', 'Dallas'];
+            const usStates = ['CA', 'NY', 'TX', 'FL', 'IL', 'PA', 'OH', 'GA', 'NC', 'MI'];
+            const usZipPrefixes = [90631, 10001, 77001, 33101, 60601, 19101, 44101, 30301, 28201, 48201];
+            
+            const caStreetNames = ['Yonge St', 'Bay St', 'Queen St', 'King St', 'Main St', 'Oak Ave', 'Maple Dr', 'Cedar Blvd', 'Pine Rd', 'Elm St'];
+            const caCities = ['Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Ottawa', 'Edmonton', 'Winnipeg', 'Quebec City', 'Hamilton', 'Kitchener'];
+            const caProvinces = ['ON', 'BC', 'QC', 'AB', 'MB', 'SK', 'NS', 'NB', 'NL', 'PE'];
+            const caPostalPrefixes = ['M5H', 'V6B', 'H3A', 'T2P', 'K1A', 'T5J', 'R3B', 'G1A', 'L8L', 'N2G'];
+            
+            const ukStreetNames = ['High St', 'Church Rd', 'London Rd', 'Park Ave', 'Main St', 'Queen St', 'King St', 'Victoria Rd', 'Mill Ln', 'Oak Dr'];
+            const ukCities = ['London', 'Manchester', 'Birmingham', 'Leeds', 'Glasgow', 'Liverpool', 'Edinburgh', 'Bristol', 'Sheffield', 'Cardiff'];
+            const ukCounties = ['Greater London', 'Greater Manchester', 'West Midlands', 'West Yorkshire', 'Scotland', 'Merseyside', 'Lothian', 'South West England', 'South Yorkshire', 'Wales'];
+            const ukPostcodes = ['SW1A 1AA', 'M1 1AA', 'B1 1AA', 'LS1 1AA', 'G1 1AA', 'L1 1AA', 'EH1 1AA', 'BS1 1AA', 'S1 1AA', 'CF1 1AA'];
+            
+            const auStreetNames = ['Collins St', 'George St', 'Bourke St', 'Flinders St', 'King St', 'Elizabeth St', 'Swanston St', 'Queen St', 'William St', 'Pitt St'];
+            const auCities = ['Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide', 'Gold Coast', 'Newcastle', 'Canberra', 'Sunshine Coast', 'Wollongong'];
+            const auStates = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'NT', 'ACT'];
+            const auPostcodes = [2000, 3000, 4000, 6000, 5000, 7000, 800, 2600];
+            
+            // Generate random address for a country
+            function generateAddress(country) {
+                const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+                const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+                
+                let streetNumber = Math.floor(Math.random() * 9999) + 1;
+                let streetName, city, state, zip, countryName;
+                
+                switch(country) {
+                    case 'US':
+                        streetName = usStreetNames[Math.floor(Math.random() * usStreetNames.length)];
+                        city = usCities[Math.floor(Math.random() * usCities.length)];
+                        state = usStates[Math.floor(Math.random() * usStates.length)];
+                        const zipPrefix = usZipPrefixes[Math.floor(Math.random() * usZipPrefixes.length)];
+                        const zipSuffix = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
+                        zip = `${zipPrefix}-${zipSuffix}`;
+                        countryName = 'United States';
+                        break;
+                    case 'CA':
+                        streetName = caStreetNames[Math.floor(Math.random() * caStreetNames.length)];
+                        city = caCities[Math.floor(Math.random() * caCities.length)];
+                        state = caProvinces[Math.floor(Math.random() * caProvinces.length)];
+                        const postalPrefix = caPostalPrefixes[Math.floor(Math.random() * caPostalPrefixes.length)];
+                        const postalSuffix = Math.floor(Math.random() * 999).toString().padStart(3, '0');
+                        zip = `${postalPrefix} ${postalSuffix}`;
+                        countryName = 'Canada';
+                        break;
+                    case 'UK':
+                        streetName = ukStreetNames[Math.floor(Math.random() * ukStreetNames.length)];
+                        city = ukCities[Math.floor(Math.random() * ukCities.length)];
+                        state = ukCounties[Math.floor(Math.random() * ukCounties.length)];
+                        zip = ukPostcodes[Math.floor(Math.random() * ukPostcodes.length)];
+                        countryName = 'United Kingdom';
+                        break;
+                    case 'AU':
+                        streetName = auStreetNames[Math.floor(Math.random() * auStreetNames.length)];
+                        city = auCities[Math.floor(Math.random() * auCities.length)];
+                        state = auStates[Math.floor(Math.random() * auStates.length)];
+                        zip = auPostcodes[Math.floor(Math.random() * auPostcodes.length)].toString();
+                        countryName = 'Australia';
+                        break;
+                }
+                
+                return {
+                    name: `${firstName} ${lastName}`,
+                    street: `${streetNumber} ${streetName}`,
+                    cityStateZip: country === 'CA' || country === 'UK' || country === 'AU' 
+                        ? `${city}, ${state}  ${zip}` 
+                        : `${city}, ${state}  ${zip}`,
+                    country: countryName
+                };
+            }
+            
+            // Function to generate and display addresses
+            function generateAddresses() {
+                const addressListEl = content.querySelector('#address-list');
+                if (!addressListEl) return;
+                
+                addressListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px;">Generating addresses...</div>';
+                
+                setTimeout(() => {
+                    const countries = ['US', 'CA', 'UK', 'AU'];
+                    let html = '';
+                    
+                    countries.forEach(country => {
+                        const address = generateAddress(country);
+                        html += `
+                            <div style="
+                                background: rgba(255,255,255,0.1);
+                                border: 1px solid rgba(255,255,255,0.2);
+                                border-radius: 6px;
+                                padding: 10px;
+                                flex: 0 0 calc(50% - 5px);
+                                box-sizing: border-box;
+                            ">
+                                <div style="
+                                    font-size: 10px;
+                                    color: rgba(255,255,255,0.7);
+                                    margin-bottom: 6px;
+                                    text-transform: uppercase;
+                                    font-weight: bold;
+                                ">${address.country}</div>
+                                <div style="
+                                    font-size: 12px;
+                                    color: #fff;
+                                    line-height: 1.4;
+                                    white-space: pre-line;
+                                ">${address.name}
+${address.street}
+${address.cityStateZip}</div>
+                            </div>
+                        `;
+                    });
+                    
+                    addressListEl.innerHTML = html;
+                }, 300);
+            }
+            
+            if (shipAddressBtn && shipAddressCard) {
+                shipAddressBtn.addEventListener('click', () => {
+                    console.log('📍 Toggle ShipAddress Tool');
+                    
+                    isShipAddressToolOpen = !isShipAddressToolOpen;
+                    
+                    if (isShipAddressToolOpen) {
+                        // Hide other cards
+                        if (translationCard) {
+                            translationCard.style.display = 'none';
+                        }
+                        if (qrcodeCard) {
+                            qrcodeCard.style.display = 'none';
+                        }
+                        if (cookieCard) {
+                            cookieCard.style.display = 'none';
+                        }
+                        
+                        // Hide other buttons - only show ShipAddress
+                        const translationBtn = content.querySelector('#open-translation-tool-btn');
+                        const qrBtn = content.querySelector('#qrcode-btn');
+                        const cookieBtnEl = content.querySelector('#cookie-btn');
+                        if (translationBtn) {
+                            translationBtn.style.display = 'none';
+                        }
+                        if (qrBtn) {
+                            qrBtn.style.display = 'none';
+                        }
+                        if (cookieBtnEl) {
+                            cookieBtnEl.style.display = 'none';
+                        }
+                        
+                        // Show ShipAddress card
+                        shipAddressCard.style.display = 'block';
+                        
+                        // Show Back button
+                        if (translationBackBtn) {
+                            translationBackBtn.style.display = 'block';
+                        }
+                        
+                        // Hide other content
+                        if (environmentInfoPanel) {
+                            environmentInfoPanel.style.display = 'none';
+                        }
+                        if (searchPanel) {
+                            searchPanel.style.display = 'none';
+                        }
+                        if (functionPanel) {
+                            functionPanel.style.display = 'none';
+                        }
+                        if (navLinksCardEl) {
+                            navLinksCardEl.style.display = 'none';
+                        }
+                        
+                        // Generate addresses automatically
+                        generateAddresses();
+                    } else {
+                        shipAddressCard.style.display = 'none';
+                        
+                        // Show other buttons again
+                        const translationBtn = content.querySelector('#open-translation-tool-btn');
+                        const qrBtn = content.querySelector('#qrcode-btn');
+                        const cookieBtnEl = content.querySelector('#cookie-btn');
+                        if (translationBtn) {
+                            translationBtn.style.display = 'block';
+                        }
+                        if (qrBtn) {
+                            qrBtn.style.display = 'block';
+                        }
+                        if (cookieBtnEl) {
+                            cookieBtnEl.style.display = 'block';
+                        }
+                        
+                        if (translationBackBtn) {
+                            translationBackBtn.style.display = 'none';
+                        }
+                        
+                        // Show all content
+                        if (environmentInfoPanel) {
+                            environmentInfoPanel.style.display = 'flex';
+                        }
+                        if (searchPanel) {
+                            searchPanel.style.display = 'block';
+                        }
+                        if (functionPanel) {
+                            functionPanel.style.display = 'block';
+                        }
+                        if (navLinksCardEl) {
+                            navLinksCardEl.style.display = 'block';
+                        }
+                    }
+                });
+                
+                // Add Refresh Addresses button event listener
+                const refreshAddressesBtn = content.querySelector('#refresh-addresses-btn');
+                if (refreshAddressesBtn) {
+                    refreshAddressesBtn.addEventListener('click', () => {
+                        console.log('🔄 Refreshing addresses...');
+                        generateAddresses();
+                    });
+                }
+                
+                console.log('✓ ShipAddress button event listener added');
+            }
+            
             // Add Back button event listener for Translation, QR Code and Cookie
             const translationBackBtn = content.querySelector('#translation-back-btn');
             if (translationBackBtn) {
@@ -4166,11 +4448,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     if (cookieCard) {
                         cookieCard.style.display = 'none';
                     }
+                    const shipAddressCardEl = content.querySelector('#ship-address-card');
+                    if (shipAddressCardEl) {
+                        shipAddressCardEl.style.display = 'none';
+                    }
                     
                     // Show all buttons again
                     const translationBtn = content.querySelector('#open-translation-tool-btn');
                     const qrBtn = content.querySelector('#qrcode-btn');
                     const cookieBtnEl = content.querySelector('#cookie-btn');
+                    const shipAddressBtnEl = content.querySelector('#ship-address-btn');
                     
                     if (translationBtn) {
                         translationBtn.style.display = 'block';
@@ -4180,6 +4467,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     }
                     if (cookieBtnEl) {
                         cookieBtnEl.style.display = 'block';
+                    }
+                    if (shipAddressBtnEl) {
+                        shipAddressBtnEl.style.display = 'block';
                     }
                     
                     // Hide Back button
@@ -4203,6 +4493,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     isTranslationToolOpen = false;
                     isQRCodeToolOpen = false;
                     isCookieToolOpen = false;
+                    if (typeof isShipAddressToolOpen !== 'undefined') {
+                        isShipAddressToolOpen = false;
+                    }
                 });
                 
                 console.log('✓ Back button event listener added');
@@ -6538,6 +6831,19 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 font-weight: bold;
                             "
                         >Cookie</div>
+                        
+                        <div 
+                            id="ship-address-btn"
+                            style="
+                                background: transparent;
+                                color: #ffeb3b;
+                                border: none;
+                                padding: 0;
+                                cursor: pointer;
+                                font-size: 16px;
+                                font-weight: bold;
+                            "
+                        >ShipAddress</div>
                     </div>
                     
                     <button 
@@ -6969,6 +7275,63 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 onmouseover="this.style.background='#2563eb'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.3)';"
                                 onmouseout="this.style.background='#3b82f6'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
                             >Copy All</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ShipAddress Card (hidden by default) -->
+                <div id="ship-address-card" style="display: none; padding: 0; margin-top: 15px;">
+                    
+                    <!-- Address Display Section -->
+                    <div style="
+                        background: rgba(255,255,255,0.15);
+                        border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 8px;
+                        padding: 12px;
+                        margin-bottom: 15px;
+                    ">
+                        <div style="
+                            font-size: 14px;
+                            font-weight: bold;
+                            color: #fff;
+                            margin-bottom: 10px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                        ">
+                            <span>Shipping Addresses</span>
+                            <button 
+                                id="refresh-addresses-btn"
+                                style="
+                                    background: #10b981;
+                                    color: #fff;
+                                    border: none;
+                                    padding: 6px 12px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    font-weight: bold;
+                                    transition: all 0.2s ease;
+                                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                                "
+                                onmouseover="this.style.background='#059669'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.3)';"
+                                onmouseout="this.style.background='#10b981'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
+                            >Refresh</button>
+                        </div>
+                        
+                        <!-- Address List Display -->
+                        <div 
+                            id="address-list"
+                            style="
+                                font-size: 13px;
+                                color: #fff;
+                                display: flex;
+                                flex-direction: row;
+                                flex-wrap: wrap;
+                                gap: 10px;
+                            "
+                        >
+                            <div style="color: #999; text-align: center; padding: 20px; width: 100%;">Generating addresses...</div>
                         </div>
                     </div>
                 </div>
