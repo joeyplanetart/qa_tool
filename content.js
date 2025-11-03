@@ -1885,6 +1885,11 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     // Execute when DOM is ready
     function executeExtraction() {
+        // Only execute on product detail pages, not on list pages
+        if (!isProductDetailPage()) {
+            return;
+        }
+        
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', extractProductInfo);
         } else {
@@ -1893,12 +1898,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         
         // Also try after window load (for scripts that load after DOM)
         window.addEventListener('load', () => {
-            console.log('Window loaded, retrying product_options extraction...');
-            setTimeout(extractProductInfo, 500); // Small delay after window load
+            if (isProductDetailPage()) {
+                console.log('Window loaded, retrying product_options extraction...');
+                setTimeout(extractProductInfo, 500);
+            }
         });
         
         // Try again when any script tag is added (for dynamic script loading)
         const observer = new MutationObserver((mutations) => {
+            if (!isProductDetailPage()) return;
+            
             mutations.forEach((mutation) => {
                 mutation.addedNodes.forEach((node) => {
                     if (node.tagName === 'SCRIPT') {
@@ -1917,13 +1926,13 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     executeExtraction();
     
-    // Monitor URL changes (SPA applications) 
+    // Monitor URL changes (SPA applications) - only on detail pages
     let lastUrl = window.location.href;
     const urlObserver = new MutationObserver(() => {
         const newUrl = window.location.href;
-        if (newUrl !== lastUrl) {
+        if (newUrl !== lastUrl && isProductDetailPage()) {
             lastUrl = newUrl;
-            setTimeout(extractProductInfo, 100); // Delay to ensure page update completion
+            setTimeout(extractProductInfo, 100);
         }
     });
     
@@ -1935,7 +1944,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     // Also listen for popstate events
     window.addEventListener('popstate', function() {
-        setTimeout(extractProductInfo, 100);
+        if (isProductDetailPage()) {
+            setTimeout(extractProductInfo, 100);
+        }
     });
     
     // Listen for pushstate and replacestate
@@ -1944,12 +1955,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     history.pushState = function() {
         originalPushState.apply(history, arguments);
-        setTimeout(extractProductInfo, 100);
+        if (isProductDetailPage()) {
+            setTimeout(extractProductInfo, 100);
+        }
     };
     
     history.replaceState = function() {
         originalReplaceState.apply(history, arguments);
-        setTimeout(extractProductInfo, 100);
+        if (isProductDetailPage()) {
+            setTimeout(extractProductInfo, 100);
+        }
     };
     
     // Function to extract product ID from URL
@@ -1975,6 +1990,14 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         const isListPattern = /\/\+[^/]+/.test(currentUrl);
         const hasProductId = /\/\+[^,]*,\d+/.test(currentUrl);
         return isListPattern && !hasProductId;
+    }
+    
+    // Function to check if we're on a product detail page
+    function isProductDetailPage() {
+        const currentUrl = window.location.href;
+        // Product detail page: URL contains /+xxx,yyy where yyy is a number (productId)
+        // Example: https://cafepress.com/+fal_mens_value_t_shirt,3001160587
+        return /\/\+[^,]*,\d+/.test(currentUrl);
     }
     
     // Function to display product IDs on product list page
@@ -3063,38 +3086,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 // Close product info card
                 productInfoHtml += `</div>`;
                 
-                // URL and timestamp
-                productInfoHtml += `<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">`;
-                productInfoHtml += createInfoRow('Page URL:', result.url || 'Unknown');
-                productInfoHtml += createInfoRow('Extracted Time:', formatTimestamp(result.timestamp));
-                productInfoHtml += `</div>`;
-                
-                // Refresh button and debug button
-                productInfoHtml += `
-                    <div style="margin-top: 15px; text-align: center;">
-                        <button id="cp-refresh-btn" style="
-                            background: rgba(255,255,255,0.2);
-                            border: 1px solid rgba(255,255,255,0.3);
-                            color: white;
-                            padding: 8px 16px;
-                            border-radius: 6px;
-                            cursor: pointer;
-                            font-size: 12px;
-                            transition: background-color 0.2s;
-                            margin-right: 10px;
-                        ">Refresh Check</button>
-                        <button id="cp-debug-btn" style="
-                            background: rgba(255,165,0,0.6);
-                            border: 1px solid rgba(255,165,0,0.8);
-                            color: white;
-                            padding: 8px 16px;
-                            border-radius: 6px;
-                            cursor: pointer;
-                            font-size: 12px;
-                            transition: background-color 0.2s;
-                        ">Debug Page</button>
-                    </div>
-                `;
             } else {
                 // No valid product data - don't show Product Info card or environment switcher
                 console.log('ℹ️ Not on a product page - hiding Product Info card and environment switcher');
@@ -4894,30 +4885,6 @@ ${address.cityStateZip}</div>
                 
                 console.log('✓ Back button event listener added');
             }
-            
-            // Add refresh button event listener
-            const refreshBtn = content.querySelector('#cp-refresh-btn');
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', () => {
-                    refreshBtn.textContent = 'Refreshing...';
-                    refreshBtn.disabled = true;
-                    
-                    // Re-run extraction
-                    extractProductInfo();
-                    
-                    setTimeout(() => {
-                        updateFloatingWindowContent();
-                    }, 1000);
-                });
-                
-                refreshBtn.addEventListener('mouseenter', () => {
-                    refreshBtn.style.backgroundColor = 'rgba(255,255,255,0.3)';
-                });
-                refreshBtn.addEventListener('mouseleave', () => {
-                    refreshBtn.style.backgroundColor = 'rgba(255,255,255,0.2)';
-                });
-            }
-            
             // Add environment switcher event listeners
             const envSwitchBtns = content.querySelectorAll('.env-switch-btn');
             envSwitchBtns.forEach(btn => {
@@ -5098,357 +5065,6 @@ ${address.cityStateZip}</div>
                 });
                 
                 console.log('✓ Test Links button event listener added');
-            }
-            
-            // Add debug button event listener
-            const debugBtn = content.querySelector('#cp-debug-btn');
-            if (debugBtn) {
-                debugBtn.addEventListener('click', () => {
-                    console.log('=== DEBUG PAGE DATA STRUCTURES ===');
-                    console.log('Current URL:', window.location.href);
-                    
-                    // Test productDetail.getCurrDesignObject() method first
-                    console.log('=== 🎯 TESTING productDetail.getCurrDesignObject() ===');
-                    if (window.productDetail && typeof window.productDetail.getCurrDesignObject === 'function') {
-                        console.log('✅ productDetail.getCurrDesignObject() method exists');
-                        try {
-                            const currDesignObject = window.productDetail.getCurrDesignObject();
-                            console.log('🎉 Current design object:', currDesignObject);
-                            
-                            if (currDesignObject && typeof currDesignObject === 'object') {
-                                console.log('Object type:', typeof currDesignObject);
-                                console.log('Object keys:', Object.keys(currDesignObject));
-                                console.log('cp_product_id:', currDesignObject.cp_product_id);
-                                console.log('cp_product_type_no:', currDesignObject.cp_product_type_no);
-                                
-                                if (currDesignObject.cp_product_type_no !== undefined) {
-                                    console.log('🎉 SUCCESS! Found cp_product_type_no via getCurrDesignObject():', currDesignObject.cp_product_type_no);
-                                } else {
-                                    console.log('❌ cp_product_type_no not found in current design object');
-                                }
-                            } else {
-                                console.log('❌ getCurrDesignObject() returned invalid object');
-                            }
-                        } catch (e) {
-                            console.log('❌ Error calling getCurrDesignObject():', e);
-                        }
-                    } else {
-                        console.log('❌ productDetail.getCurrDesignObject() method not available');
-                        console.log('productDetail exists:', !!window.productDetail);
-                        if (window.productDetail) {
-                            console.log('productDetail methods:', Object.getOwnPropertyNames(window.productDetail).filter(prop => typeof window.productDetail[prop] === 'function'));
-                        }
-                    }
-                    
-                    // Extract IDs from current page at the beginning for use throughout debug
-                    const debugUrl3 = window.location.href;
-                    const debugCpMatch3 = debugUrl3.match(/,(\d{6,})/);
-                    const testCpProductId2 = debugCpMatch3 ? debugCpMatch3[1] : null;
-                    
-                    // Extract designId from images
-                    let testDesignId2 = null;
-                    const images = document.querySelectorAll('img');
-                    for (const img of images) {
-                        const src = img.getAttribute('src') || '';
-                        const ref = img.getAttribute('ref') || '';
-                        const urlToCheck = src + ' ' + ref;
-                        const debugDesignMatch2 = urlToCheck.match(/\/designs\/(\d+)/);
-                        if (debugDesignMatch2) {
-                            testDesignId2 = debugDesignMatch2[1];
-                            break;
-                        }
-                    }
-                    
-                    // Define testDesignId for use throughout debug
-                    const testDesignId = testDesignId2;
-                    const testCpProductId = testCpProductId2;
-                    
-                    // Now that variables are defined, do the detailed analysis
-                    // Look for product_options or similar objects
-                    const candidateObjects = [
-                        { name: 'window.product_options', obj: window.product_options },
-                        { name: 'window.productDetail?.options', obj: window.productDetail?.options }
-                    ];
-                    
-                    candidateObjects.forEach(({name, obj}) => {
-                        if (obj && typeof obj === 'object') {
-                            console.log(`\n--- Analyzing ${name} ---`);
-                            console.log('Object keys:', Object.keys(obj));
-                            
-                            const designsObj = obj.product_designs || obj.product_design_objects;
-                            if (designsObj) {
-                                console.log(`${name} has design objects:`, designsObj);
-                                console.log(`Design object keys:`, Object.keys(designsObj));
-                                
-                                // Check each design object
-                                Object.entries(designsObj).forEach(([key, design]) => {
-                                    console.log(`\n  Design Key: ${key}`);
-                                    console.log(`  Design Object:`, design);
-                                    
-                                    if (design && typeof design === 'object') {
-                                        console.log(`  Design Object Properties:`);
-                                        Object.entries(design).forEach(([prop, val]) => {
-                                            console.log(`    ${prop}: ${val} (${typeof val})`);
-                                            
-                                            // Check if this property matches our designId
-                                            if (val && val.toString() === testDesignId) {
-                                                console.log(`    ✓ MATCH! ${prop} matches designId`);
-                                            }
-                                        });
-                                        
-                                        // Look for product type fields specifically
-                                        if (design.product_type_no !== undefined) {
-                                            console.log(`    ✓ Found product_type_no: ${design.product_type_no}`);
-                                        }
-                                    }
-                                });
-                                
-                                // Test our helper function with both keys
-                                console.log(`\n--- Testing Helper Function with ${name} ---`);
-                                console.log(`Testing with designId: ${testDesignId}`);
-                                const result1 = extractCpFieldsFromDesigns(designsObj, testDesignId, `[DEBUG-${name}-DesignId]`);
-                                console.log(`Helper function result (designId):`, result1);
-                                
-                                // Also test with cpProductId if available
-                                if (testCpProductId && testCpProductId !== testDesignId) {
-                                    console.log(`Testing with cpProductId: ${testCpProductId}`);
-                                    const result2 = extractCpFieldsFromDesigns(designsObj, testCpProductId, `[DEBUG-${name}-CPProductId]`);
-                                    console.log(`Helper function result (cpProductId):`, result2);
-                                }
-                            } else {
-                                console.log(`${name} has no design objects`);
-                            }
-                        }
-                    });
-                    
-                    // Test with any found design objects from productKeys
-                    if (productKeys.length > 0) {
-                        for (const key of productKeys) {
-                            try {
-                                const value = window[key];
-                                if (value && typeof value === 'object') {
-                                    const designsObject = value.product_designs || value.product_design_objects;
-                                    if (designsObject) {
-                                        console.log(`\n--- Testing ${key} ---`);
-                                        console.log(`${key} design object:`, designsObject);
-                                        const result = extractCpFieldsFromDesigns(designsObject, testDesignId, `[TEST-${key}]`);
-                                        console.log(`Helper function result for ${key}:`, result);
-                                    }
-                                }
-                            } catch (e) {
-                                console.log(`Error testing with ${key}:`, e.message);
-                            }
-                        }
-                    }
-                    
-                    // Check for common product data structures
-                    console.log('=== CHECKING COMMON OBJECTS ===');
-                    
-                    // Direct window property checks
-                    const checks = [
-                        { name: 'product_options', value: window.product_options },
-                        { name: 'productDetail', value: window.productDetail },
-                        { name: 'productDetail.options', value: window.productDetail?.options },
-                        { name: 'ProductDetail', value: window.ProductDetail },
-                        { name: 'productData', value: window.productData },
-                        { name: 'product', value: window.product },
-                        { name: 'productInfo', value: window.productInfo },
-                        { name: 'pageData', value: window.pageData },
-                        { name: 'appData', value: window.appData }
-                    ];
-                    
-                    checks.forEach(({name, value}) => {
-                        if (value && typeof value === 'object') {
-                            console.log(`✓ FOUND window.${name}:`, value);
-                            console.log(`   Keys: [${Object.keys(value).join(', ')}]`);
-                            console.log(`   Size: ${JSON.stringify(value).length} chars`);
-                            
-                            // If this is productDetail, also check its options
-                            if (name === 'productDetail' && value.options) {
-                                console.log(`   productDetail.options:`, value.options);
-                                console.log(`   options keys: [${Object.keys(value.options).join(', ')}]`);
-                            }
-                        } else {
-                            console.log(`✗ window.${name}: ${typeof value} (${value})`);
-                        }
-                    });
-                    
-                    // Search all window properties for product-related objects
-                    console.log('=== SEARCHING WINDOW PROPERTIES ===');
-                    const windowKeys = Object.keys(window);
-                    const productKeys = windowKeys.filter(key => 
-                        key.toLowerCase().includes('product') ||
-                        key.toLowerCase().includes('detail') ||
-                        key.toLowerCase().includes('data') ||
-                        key.toLowerCase().includes('config') ||
-                        key.toLowerCase().includes('options')
-                    );
-                    
-                    console.log('Product-related window keys:', productKeys);
-                    productKeys.forEach(key => {
-                        try {
-                            const value = window[key];
-                            if (value && typeof value === 'object') {
-                                console.log(`WINDOW.${key}:`, value);
-                                console.log(`   Type: ${typeof value}, Keys: [${Object.keys(value).slice(0,10).join(', ')}${Object.keys(value).length > 10 ? '...' : ''}]`);
-                            }
-                        } catch (e) {
-                            console.log(`Error accessing window.${key}:`, e.message);
-                        }
-                    });
-                    
-                    // Search script tags for JSON data
-                    console.log('=== SEARCHING SCRIPT TAGS ===');
-                    const scripts = document.querySelectorAll('script');
-                    let foundData = false;
-                    
-                    scripts.forEach((script, index) => {
-                        const content = script.textContent || script.innerHTML;
-                        if (content && (
-                            content.includes('product') || 
-                            content.includes('category_id') ||
-                            content.includes('cp_product_id') ||
-                            content.includes('design')
-                        )) {
-                            console.log(`Script ${index} contains product data:`, content.substring(0, 500) + '...');
-                            
-                            // Try to extract JSON objects
-                            const jsonMatches = content.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
-                            if (jsonMatches) {
-                                jsonMatches.forEach((match, i) => {
-                                    try {
-                                        const parsed = JSON.parse(match);
-                                        if (parsed && typeof parsed === 'object') {
-                                            console.log(`   JSON ${i}:`, parsed);
-                                        }
-                                    } catch (e) {
-                                        // Ignore invalid JSON
-                                    }
-                                });
-                            }
-                            foundData = true;
-                        }
-                    });
-                    
-                    if (!foundData) {
-                        console.log('No product-related data found in script tags');
-                    }
-                    
-                    // Check for React/Vue component data
-                    console.log('=== CHECKING FRAMEWORK DATA ===');
-                    const reactKeys = windowKeys.filter(key => key.startsWith('__REACT') || key.startsWith('__VUE'));
-                    console.log('Framework keys:', reactKeys);
-                    
-                    // Test URL extraction
-                    console.log('=== TESTING URL EXTRACTION ===');
-                    const debugUrl = window.location.href;
-                    console.log('Current URL:', debugUrl);
-                    
-                    const debugCpRegex = /,(\d+)/;
-                    const debugCpMatch = debugUrl.match(debugCpRegex);
-                    
-                    if (debugCpMatch) {
-                        console.log('✓ CP Product ID found in URL:', debugCpMatch[1]);
-                    } else {
-                        console.log('❌ CP Product ID not found in URL');
-                    }
-                    
-                    // Test with specific focus on product_designs/product_design_objects (moved after variable declarations)
-                    console.log('=== DETAILED DESIGN OBJECT ANALYSIS ===');
-                    
-                    // DIRECT TEST: Check product_design_objects[designId].cp_product_id
-                    console.log('=== 🎯 DIRECT TEST: product_design_objects[designId].cp_product_id ===');
-                    console.log('Using designId:', testDesignId2);
-                    console.log('Using cpProductId:', testCpProductId2);
-                    
-                    // Show both key values for comparison
-                    console.log('=== KEY COMPARISON ===');
-                    console.log('designId (from URL designs):', testDesignId2);
-                    console.log('cpProductId (from URL comma):', testCpProductId2);
-                    console.log('These values are different:', testDesignId2 !== testCpProductId2);
-                    
-                    // Check product_options first
-                    if (window.product_options && window.product_options.product_design_objects) {
-                        const designObjects = window.product_options.product_design_objects;
-                        console.log('✓ Found product_options.product_design_objects:', designObjects);
-                        console.log('Available keys:', Object.keys(designObjects));
-                        
-                        // Test with designId
-                        if (testDesignId2) {
-                            console.log(`Testing designObjects[${testDesignId2}]:`, designObjects[testDesignId2]);
-                            if (designObjects[testDesignId2]) {
-                                const obj = designObjects[testDesignId2];
-                                console.log(`✓ Found object for designId ${testDesignId2}:`, obj);
-                            } else {
-                                console.log(`❌ No object found for designId ${testDesignId2}`);
-                            }
-                        }
-                        
-                        // Test with cpProductId
-                        if (testCpProductId2 && testCpProductId2 !== testDesignId2) {
-                            console.log(`Testing designObjects[${testCpProductId2}]:`, designObjects[testCpProductId2]);
-                            if (designObjects[testCpProductId2]) {
-                                const obj = designObjects[testCpProductId2];
-                                console.log(`✓ Found object for cpProductId ${testCpProductId2}:`, obj);
-                            } else {
-                                console.log(`❌ No object found for cpProductId ${testCpProductId2}`);
-                            }
-                        }
-                        
-                        // Show all objects to see their structure
-                        console.log('=== ALL DESIGN OBJECTS STRUCTURE ===');
-                        Object.entries(designObjects).forEach(([key, obj]) => {
-                            console.log(`Key: ${key}`);
-                            console.log(`Object:`, obj);
-                            if (obj && typeof obj === 'object') {
-                                console.log(`  Fields: ${Object.keys(obj).join(', ')}`);
-                                if (obj.product_type_no !== undefined) {
-                                    console.log(`  🎯 product_type_no: ${obj.product_type_no}`);
-                                }
-                                if (obj.id !== undefined) {
-                                    console.log(`  🔍 id: ${obj.id}`);
-                                }
-                            }
-                            console.log('---');
-                        });
-                        
-                    } else {
-                        console.log('❌ product_options.product_design_objects not found');
-                        console.log('window.product_options:', window.product_options);
-                    }
-                    
-                    // Also check product_designs
-                    if (window.product_options && window.product_options.product_designs) {
-                        const designObjects = window.product_options.product_designs;
-                        console.log('✓ Found product_options.product_designs:', designObjects);
-                        console.log('Available keys:', Object.keys(designObjects));
-                        
-                        // Show structure
-                        Object.entries(designObjects).forEach(([key, obj]) => {
-                            console.log(`Design Key: ${key}`);
-                            console.log(`Design Object:`, obj);
-                            if (obj && typeof obj === 'object') {
-                                console.log(`  Fields: ${Object.keys(obj).join(', ')}`);
-                                if (obj.product_type_no !== undefined) {
-                                    console.log(`  🎯 product_type_no: ${obj.product_type_no}`);
-                                }
-                                if (obj.id !== undefined) {
-                                    console.log(`  🔍 id: ${obj.id}`);
-                                }
-                            }
-                        });
-                    }
-                    
-                    console.log('=== DEBUG COMPLETE ===');
-                    showToastNotification('🔍 Debug完成！请查看控制台 (F12)', 'info');
-                });
-                
-                debugBtn.addEventListener('mouseenter', () => {
-                    debugBtn.style.backgroundColor = 'rgba(255,165,0,0.8)';
-                });
-                debugBtn.addEventListener('mouseleave', () => {
-                    debugBtn.style.backgroundColor = 'rgba(255,165,0,0.6)';
-                });
             }
         });
     }
