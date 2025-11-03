@@ -6783,7 +6783,7 @@ ${address.cityStateZip}</div>
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 border-radius: 10px;
                 border: 1px solid rgba(255,255,255,0.2);
-                padding: 15px;
+                padding: 6px;
             ">
                 <!-- Header with Translation label, QRcode button and Back button -->
                 <div style="
@@ -6792,57 +6792,93 @@ ${address.cityStateZip}</div>
                     align-items: center;
                     margin-bottom: 0;
                 ">
-                    <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; flex: 1;">
                         <div 
                             id="open-translation-tool-btn"
                             style="
-                                background: transparent;
+                                background: rgba(255, 235, 59, 0.2);
                                 color: #ffeb3b;
-                                border: none;
-                                padding: 0;
+                                border: 1px solid rgba(255, 235, 59, 0.4);
+                                padding: 5px 10px;
+                                border-radius: 6px;
                                 cursor: pointer;
-                                font-size: 16px;
+                                font-size: 11px;
                                 font-weight: bold;
+                                transition: all 0.2s ease;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                                white-space: nowrap;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                flex-shrink: 1;
                             "
+                            onmouseover="this.style.background='rgba(255, 235, 59, 0.35)'; this.style.borderColor='rgba(255, 235, 59, 0.6)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)';"
+                            onmouseout="this.style.background='rgba(255, 235, 59, 0.2)'; this.style.borderColor='rgba(255, 235, 59, 0.4)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
                         >Translation</div>
                         
                         <div 
                             id="qrcode-btn"
                             style="
-                                background: transparent;
+                                background: rgba(255, 235, 59, 0.2);
                                 color: #ffeb3b;
-                                border: none;
-                                padding: 0;
+                                border: 1px solid rgba(255, 235, 59, 0.4);
+                                padding: 5px 10px;
+                                border-radius: 6px;
                                 cursor: pointer;
-                                font-size: 16px;
+                                font-size: 11px;
                                 font-weight: bold;
+                                transition: all 0.2s ease;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                                white-space: nowrap;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                flex-shrink: 1;
                             "
+                            onmouseover="this.style.background='rgba(255, 235, 59, 0.35)'; this.style.borderColor='rgba(255, 235, 59, 0.6)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)';"
+                            onmouseout="this.style.background='rgba(255, 235, 59, 0.2)'; this.style.borderColor='rgba(255, 235, 59, 0.4)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
                         >QRcode</div>
                         
                         <div 
                             id="cookie-btn"
                             style="
-                                background: transparent;
+                                background: rgba(255, 235, 59, 0.2);
                                 color: #ffeb3b;
-                                border: none;
-                                padding: 0;
+                                border: 1px solid rgba(255, 235, 59, 0.4);
+                                padding: 5px 10px;
+                                border-radius: 6px;
                                 cursor: pointer;
-                                font-size: 16px;
+                                font-size: 11px;
                                 font-weight: bold;
+                                transition: all 0.2s ease;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                                white-space: nowrap;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                flex-shrink: 1;
                             "
+                            onmouseover="this.style.background='rgba(255, 235, 59, 0.35)'; this.style.borderColor='rgba(255, 235, 59, 0.6)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)';"
+                            onmouseout="this.style.background='rgba(255, 235, 59, 0.2)'; this.style.borderColor='rgba(255, 235, 59, 0.4)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
                         >Cookie</div>
                         
                         <div 
                             id="ship-address-btn"
                             style="
-                                background: transparent;
+                                background: rgba(255, 235, 59, 0.2);
                                 color: #ffeb3b;
-                                border: none;
-                                padding: 0;
+                                border: 1px solid rgba(255, 235, 59, 0.4);
+                                padding: 5px 10px;
+                                border-radius: 6px;
                                 cursor: pointer;
-                                font-size: 16px;
+                                font-size: 11px;
                                 font-weight: bold;
+                                transition: all 0.2s ease;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                                white-space: nowrap;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                flex-shrink: 1;
                             "
+                            onmouseover="this.style.background='rgba(255, 235, 59, 0.35)'; this.style.borderColor='rgba(255, 235, 59, 0.6)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)';"
+                            onmouseout="this.style.background='rgba(255, 235, 59, 0.2)'; this.style.borderColor='rgba(255, 235, 59, 0.4)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
                         >ShipAddress</div>
                     </div>
                     
