@@ -2123,36 +2123,40 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 }
             }
             
-            // If still no image found, skip this product
-            if (!productImage) {
+            // Check if badge already exists - search in link's parent or nearby
+            const existingBadge = link.closest('.product-item, .product, [class*="product"]')?.querySelector('.cp-product-id-badge');
+            if (existingBadge) return;
+            
+            // For non-CYO products, require image to exist
+            if (!productImage && !href.includes('/designer/')) {
                 return;
             }
             
-            // Check if badge already exists on this image
-            const existingBadge = productImage.parentElement.querySelector('.cp-product-id-badge');
-            if (existingBadge) return;
-            
             // Extract designId from image URL (primary method)
-            let designIdFromImage = extractDesignIdFromImage(productImage);
+            let designIdFromImage = null;
+            if (productImage) {
+                designIdFromImage = extractDesignIdFromImage(productImage);
+            }
             
-            // For CYO products with placeholder images, extract from data attributes
+            // For CYO products, try to extract from data attributes if not found in src
             if (href.includes('/designer/') && !designIdFromImage) {
-                const src = productImage.getAttribute('src') || '';
-                const isPlaceholder = src.startsWith('data:image/gif') || src.includes('placeholder');
+                // Helper function to extract designId from URL string
+                function extractDesignIdFromUrlString(urlString) {
+                    if (!urlString) return null;
+                    const designMatch = urlString.match(/\/designs\/(\d{10,})/);
+                    if (designMatch) return designMatch[1];
+                    const previewMatch = urlString.match(/\/(?:preview|image)\/[^/]*-(\d{10,})-/);
+                    if (previewMatch) return previewMatch[1];
+                    const generalMatch = urlString.match(/-(\d{10,})-/);
+                    if (generalMatch) return generalMatch[1];
+                    return null;
+                }
                 
-                if (isPlaceholder) {
-                    // Helper function to extract designId from URL string
-                    function extractDesignIdFromUrlString(urlString) {
-                        if (!urlString) return null;
-                        const designMatch = urlString.match(/\/designs\/(\d{10,})/);
-                        if (designMatch) return designMatch[1];
-                        const previewMatch = urlString.match(/\/(?:preview|image)\/[^/]*-(\d{10,})-/);
-                        if (previewMatch) return previewMatch[1];
-                        const generalMatch = urlString.match(/-(\d{10,})-/);
-                        if (generalMatch) return generalMatch[1];
-                        return null;
-                    }
+                if (productImage) {
+                    const src = productImage.getAttribute('src') || '';
+                    const isPlaceholder = src.startsWith('data:image/gif') || src.includes('placeholder');
                     
+                    // Try data attributes for lazy-loaded images
                     const dataLazySrc = productImage.getAttribute('data-lazy-src') || '';
                     const dataSrc = productImage.getAttribute('data-src') || '';
                     const dataSrcset = productImage.getAttribute('data-srcset') || '';
@@ -2171,6 +2175,33 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             if (designIdFromImage) break;
                         }
                     }
+                    
+                    // Also check if src itself contains designId (even if not a placeholder)
+                    // This handles cases where src is set but extractDesignIdFromImage didn't work
+                    if (!designIdFromImage && src && !isPlaceholder) {
+                        designIdFromImage = extractDesignIdFromUrlString(src);
+                    }
+                }
+                
+                // If still no designId, try to find image in nearby elements
+                if (!designIdFromImage) {
+                    let container = link.parentElement;
+                    for (let i = 0; i < 5 && container && container !== document.body; i++) {
+                        const images = container.querySelectorAll('img');
+                        for (let img of images) {
+                            const imgSrc = img.getAttribute('src') || '';
+                            const imgDataSrc = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
+                            if (imgSrc && !imgSrc.startsWith('data:image/gif') && !imgSrc.includes('placeholder')) {
+                                designIdFromImage = extractDesignIdFromImage(img);
+                                if (designIdFromImage) break;
+                            } else if (imgDataSrc) {
+                                designIdFromImage = extractDesignIdFromUrlString(imgDataSrc);
+                                if (designIdFromImage) break;
+                            }
+                        }
+                        if (designIdFromImage) break;
+                        container = container.parentElement;
+                    }
                 }
             }
             
@@ -2178,14 +2209,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             let productId = null;
             if (!designIdFromImage) {
                 productId = extractProductIdFromUrl(href);
-                if (!productId) {
-                    // For CYO products, still try to create badge even without designId/productId
-                    // We'll show "N/A" but still try to match in PRODUCT_ITEMS
-                    if (!href.includes('/designer/')) {
-                        return; // Skip non-CYO products if neither designId nor productId found
-                    }
-                    // For CYO, continue to try matching with any available info
-                }
             }
             
             // Try to get PTN, product_id, and option_id from PRODUCT_ITEMS array
@@ -2405,8 +2428,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         badge.textContent = 'Copied!';
                         badge.style.background = 'rgba(76, 175, 80, 0.8)';
                         setTimeout(() => {
-                            badge.textContent = originalText;
-                            badge.style.background = 'rgba(255, 235, 59, 0.5)';
+                        badge.textContent = originalText;
+                        badge.style.background = 'rgba(119, 165, 233, 0.4)';
                         }, 1000);
                     }).catch(err => {
                         console.error('Failed to copy:', err);
@@ -2430,34 +2453,56 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 e.stopPropagation();
             });
             
-            // Find the best container for the badge (should be the image's direct parent or a wrapper)
-            let imageContainer = productImage.parentElement;
+            // Find the best container for the badge
+            let imageContainer = null;
             
-            // If the image is directly inside a link, use the link as container
-            if (imageContainer === link && imageContainer.tagName === 'A') {
-                // Make sure the link has relative positioning
-                const linkStyle = window.getComputedStyle(imageContainer);
-                if (linkStyle.position === 'static') {
-                    imageContainer.style.position = 'relative';
+            if (productImage) {
+                imageContainer = productImage.parentElement;
+                
+                // If the image is directly inside a link, use the link as container
+                if (imageContainer === link && imageContainer.tagName === 'A') {
+                    const linkStyle = window.getComputedStyle(imageContainer);
+                    if (linkStyle.position === 'static') {
+                        imageContainer.style.position = 'relative';
+                    }
+                } else {
+                    // Look for the closest ancestor with relative/absolute positioning
+                    let ancestor = imageContainer;
+                    let foundPositioned = false;
+                    
+                    while (ancestor && ancestor !== document.body) {
+                        const ancestorStyle = window.getComputedStyle(ancestor);
+                        if (ancestorStyle.position === 'relative' || ancestorStyle.position === 'absolute') {
+                            imageContainer = ancestor;
+                            foundPositioned = true;
+                            break;
+                        }
+                        ancestor = ancestor.parentElement;
+                    }
+                    
+                    if (!foundPositioned) {
+                        imageContainer = productImage.parentElement;
+                        const containerStyle = window.getComputedStyle(imageContainer);
+                        if (containerStyle.position === 'static') {
+                            imageContainer.style.position = 'relative';
+                        }
+                    }
                 }
             } else {
-                // Look for the closest ancestor with relative/absolute positioning
-                let ancestor = imageContainer;
-                let foundPositioned = false;
-                
-                while (ancestor && ancestor !== document.body) {
-                    const ancestorStyle = window.getComputedStyle(ancestor);
-                    if (ancestorStyle.position === 'relative' || ancestorStyle.position === 'absolute') {
-                        imageContainer = ancestor;
-                        foundPositioned = true;
-                        break;
+                // For CYO products without image, find a container near the link
+                let container = link.parentElement;
+                let foundContainer = false;
+                for (let i = 0; i < 5 && container && container !== document.body; i++) {
+                    const containerStyle = window.getComputedStyle(container);
+                    if (containerStyle.position === 'static') {
+                        container.style.position = 'relative';
                     }
-                    ancestor = ancestor.parentElement;
+                    imageContainer = container;
+                    foundContainer = true;
+                    break;
                 }
-                
-                // If no positioned ancestor found, use the image's direct parent and make it relative
-                if (!foundPositioned) {
-                    imageContainer = productImage.parentElement;
+                if (!foundContainer) {
+                    imageContainer = link.parentElement || link;
                     const containerStyle = window.getComputedStyle(imageContainer);
                     if (containerStyle.position === 'static') {
                         imageContainer.style.position = 'relative';
@@ -2465,9 +2510,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 }
             }
             
-            // Ensure the badge is positioned relative to the image container
-            // Append badge to image container
-            imageContainer.appendChild(badge);
+            if (imageContainer) {
+                imageContainer.appendChild(badge);
+            }
             
             // Store designId or productId on badge for later use
             const identifierForUpdate = designIdFromImage || productId;
