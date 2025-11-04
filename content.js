@@ -2579,13 +2579,20 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             }
             
             // Build badge content
+            // Priority: use design_id to avoid duplication with ProductID
+            // If design_id (matchedDesignId) is available, use it; otherwise use designIdFromImage
             let displayId = null;
-            if (productIdValue) {
+            if (matchedDesignId) {
+                // Use matched design_id from PRODUCT_ITEMS array (most accurate)
+                displayId = matchedDesignId.toString();
+            } else if (designIdFromImage) {
+                // Use design_id extracted from image URL
+                displayId = designIdFromImage.toString();
+            } else if (productIdValue && productIdValue !== productId) {
+                // Only use productIdValue if it's different from productId to avoid duplication
                 displayId = productIdValue.toString();
             } else if (productId) {
                 displayId = productId;
-            } else if (designIdFromImage) {
-                displayId = `DesignId: ${designIdFromImage}`;
             } else {
                 displayId = (isCYO || isMakePage) ? 'CYO' : 'N/A';
             }
