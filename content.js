@@ -2043,8 +2043,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const existingBadge = productImage.parentElement.querySelector('.cp-product-id-badge');
             if (existingBadge) return;
             
-            // Try to get PTN from PRODUCT_ITEMS array
+            // Try to get PTN, product_id, and option_id from PRODUCT_ITEMS array
             let ptn = null;
+            let productIdValue = null;
+            let optionId = null;
             try {
                 // Function to find PRODUCT_ITEMS in various locations
                 function findProductItemsArray() {
@@ -2110,6 +2112,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             String(itemDesignId) === String(fullDesignId) ||
                             String(itemDesignId) === String(designIdFromUrl)) {
                             ptn = item.product_type_no;
+                            productIdValue = item.product_id;
+                            optionId = item.option_id;
                             if (ptn !== null && ptn !== undefined) {
                                 break;
                             }
@@ -2117,7 +2121,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     }
                 }
             } catch (e) {
-                // Silently fail, just proceed without PTN
+                // Silently fail, just proceed without data
             }
             
             // Build badge content
@@ -2126,6 +2130,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 badgeContent += `\nPTN: ${ptn}`;
             } else {
                 badgeContent += `\nPTN: N/A`;
+            }
+            if (productIdValue !== null && productIdValue !== undefined) {
+                badgeContent += `\nProductID: ${productIdValue}`;
+            } else {
+                badgeContent += `\nProductID: N/A`;
+            }
+            if (optionId !== null && optionId !== undefined) {
+                badgeContent += `\nOptionID: ${optionId}`;
+            } else {
+                badgeContent += `\nOptionID: N/A`;
             }
             
             // Create product ID badge
@@ -2136,7 +2150,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 position: absolute;
                 bottom: 5px;
                 left: 5px;
-                background: rgba(255, 235, 59, 0.5);
+                background: rgba(119, 165, 233, 0.4);
                 color: #333;
                 padding: 6px 10px;
                 border-radius: 4px;
@@ -2163,8 +2177,23 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 // Calculate DesignId from CP Product ID (designId = cpProductId + 100000000000)
                 const designId = (parseInt(productId) + 100000000000).toString();
                 
-                // Try to copy ID to clipboard
-                const textToCopy = `ID: ${productId}\nDesignId: ${designId}`;
+                // Read current badge content to get all information (including updated values)
+                const badgeText = badge.textContent;
+                const lines = badgeText.split('\n');
+                
+                // Build text to copy with all available information
+                let textToCopy = `ID: ${productId}\nDesignId: ${designId}`;
+                
+                // Extract PTN, ProductID, and OptionID from badge text if available
+                for (let line of lines) {
+                    if (line.includes('PTN:')) {
+                        textToCopy += `\n${line.trim()}`;
+                    } else if (line.includes('ProductID:')) {
+                        textToCopy += `\n${line.trim()}`;
+                    } else if (line.includes('OptionID:')) {
+                        textToCopy += `\n${line.trim()}`;
+                    }
+                }
                 
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(textToCopy).then(() => {
@@ -2240,29 +2269,34 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             // Store productId on badge
             badge.setAttribute('data-product-id', productId);
             
-            // If PTN not found, try to update it later (for delayed loading)
-            if (!ptn) {
+            // If data not found, try to update it later (for delayed loading)
+            if (!ptn || productIdValue === null || optionId === null) {
                 setTimeout(() => {
-                    updateBadgePTN(badge, productId);
+                    updateBadgeData(badge, productId);
                 }, 2000);
                 setTimeout(() => {
-                    updateBadgePTN(badge, productId);
+                    updateBadgeData(badge, productId);
                 }, 5000);
             }
         });
     }
     
-    // Function to update badge PTN if PRODUCT_ITEMS becomes available later
-    function updateBadgePTN(badge, productId) {
+    // Function to update badge data (PTN, product_id, option_id) if PRODUCT_ITEMS becomes available later
+    function updateBadgeData(badge, productId) {
         if (!badge || !productId) return;
         
-        // Check if PTN is already set (not N/A)
+        // Check if all data is already set (not N/A)
         const currentText = badge.textContent;
-        if (currentText && !currentText.includes('PTN: N/A')) {
-            return; // Already has PTN, no need to update
+        if (currentText && 
+            !currentText.includes('PTN: N/A') && 
+            !currentText.includes('ProductID: N/A') && 
+            !currentText.includes('OptionID: N/A')) {
+            return; // Already has all data, no need to update
         }
         
         let ptn = null;
+        let productIdValue = null;
+        let optionId = null;
         try {
             // Try to find PRODUCT_ITEMS
             const windowArrays = [
@@ -2283,16 +2317,29 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     if (!item) continue;
                     
                     const itemDesignId = item.design_id;
-                    if (itemDesignId === fullDesignId || 
+                    if (itemDesignId === fullDesignId ||
                         itemDesignId === designIdFromUrl ||
                         String(itemDesignId) === String(fullDesignId) ||
                         String(itemDesignId) === String(designIdFromUrl)) {
                         ptn = item.product_type_no;
+                        productIdValue = item.product_id;
+                        optionId = item.option_id;
                         if (ptn !== null && ptn !== undefined) {
                             // Update badge content
                             const lines = currentText.split('\n');
                             if (lines.length >= 2) {
-                                lines[1] = `PTN: ${ptn}`;
+                                // Update PTN
+                                if (lines[1].includes('PTN: N/A') && ptn !== null && ptn !== undefined) {
+                                    lines[1] = `PTN: ${ptn}`;
+                                }
+                                // Update ProductID
+                                if (lines.length >= 3 && lines[2].includes('ProductID: N/A') && productIdValue !== null && productIdValue !== undefined) {
+                                    lines[2] = `ProductID: ${productIdValue}`;
+                                }
+                                // Update OptionID
+                                if (lines.length >= 4 && lines[3].includes('OptionID: N/A') && optionId !== null && optionId !== undefined) {
+                                    lines[3] = `OptionID: ${optionId}`;
+                                }
                                 badge.textContent = lines.join('\n');
                             }
                             break;
