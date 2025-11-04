@@ -1985,11 +1985,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     // Function to check if we're on a product list page
     function isProductListPage() {
         const currentUrl = window.location.href;
-        // Product list page: URL contains /+xxx but doesn't have productId (no comma + number)
-        // Example: https://cafus-master.pre.planetart.com/+oven-mitts
-        const isListPattern = /\/\+[^/]+/.test(currentUrl);
+        // Product list page patterns:
+        // 1. URL contains /+xxx but doesn't have productId (no comma + number)
+        //    Example: https://cafus-master.pre.planetart.com/+oven-mitts
+        // 2. URL contains /make/xxx (CYO product category pages)
+        //    Example: https://www.cafepress.com/make/custom-kids-hoodies
+        const isPlusPattern = /\/\+[^/]+/.test(currentUrl);
         const hasProductId = /\/\+[^,]*,\d+/.test(currentUrl);
-        return isListPattern && !hasProductId;
+        const isMakePattern = /\/make\/[^/]+/.test(currentUrl);
+        
+        return (isPlusPattern && !hasProductId) || isMakePattern;
     }
     
     // Function to check if we're on a product detail page
@@ -2053,15 +2058,195 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             return;
         }
         
-        // Find all product links - support both /+ pattern and /designer/ pattern (Create Your Own)
-        const productLinks = document.querySelectorAll('a[href*="/+"], a[href*="/designer/"]');
+        // Find all product links - support multiple patterns:
+        // 1. /+ pattern (regular products)
+        // 2. /designer/ pattern (CYO products)
+        // 3. /make/ pattern (CYO product category pages - may link to /designer/ or /+)
+        const productLinks = document.querySelectorAll('a[href*="/+"], a[href*="/designer/"], a[href*="/make/"]');
         
-        productLinks.forEach((link, index) => {
+        // Also find product cards/items that might contain product links
+        // For /make/ pages, products might be in different containers
+        const makePageLinks = document.querySelectorAll('.product-item a, .product-card a, [class*="product"] a, [class*="item"] a');
+        const allLinks = new Set([...productLinks]);
+        makePageLinks.forEach(link => {
             const href = link.getAttribute('href');
-            if (!href) return;
+            if (href && (href.includes('/+') || href.includes('/designer/') || href.includes('/make/'))) {
+                allLinks.add(link);
+            }
+        });
+        
+        // Convert Set back to Array for forEach
+        const finalProductLinks = Array.from(allLinks);
+        
+        // For /make/ pages, if no product links found, try to find product containers directly
+        const isMakePage = /\/make\/[^/]+/.test(window.location.href);
+        if (isMakePage && finalProductLinks.length === 0) {
+            // Look for product containers that might contain product images
+            const productContainers = document.querySelectorAll('.product-item, .product, [class*="product"], [class*="item"], [class*="card"], [class*="design-item"]');
+            productContainers.forEach(container => {
+                // Check if container has product image or preview-image
+                const hasImage = container.querySelector('img, .preview-image, [class*="image"]');
+                if (hasImage) {
+                    // Create a virtual link for this container
+                    const virtualLink = document.createElement('a');
+                    virtualLink.setAttribute('href', window.location.href);
+                    virtualLink.style.display = 'none';
+                    container.appendChild(virtualLink);
+                    allLinks.add(virtualLink);
+                }
+            });
+            // Update finalProductLinks
+            finalProductLinks.length = 0;
+            finalProductLinks.push(...Array.from(allLinks));
+        }
+        
+        finalProductLinks.forEach((link, index) => {
+            // Skip if already processed (has badge)
+            const existingBadge = link.closest('.product-item, .product, [class*="product"]')?.querySelector('.cp-product-id-badge');
+            if (existingBadge) return;
             
-            // Find the product image (img tag) - search within the link or nearby
-            let productImage = link.querySelector('img');
+            // For CYO products, wait for preview-image to load if not found immediately
+            const href = link.getAttribute('href');
+            // Check if this is a CYO product (includes /designer/ or /make/ in href, or current page is /make/)
+            const isCYOProduct = href && (href.includes('/designer/') || href.includes('/make/'));
+            const isMakePage = /\/make\/[^/]+/.test(window.location.href);
+            
+            if (isCYOProduct || isMakePage) {
+                const productContainer = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"]');
+                if (productContainer) {
+                    const previewImage = productContainer.querySelector('.preview-image img');
+                    if (!previewImage || !previewImage.src || previewImage.src.includes('data:image/gif') || previewImage.src.includes('placeholder')) {
+                        // Wait for preview-image to load with retry mechanism
+                        let retryCount = 0;
+                        const maxRetries = 10;
+                        let processed = false;
+                        
+                        const processWhenReady = () => {
+                            if (!processed) {
+                                processed = true;
+                                processProductLink(link);
+                            }
+                        };
+                        
+                        const checkPreviewImage = () => {
+                            const previewImg = productContainer.querySelector('.preview-image img');
+                            if (previewImg && previewImg.src && !previewImg.src.includes('data:image/gif') && !previewImg.src.includes('placeholder')) {
+                                // Preview image loaded, process this product
+                                processWhenReady();
+                            } else if (retryCount < maxRetries) {
+                                retryCount++;
+                                setTimeout(checkPreviewImage, 300);
+                            } else {
+                                // Max retries reached, process anyway
+                                processWhenReady();
+                            }
+                        };
+                        
+                        // Start checking after initial delay
+                        setTimeout(checkPreviewImage, 500);
+                        
+                        // Also observe for preview-image addition
+                        const previewObserver = new MutationObserver((mutations) => {
+                            mutations.forEach((mutation) => {
+                                mutation.addedNodes.forEach((node) => {
+                                    if (node.nodeType === 1) {
+                                        if (node.classList && node.classList.contains('preview-image')) {
+                                            const img = node.querySelector('img');
+                                            if (img && img.src && !img.src.includes('data:image/gif') && !img.src.includes('placeholder')) {
+                                                previewObserver.disconnect();
+                                                processWhenReady();
+                                            }
+                                        }
+                                        if (node.querySelector && node.querySelector('.preview-image img')) {
+                                            const img = node.querySelector('.preview-image img');
+                                            if (img && img.src && !img.src.includes('data:image/gif') && !img.src.includes('placeholder')) {
+                                                previewObserver.disconnect();
+                                                processWhenReady();
+                                            }
+                                        }
+                                    }
+                                });
+                            });
+                        });
+                        
+                        previewObserver.observe(productContainer, {
+                            childList: true,
+                            subtree: true
+                        });
+                        
+                        // Disconnect observer after timeout
+                        setTimeout(() => {
+                            previewObserver.disconnect();
+                            if (retryCount >= maxRetries && !processed) {
+                                processWhenReady();
+                            }
+                        }, 5000);
+                        
+                        return; // Skip immediate processing, wait for retry
+                    }
+                }
+            }
+            
+            // Process non-CYO products or CYO products with preview-image already loaded
+            // For /make/ pages, also check if there's a product displayed directly on the page
+            if (isMakePage && !href) {
+                // On /make/ pages, product might be displayed directly without a link
+                // Try to find product container and process it
+                const productContainer = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"]');
+                if (productContainer) {
+                    // Create a virtual link for processing
+                    const virtualLink = document.createElement('a');
+                    virtualLink.setAttribute('href', window.location.href);
+                    virtualLink.style.display = 'none';
+                    productContainer.appendChild(virtualLink);
+                    processProductLink(virtualLink);
+                }
+            } else {
+                processProductLink(link);
+            }
+        });
+    }
+    
+    // Helper function to process a single product link
+    function processProductLink(link) {
+        // Skip if already processed (has badge)
+        const existingBadge = link.closest('.product-item, .product, [class*="product"]')?.querySelector('.cp-product-id-badge');
+        if (existingBadge) return;
+        
+        const href = link.getAttribute('href');
+        if (!href) return;
+        
+        // Find the product image (img tag) - priority: preview-image class for CYO products
+        let productImage = null;
+        
+        // For CYO products, prioritize finding img in class="preview-image"
+        // Also handle /make/ pages which are CYO product category pages
+        const isCYO = href.includes('/designer/') || href.includes('/make/');
+        const isMakePage = /\/make\/[^/]+/.test(window.location.href);
+        
+        if (isCYO || isMakePage) {
+                // First, try to find preview-image class within link or nearby
+                const previewImageContainer = link.querySelector('.preview-image') || 
+                                            link.closest('.product-item, .product, [class*="product"]')?.querySelector('.preview-image');
+                
+                if (previewImageContainer) {
+                    productImage = previewImageContainer.querySelector('img');
+                    if (productImage) {
+                        const src = productImage.getAttribute('src') || '';
+                        // Verify it's not a placeholder
+                        if (!src.startsWith('data:image/gif') && !src.includes('placeholder') && !src.includes('1x1')) {
+                            // Found valid preview-image img
+                        } else {
+                            productImage = null; // Continue searching
+                        }
+                    }
+                }
+            }
+            
+            // If not found in preview-image, search within the link
+            if (!productImage) {
+                productImage = link.querySelector('img');
+            }
             
             // If not found in link, search in parent elements
             if (!productImage) {
@@ -2069,6 +2254,21 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 let depth = 0;
                 const maxDepth = 5;
                 while (parent && depth < maxDepth) {
+                    // For CYO products, also check for preview-image in parent
+                    if (href.includes('/designer/')) {
+                        const previewImageContainer = parent.querySelector('.preview-image');
+                        if (previewImageContainer) {
+                            const img = previewImageContainer.querySelector('img');
+                            if (img) {
+                                const src = img.getAttribute('src') || '';
+                                if (!src.startsWith('data:image/gif') && !src.includes('placeholder') && !src.includes('1x1')) {
+                                    productImage = img;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
                     productImage = parent.querySelector('img');
                     if (productImage) break;
                     parent = parent.parentElement;
@@ -2077,69 +2277,103 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             }
             
             // For CYO products, find real image if current is a placeholder
-            if (productImage && href.includes('/designer/')) {
+            if (productImage && (isCYO || isMakePage)) {
                 const src = productImage.getAttribute('src') || '';
                 const isPlaceholder = src.startsWith('data:image/gif') || src.includes('placeholder') || src.includes('1x1');
                 
                 if (isPlaceholder) {
-                    const dataLazySrc = productImage.getAttribute('data-lazy-src') || '';
-                    const dataSrc = productImage.getAttribute('data-src') || '';
-                    const dataSrcset = productImage.getAttribute('data-srcset') || '';
-                    
-                    if (dataLazySrc && !dataLazySrc.startsWith('data:')) {
-                        productImage.setAttribute('data-temp-src', dataLazySrc);
-                    } else if (dataSrc && !dataSrc.startsWith('data:')) {
-                        productImage.setAttribute('data-temp-src', dataSrc);
-                    } else if (dataSrcset) {
-                        const firstSrcset = dataSrcset.split(',')[0].trim().split(' ')[0];
-                        if (firstSrcset && !firstSrcset.startsWith('data:')) {
-                            productImage.setAttribute('data-temp-src', firstSrcset);
+                    // First, try to find preview-image class which should have the real image
+                    const previewImageContainer = link.closest('.product-item, .product, [class*="product"]')?.querySelector('.preview-image');
+                    if (previewImageContainer) {
+                        const previewImg = previewImageContainer.querySelector('img');
+                        if (previewImg) {
+                            const previewSrc = previewImg.getAttribute('src') || '';
+                            const previewDataSrc = previewImg.getAttribute('data-src') || previewImg.getAttribute('data-lazy-src') || '';
+                            if (previewSrc && !previewSrc.startsWith('data:image/gif') && !previewSrc.includes('placeholder') && !previewSrc.includes('1x1')) {
+                                productImage = previewImg;
+                            } else if (previewDataSrc && !previewDataSrc.startsWith('data:')) {
+                                previewImg.setAttribute('data-temp-src', previewDataSrc);
+                                productImage = previewImg;
+                            }
                         }
                     }
                     
-                    let container = productImage.parentElement;
-                    for (let i = 0; i < 5 && container; i++) {
-                        const otherImages = container.querySelectorAll('img:not([src*="data:image/gif"])');
-                        for (let otherImg of otherImages) {
-                            const otherSrc = otherImg.getAttribute('src') || '';
-                            const otherDataSrc = otherImg.getAttribute('data-src') || otherImg.getAttribute('data-lazy-src') || '';
-                            if ((otherSrc && !otherSrc.startsWith('data:') && !otherSrc.includes('placeholder')) ||
-                                (otherDataSrc && !otherDataSrc.startsWith('data:'))) {
-                                productImage = otherImg;
-                                break;
+                    // If still placeholder, try data attributes
+                    if (productImage) {
+                        const currentSrc = productImage.getAttribute('src') || '';
+                        const stillPlaceholder = currentSrc.startsWith('data:image/gif') || currentSrc.includes('placeholder') || currentSrc.includes('1x1');
+                        
+                        if (stillPlaceholder) {
+                            const dataLazySrc = productImage.getAttribute('data-lazy-src') || '';
+                            const dataSrc = productImage.getAttribute('data-src') || '';
+                            const dataSrcset = productImage.getAttribute('data-srcset') || '';
+                            
+                            if (dataLazySrc && !dataLazySrc.startsWith('data:')) {
+                                productImage.setAttribute('data-temp-src', dataLazySrc);
+                            } else if (dataSrc && !dataSrc.startsWith('data:')) {
+                                productImage.setAttribute('data-temp-src', dataSrc);
+                            } else if (dataSrcset) {
+                                const firstSrcset = dataSrcset.split(',')[0].trim().split(' ')[0];
+                                if (firstSrcset && !firstSrcset.startsWith('data:')) {
+                                    productImage.setAttribute('data-temp-src', firstSrcset);
+                                }
+                            }
+                            
+                            // Search for other images in nearby containers
+                            let container = productImage.parentElement;
+                            for (let i = 0; i < 5 && container; i++) {
+                                // Prioritize preview-image in container
+                                const containerPreview = container.querySelector('.preview-image');
+                                if (containerPreview) {
+                                    const previewImg = containerPreview.querySelector('img');
+                                    if (previewImg) {
+                                        const previewSrc = previewImg.getAttribute('src') || '';
+                                        if (previewSrc && !previewSrc.startsWith('data:image/gif') && !previewSrc.includes('placeholder')) {
+                                            productImage = previewImg;
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                const otherImages = container.querySelectorAll('img:not([src*="data:image/gif"])');
+                                for (let otherImg of otherImages) {
+                                    const otherSrc = otherImg.getAttribute('src') || '';
+                                    const otherDataSrc = otherImg.getAttribute('data-src') || otherImg.getAttribute('data-lazy-src') || '';
+                                    if ((otherSrc && !otherSrc.startsWith('data:') && !otherSrc.includes('placeholder')) ||
+                                        (otherDataSrc && !otherDataSrc.startsWith('data:'))) {
+                                        productImage = otherImg;
+                                        break;
+                                    }
+                                }
+                                
+                                const bgImage = window.getComputedStyle(container).backgroundImage;
+                                if (bgImage && bgImage !== 'none' && !bgImage.includes('data:')) {
+                                    const bgMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/);
+                                    if (bgMatch && bgMatch[1]) {
+                                        productImage.setAttribute('data-bg-image', bgMatch[1]);
+                                    }
+                                }
+                                
+                                container = container.parentElement;
                             }
                         }
-                        
-                        const bgImage = window.getComputedStyle(container).backgroundImage;
-                        if (bgImage && bgImage !== 'none' && !bgImage.includes('data:')) {
-                            const bgMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/);
-                            if (bgMatch && bgMatch[1]) {
-                                productImage.setAttribute('data-bg-image', bgMatch[1]);
-                            }
-                        }
-                        
-                        container = container.parentElement;
                     }
                 }
             }
             
-            // Check if badge already exists - search in link's parent or nearby
-            const existingBadge = link.closest('.product-item, .product, [class*="product"]')?.querySelector('.cp-product-id-badge');
-            if (existingBadge) return;
-            
-            // For non-CYO products, require image to exist
-            if (!productImage && !href.includes('/designer/')) {
-                return;
-            }
-            
-            // Extract designId from image URL (primary method)
-            let designIdFromImage = null;
-            if (productImage) {
-                designIdFromImage = extractDesignIdFromImage(productImage);
-            }
-            
-            // For CYO products, try to extract from data attributes if not found in src
-            if (href.includes('/designer/') && !designIdFromImage) {
+        // For non-CYO products, require image to exist
+        if (!productImage && !href.includes('/designer/')) {
+            return;
+        }
+        
+        // Extract designId from image URL (primary method)
+        let designIdFromImage = null;
+        if (productImage) {
+            designIdFromImage = extractDesignIdFromImage(productImage);
+        }
+        
+        // For CYO products, try to extract from data attributes if not found in src
+        if (href.includes('/designer/') && !designIdFromImage) {
                 // Helper function to extract designId from URL string
                 function extractDesignIdFromUrlString(urlString) {
                     if (!urlString) return null;
@@ -2184,23 +2418,42 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 }
                 
                 // If still no designId, try to find image in nearby elements
+                // Priority: check preview-image class for CYO products
                 if (!designIdFromImage) {
-                    let container = link.parentElement;
-                    for (let i = 0; i < 5 && container && container !== document.body; i++) {
-                        const images = container.querySelectorAll('img');
-                        for (let img of images) {
+                    // First, try preview-image class
+                    const previewImageContainer = link.closest('.product-item, .product, [class*="product"]')?.querySelector('.preview-image');
+                    if (previewImageContainer) {
+                        const img = previewImageContainer.querySelector('img');
+                        if (img) {
                             const imgSrc = img.getAttribute('src') || '';
                             const imgDataSrc = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
                             if (imgSrc && !imgSrc.startsWith('data:image/gif') && !imgSrc.includes('placeholder')) {
                                 designIdFromImage = extractDesignIdFromImage(img);
-                                if (designIdFromImage) break;
                             } else if (imgDataSrc) {
                                 designIdFromImage = extractDesignIdFromUrlString(imgDataSrc);
-                                if (designIdFromImage) break;
                             }
                         }
-                        if (designIdFromImage) break;
-                        container = container.parentElement;
+                    }
+                    
+                    // Fallback: search in nearby containers
+                    if (!designIdFromImage) {
+                        let container = link.parentElement;
+                        for (let i = 0; i < 5 && container && container !== document.body; i++) {
+                            const images = container.querySelectorAll('img');
+                            for (let img of images) {
+                                const imgSrc = img.getAttribute('src') || '';
+                                const imgDataSrc = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
+                                if (imgSrc && !imgSrc.startsWith('data:image/gif') && !imgSrc.includes('placeholder')) {
+                                    designIdFromImage = extractDesignIdFromImage(img);
+                                    if (designIdFromImage) break;
+                                } else if (imgDataSrc) {
+                                    designIdFromImage = extractDesignIdFromUrlString(imgDataSrc);
+                                    if (designIdFromImage) break;
+                                }
+                            }
+                            if (designIdFromImage) break;
+                            container = container.parentElement;
+                        }
                     }
                 }
             }
@@ -2334,7 +2587,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             } else if (designIdFromImage) {
                 displayId = `DesignId: ${designIdFromImage}`;
             } else {
-                displayId = href.includes('/designer/') ? 'CYO' : 'N/A';
+                displayId = (isCYO || isMakePage) ? 'CYO' : 'N/A';
             }
             let badgeContent = `ID: ${displayId}`;
             if (ptn !== null && ptn !== undefined) {
@@ -2353,10 +2606,11 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 badgeContent += `\nOptionID: N/A`;
             }
             
-            // Create product ID badge
+            // Create product ID badge - unified style for both CYO and regular products
             const badge = document.createElement('div');
             badge.className = 'cp-product-id-badge';
             badge.textContent = badgeContent;
+            // Unified badge style for both CYO and regular products to ensure consistency
             badge.style.cssText = `
                 position: absolute;
                 bottom: 5px;
@@ -2378,7 +2632,19 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 word-wrap: break-word;
                 cursor: pointer;
                 user-select: text;
+                transition: background-color 0.2s ease, transform 0.1s ease;
             `;
+            
+            // Unified hover effect for both CYO and regular products
+            badge.addEventListener('mouseenter', function() {
+                badge.style.background = 'rgba(119, 165, 233, 0.6)';
+                badge.style.transform = 'scale(1.02)';
+            });
+            
+            badge.addEventListener('mouseleave', function() {
+                badge.style.background = 'rgba(119, 165, 233, 0.4)';
+                badge.style.transform = 'scale(1)';
+            });
             
             // Add click handler to prevent navigation and enable copying
             badge.addEventListener('click', function(e) {
@@ -2421,15 +2687,19 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     }
                 }
                 
+                // Unified click feedback for both CYO and regular products
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(textToCopy).then(() => {
-                        // Show temporary feedback
+                        // Show temporary feedback - unified style for all products
                         const originalText = badge.textContent;
+                        const originalBackground = badge.style.background;
                         badge.textContent = 'Copied!';
                         badge.style.background = 'rgba(76, 175, 80, 0.8)';
+                        badge.style.transform = 'scale(1.05)';
                         setTimeout(() => {
-                        badge.textContent = originalText;
-                        badge.style.background = 'rgba(119, 165, 233, 0.4)';
+                            badge.textContent = originalText;
+                            badge.style.background = originalBackground || 'rgba(119, 165, 233, 0.4)';
+                            badge.style.transform = 'scale(1)';
                         }, 1000);
                     }).catch(err => {
                         console.error('Failed to copy:', err);
@@ -2490,28 +2760,73 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 }
             } else {
                 // For CYO products without image, find a container near the link
+                // Enhanced logic to ensure CYO products always get a badge container
                 let container = link.parentElement;
                 let foundContainer = false;
-                for (let i = 0; i < 5 && container && container !== document.body; i++) {
+                
+                // Try to find a suitable container with better search logic
+                for (let i = 0; i < 10 && container && container !== document.body; i++) {
+                    // Check if this container would be suitable
                     const containerStyle = window.getComputedStyle(container);
-                    if (containerStyle.position === 'static') {
-                        container.style.position = 'relative';
+                    const containerRect = container.getBoundingClientRect();
+                    
+                    // Prefer containers that have dimensions (visible containers)
+                    if (containerRect.width > 0 && containerRect.height > 0) {
+                        if (containerStyle.position === 'static') {
+                            container.style.position = 'relative';
+                        }
+                        imageContainer = container;
+                        foundContainer = true;
+                        break;
                     }
-                    imageContainer = container;
-                    foundContainer = true;
-                    break;
+                    
+                    container = container.parentElement;
                 }
+                
+                // Fallback: Use link's parent or link itself, or find any product container
                 if (!foundContainer) {
-                    imageContainer = link.parentElement || link;
-                    const containerStyle = window.getComputedStyle(imageContainer);
-                    if (containerStyle.position === 'static') {
-                        imageContainer.style.position = 'relative';
+                    // Try to find product container by class
+                    const productContainer = link.closest('.product-item, .product, [class*="product"], [class*="item"]');
+                    if (productContainer) {
+                        const containerStyle = window.getComputedStyle(productContainer);
+                        if (containerStyle.position === 'static') {
+                            productContainer.style.position = 'relative';
+                        }
+                        imageContainer = productContainer;
+                    } else {
+                        // Last resort: use link's parent or link itself
+                        imageContainer = link.parentElement || link;
+                        const containerStyle = window.getComputedStyle(imageContainer);
+                        if (containerStyle.position === 'static') {
+                            imageContainer.style.position = 'relative';
+                        }
                     }
                 }
             }
             
+            // Ensure badge is always added, especially for CYO products
             if (imageContainer) {
                 imageContainer.appendChild(badge);
+            } else if (isCYO) {
+                // For CYO products, always ensure badge is added even if container search fails
+                // Try to use link's closest product wrapper or create a wrapper
+                const fallbackContainer = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"], [class*="tile"]') || 
+                                          link.parentElement || 
+                                          link;
+                if (fallbackContainer !== link || fallbackContainer.tagName !== 'A') {
+                    const containerStyle = window.getComputedStyle(fallbackContainer);
+                    if (containerStyle.position === 'static') {
+                        fallbackContainer.style.position = 'relative';
+                    }
+                    fallbackContainer.appendChild(badge);
+                } else {
+                    // If link itself is the only option, wrap badge in a positioned div
+                    const wrapper = document.createElement('div');
+                    wrapper.style.cssText = 'position: relative; display: inline-block;';
+                    link.parentNode.insertBefore(wrapper, link);
+                    wrapper.appendChild(link);
+                    wrapper.appendChild(badge);
+                }
             }
             
             // Store designId or productId on badge for later use
@@ -2523,18 +2838,17 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 badge.setAttribute('data-matched-design-id', matchedDesignId.toString());
             }
             
-            // If data not found, try to update it later (for delayed loading)
-            if (!ptn || productIdValue === null || optionId === null) {
-                if (identifierForUpdate) {
-                    setTimeout(() => {
-                        updateBadgeData(badge, identifierForUpdate);
-                    }, 2000);
-                    setTimeout(() => {
-                        updateBadgeData(badge, identifierForUpdate);
-                    }, 5000);
-                }
+        // If data not found, try to update it later (for delayed loading)
+        if (!ptn || productIdValue === null || optionId === null) {
+            if (identifierForUpdate) {
+                setTimeout(() => {
+                    updateBadgeData(badge, identifierForUpdate);
+                }, 2000);
+                setTimeout(() => {
+                    updateBadgeData(badge, identifierForUpdate);
+                }, 5000);
             }
-        });
+        }
     }
     
     // Function to update badge data (PTN, product_id, option_id) if PRODUCT_ITEMS becomes available later
