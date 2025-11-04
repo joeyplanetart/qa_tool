@@ -2000,23 +2000,65 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         return /\/\+[^,]*,\d+/.test(currentUrl);
     }
     
+    // Function to extract designId from image URL
+    function extractDesignIdFromImage(img) {
+        if (!img) return null;
+        
+        let src = img.getAttribute('src') || '';
+        const dataSrc = img.getAttribute('data-src') || '';
+        const dataLazySrc = img.getAttribute('data-lazy-src') || '';
+        const dataSrcset = img.getAttribute('data-srcset') || '';
+        const ref = img.getAttribute('ref') || '';
+        const dataTempSrc = img.getAttribute('data-temp-src') || '';
+        const dataBgImage = img.getAttribute('data-bg-image') || '';
+        
+        if (src.startsWith('data:image/gif') || src.includes('placeholder') || src.includes('1x1')) {
+            src = '';
+        }
+        
+        let currentSrc = img.currentSrc || img.src || '';
+        if (currentSrc.startsWith('data:image/gif') || currentSrc.includes('placeholder')) {
+            currentSrc = '';
+        }
+        const naturalSrc = img.naturalSrc || '';
+        
+        const urlToCheck = src + ' ' + dataSrc + ' ' + dataLazySrc + ' ' + dataSrcset + ' ' + ref + ' ' + currentSrc + ' ' + naturalSrc + ' ' + dataTempSrc + ' ' + dataBgImage;
+        
+        const designMatch = urlToCheck.match(/\/designs\/(\d{10,})/);
+        if (designMatch) {
+            return designMatch[1];
+        }
+        
+        const previewMatch = urlToCheck.match(/\/(?:preview|image)\/[^/]*-(\d{10,})-/);
+        if (previewMatch) {
+            return previewMatch[1];
+        }
+        
+        const generalMatch = urlToCheck.match(/-(\d{10,})-/);
+        if (generalMatch) {
+            return generalMatch[1];
+        }
+        
+        const queryMatch = urlToCheck.match(/(?:designId|design_id)[=:](\d{10,})/i);
+        if (queryMatch) {
+            return queryMatch[1];
+        }
+        
+        return null;
+    }
+    
     // Function to display product IDs on product list page
     function displayProductIdsOnListPage() {
         if (!isProductListPage()) {
             return;
         }
         
-        // Find all product links - try common patterns
-        // Look for links containing /+ pattern with comma and productId
-        const productLinks = document.querySelectorAll('a[href*="/+"]');
+        // Find all product links - support both /+ pattern and /designer/ pattern (Create Your Own)
+        const productLinks = document.querySelectorAll('a[href*="/+"], a[href*="/designer/"]');
         
         productLinks.forEach((link, index) => {
             const href = link.getAttribute('href');
             if (!href) return;
-            
-            // Extract product ID from link
-            const productId = extractProductIdFromUrl(href);
-            if (!productId) return;
             
             // Find the product image (img tag) - search within the link or nearby
             let productImage = link.querySelector('img');
@@ -2034,6 +2076,53 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 }
             }
             
+            // For CYO products, find real image if current is a placeholder
+            if (productImage && href.includes('/designer/')) {
+                const src = productImage.getAttribute('src') || '';
+                const isPlaceholder = src.startsWith('data:image/gif') || src.includes('placeholder') || src.includes('1x1');
+                
+                if (isPlaceholder) {
+                    const dataLazySrc = productImage.getAttribute('data-lazy-src') || '';
+                    const dataSrc = productImage.getAttribute('data-src') || '';
+                    const dataSrcset = productImage.getAttribute('data-srcset') || '';
+                    
+                    if (dataLazySrc && !dataLazySrc.startsWith('data:')) {
+                        productImage.setAttribute('data-temp-src', dataLazySrc);
+                    } else if (dataSrc && !dataSrc.startsWith('data:')) {
+                        productImage.setAttribute('data-temp-src', dataSrc);
+                    } else if (dataSrcset) {
+                        const firstSrcset = dataSrcset.split(',')[0].trim().split(' ')[0];
+                        if (firstSrcset && !firstSrcset.startsWith('data:')) {
+                            productImage.setAttribute('data-temp-src', firstSrcset);
+                        }
+                    }
+                    
+                    let container = productImage.parentElement;
+                    for (let i = 0; i < 5 && container; i++) {
+                        const otherImages = container.querySelectorAll('img:not([src*="data:image/gif"])');
+                        for (let otherImg of otherImages) {
+                            const otherSrc = otherImg.getAttribute('src') || '';
+                            const otherDataSrc = otherImg.getAttribute('data-src') || otherImg.getAttribute('data-lazy-src') || '';
+                            if ((otherSrc && !otherSrc.startsWith('data:') && !otherSrc.includes('placeholder')) ||
+                                (otherDataSrc && !otherDataSrc.startsWith('data:'))) {
+                                productImage = otherImg;
+                                break;
+                            }
+                        }
+                        
+                        const bgImage = window.getComputedStyle(container).backgroundImage;
+                        if (bgImage && bgImage !== 'none' && !bgImage.includes('data:')) {
+                            const bgMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/);
+                            if (bgMatch && bgMatch[1]) {
+                                productImage.setAttribute('data-bg-image', bgMatch[1]);
+                            }
+                        }
+                        
+                        container = container.parentElement;
+                    }
+                }
+            }
+            
             // If still no image found, skip this product
             if (!productImage) {
                 return;
@@ -2043,10 +2132,68 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const existingBadge = productImage.parentElement.querySelector('.cp-product-id-badge');
             if (existingBadge) return;
             
+            // Extract designId from image URL (primary method)
+            let designIdFromImage = extractDesignIdFromImage(productImage);
+            
+            // For CYO products with placeholder images, extract from data attributes
+            if (href.includes('/designer/') && !designIdFromImage) {
+                const src = productImage.getAttribute('src') || '';
+                const isPlaceholder = src.startsWith('data:image/gif') || src.includes('placeholder');
+                
+                if (isPlaceholder) {
+                    // Helper function to extract designId from URL string
+                    function extractDesignIdFromUrlString(urlString) {
+                        if (!urlString) return null;
+                        const designMatch = urlString.match(/\/designs\/(\d{10,})/);
+                        if (designMatch) return designMatch[1];
+                        const previewMatch = urlString.match(/\/(?:preview|image)\/[^/]*-(\d{10,})-/);
+                        if (previewMatch) return previewMatch[1];
+                        const generalMatch = urlString.match(/-(\d{10,})-/);
+                        if (generalMatch) return generalMatch[1];
+                        return null;
+                    }
+                    
+                    const dataLazySrc = productImage.getAttribute('data-lazy-src') || '';
+                    const dataSrc = productImage.getAttribute('data-src') || '';
+                    const dataSrcset = productImage.getAttribute('data-srcset') || '';
+                    
+                    if (dataLazySrc) {
+                        designIdFromImage = extractDesignIdFromUrlString(dataLazySrc);
+                    }
+                    if (!designIdFromImage && dataSrc) {
+                        designIdFromImage = extractDesignIdFromUrlString(dataSrc);
+                    }
+                    if (!designIdFromImage && dataSrcset) {
+                        const srcsetUrls = dataSrcset.split(',');
+                        for (let srcsetUrl of srcsetUrls) {
+                            const url = srcsetUrl.trim().split(' ')[0];
+                            designIdFromImage = extractDesignIdFromUrlString(url);
+                            if (designIdFromImage) break;
+                        }
+                    }
+                }
+            }
+            
+            // Fallback: Extract productId from URL if no designId found in image
+            let productId = null;
+            if (!designIdFromImage) {
+                productId = extractProductIdFromUrl(href);
+                if (!productId) {
+                    // For CYO products, still try to create badge even without designId/productId
+                    // We'll show "N/A" but still try to match in PRODUCT_ITEMS
+                    if (!href.includes('/designer/')) {
+                        return; // Skip non-CYO products if neither designId nor productId found
+                    }
+                    // For CYO, continue to try matching with any available info
+                }
+            }
+            
             // Try to get PTN, product_id, and option_id from PRODUCT_ITEMS array
             let ptn = null;
             let productIdValue = null;
             let optionId = null;
+            let matchedDesignId = null;
+            
             try {
                 // Function to find PRODUCT_ITEMS in various locations
                 function findProductItemsArray() {
@@ -2067,7 +2214,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     for (let script of scripts) {
                         const content = script.textContent || script.innerHTML;
                         if (content && content.includes('PRODUCT_ITEMS')) {
-                            // Try to extract PRODUCT_ITEMS from script content
                             try {
                                 // Look for var PRODUCT_ITEMS = [...] pattern
                                 const match = content.match(/var\s+PRODUCT_ITEMS\s*=\s*(\[[\s\S]*?\]);/);
@@ -2086,7 +2232,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                     }
                                 }
                             } catch (e) {
-                                // Continue to next script
                                 continue;
                             }
                         }
@@ -2097,25 +2242,58 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 
                 const productItems = findProductItemsArray();
                 if (productItems) {
-                    // URL ID is design_id, need to add 100000000000 to match product_items.design_id
-                    const designIdFromUrl = parseInt(productId);
-                    const fullDesignId = designIdFromUrl + 100000000000;
+                    const designIdsToTry = [];
                     
-                    // Search for matching item by design_id
-                    for (let i = 0; i < productItems.length; i++) {
-                        const item = productItems[i];
-                        if (!item) continue;
-                        
-                        const itemDesignId = item.design_id;
-                        if (itemDesignId === fullDesignId || 
-                            itemDesignId === designIdFromUrl ||
-                            String(itemDesignId) === String(fullDesignId) ||
-                            String(itemDesignId) === String(designIdFromUrl)) {
-                            ptn = item.product_type_no;
-                            productIdValue = item.product_id;
-                            optionId = item.option_id;
+                    if (designIdFromImage) {
+                        const imageDesignIdNum = parseInt(designIdFromImage);
+                        designIdsToTry.push(imageDesignIdNum + 100000000000);
+                        designIdsToTry.push(imageDesignIdNum);
+                    }
+                    
+                    if (productId && !isNaN(productId)) {
+                        const productIdNum = parseInt(productId);
+                        designIdsToTry.push(productIdNum + 100000000000);
+                        designIdsToTry.push(productIdNum);
+                    }
+                    
+                    if (designIdsToTry.length > 0) {
+                        const uniqueDesignIds = [...new Set(designIdsToTry)];
+                        for (let i = 0; i < productItems.length; i++) {
+                            const item = productItems[i];
+                            if (!item) continue;
+                            
+                            const itemDesignId = item.design_id;
+                            for (let tryId of uniqueDesignIds) {
+                                if (itemDesignId === tryId || String(itemDesignId) === String(tryId)) {
+                                    ptn = item.product_type_no;
+                                    productIdValue = item.product_id;
+                                    optionId = item.option_id;
+                                    matchedDesignId = itemDesignId;
+                                    break;
+                                }
+                            }
                             if (ptn !== null && ptn !== undefined) {
                                 break;
+                            }
+                        }
+                    }
+                    
+                    // For CYO products, try matching by attr2 parameter if no designId found
+                    if (href.includes('/designer/') && designIdsToTry.length === 0) {
+                        const attr2Match = href.match(/[?&]attr2=(\d+)/);
+                        if (attr2Match) {
+                            for (let i = 0; i < productItems.length; i++) {
+                                const item = productItems[i];
+                                if (!item) continue;
+                                
+                                if ((item.option_id && String(item.option_id) === attr2Match[1]) ||
+                                    (item.product_id && String(item.product_id) === attr2Match[1])) {
+                                    ptn = item.product_type_no;
+                                    productIdValue = item.product_id;
+                                    optionId = item.option_id;
+                                    matchedDesignId = item.design_id;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -2125,7 +2303,17 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             }
             
             // Build badge content
-            let badgeContent = `ID: ${productId}`;
+            let displayId = null;
+            if (productIdValue) {
+                displayId = productIdValue.toString();
+            } else if (productId) {
+                displayId = productId;
+            } else if (designIdFromImage) {
+                displayId = `DesignId: ${designIdFromImage}`;
+            } else {
+                displayId = href.includes('/designer/') ? 'CYO' : 'N/A';
+            }
+            let badgeContent = `ID: ${displayId}`;
             if (ptn !== null && ptn !== undefined) {
                 badgeContent += `\nPTN: ${ptn}`;
             } else {
@@ -2174,15 +2362,30 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 e.preventDefault();
                 e.stopPropagation();
                 
-                // Calculate DesignId from CP Product ID (designId = cpProductId + 100000000000)
-                const designId = (parseInt(productId) + 100000000000).toString();
+                // Get stored values from badge attributes
+                const storedIdentifier = badge.getAttribute('data-identifier');
+                const storedMatchedDesignId = badge.getAttribute('data-matched-design-id');
+                
+                // Calculate DesignId - use matched designId if available, otherwise use stored identifier
+                let designId = storedMatchedDesignId;
+                if (!designId && storedIdentifier) {
+                    // If stored identifier is a number, it might be productId - add offset
+                    if (!isNaN(storedIdentifier)) {
+                        designId = (parseInt(storedIdentifier) + 100000000000).toString();
+                    } else {
+                        designId = storedIdentifier;
+                    }
+                }
                 
                 // Read current badge content to get all information (including updated values)
                 const badgeText = badge.textContent;
                 const lines = badgeText.split('\n');
                 
                 // Build text to copy with all available information
-                let textToCopy = `ID: ${productId}\nDesignId: ${designId}`;
+                let textToCopy = badgeText.split('\n')[0]; // Use first line as ID
+                if (designId) {
+                    textToCopy += `\nDesignId: ${designId}`;
+                }
                 
                 // Extract PTN, ProductID, and OptionID from badge text if available
                 for (let line of lines) {
@@ -2266,24 +2469,32 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             // Append badge to image container
             imageContainer.appendChild(badge);
             
-            // Store productId on badge
-            badge.setAttribute('data-product-id', productId);
+            // Store designId or productId on badge for later use
+            const identifierForUpdate = designIdFromImage || productId;
+            if (identifierForUpdate) {
+                badge.setAttribute('data-identifier', identifierForUpdate);
+            }
+            if (matchedDesignId) {
+                badge.setAttribute('data-matched-design-id', matchedDesignId.toString());
+            }
             
             // If data not found, try to update it later (for delayed loading)
             if (!ptn || productIdValue === null || optionId === null) {
-                setTimeout(() => {
-                    updateBadgeData(badge, productId);
-                }, 2000);
-                setTimeout(() => {
-                    updateBadgeData(badge, productId);
-                }, 5000);
+                if (identifierForUpdate) {
+                    setTimeout(() => {
+                        updateBadgeData(badge, identifierForUpdate);
+                    }, 2000);
+                    setTimeout(() => {
+                        updateBadgeData(badge, identifierForUpdate);
+                    }, 5000);
+                }
             }
         });
     }
     
     // Function to update badge data (PTN, product_id, option_id) if PRODUCT_ITEMS becomes available later
-    function updateBadgeData(badge, productId) {
-        if (!badge || !productId) return;
+    function updateBadgeData(badge, designId) {
+        if (!badge || !designId) return;
         
         // Check if all data is already set (not N/A)
         const currentText = badge.textContent;
@@ -2309,41 +2520,46 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const productItems = windowArrays.length > 0 ? windowArrays[0] : null;
             
             if (productItems) {
-                const designIdFromUrl = parseInt(productId);
-                const fullDesignId = designIdFromUrl + 100000000000;
+                const designIdNum = parseInt(designId);
+                const designIdsToTry = [
+                    designIdNum + 100000000000, // With offset
+                    designIdNum                  // Without offset
+                ];
                 
                 for (let i = 0; i < productItems.length; i++) {
                     const item = productItems[i];
                     if (!item) continue;
                     
                     const itemDesignId = item.design_id;
-                    if (itemDesignId === fullDesignId ||
-                        itemDesignId === designIdFromUrl ||
-                        String(itemDesignId) === String(fullDesignId) ||
-                        String(itemDesignId) === String(designIdFromUrl)) {
-                        ptn = item.product_type_no;
-                        productIdValue = item.product_id;
-                        optionId = item.option_id;
-                        if (ptn !== null && ptn !== undefined) {
-                            // Update badge content
-                            const lines = currentText.split('\n');
-                            if (lines.length >= 2) {
-                                // Update PTN
-                                if (lines[1].includes('PTN: N/A') && ptn !== null && ptn !== undefined) {
-                                    lines[1] = `PTN: ${ptn}`;
+                    for (let tryId of designIdsToTry) {
+                        if (itemDesignId === tryId || String(itemDesignId) === String(tryId)) {
+                            ptn = item.product_type_no;
+                            productIdValue = item.product_id;
+                            optionId = item.option_id;
+                            if (ptn !== null && ptn !== undefined) {
+                                // Update badge content
+                                const lines = currentText.split('\n');
+                                if (lines.length >= 2) {
+                                    // Update PTN
+                                    if (lines[1].includes('PTN: N/A') && ptn !== null && ptn !== undefined) {
+                                        lines[1] = `PTN: ${ptn}`;
+                                    }
+                                    // Update ProductID
+                                    if (lines.length >= 3 && lines[2].includes('ProductID: N/A') && productIdValue !== null && productIdValue !== undefined) {
+                                        lines[2] = `ProductID: ${productIdValue}`;
+                                    }
+                                    // Update OptionID
+                                    if (lines.length >= 4 && lines[3].includes('OptionID: N/A') && optionId !== null && optionId !== undefined) {
+                                        lines[3] = `OptionID: ${optionId}`;
+                                    }
+                                    badge.textContent = lines.join('\n');
                                 }
-                                // Update ProductID
-                                if (lines.length >= 3 && lines[2].includes('ProductID: N/A') && productIdValue !== null && productIdValue !== undefined) {
-                                    lines[2] = `ProductID: ${productIdValue}`;
-                                }
-                                // Update OptionID
-                                if (lines.length >= 4 && lines[3].includes('OptionID: N/A') && optionId !== null && optionId !== undefined) {
-                                    lines[3] = `OptionID: ${optionId}`;
-                                }
-                                badge.textContent = lines.join('\n');
+                                break;
                             }
-                            break;
                         }
+                    }
+                    if (ptn !== null && ptn !== undefined) {
+                        break;
                     }
                 }
             }
