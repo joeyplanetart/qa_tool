@@ -2052,9 +2052,42 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         return null;
     }
     
+    // Function to update badge visibility based on settings
+    function updateBadgeVisibility(enabled) {
+        const badges = document.querySelectorAll('.cp-product-id-badge');
+        badges.forEach(badge => {
+            if (enabled) {
+                badge.style.display = 'block';
+                badge.style.visibility = 'visible';
+            } else {
+                badge.style.display = 'none';
+                badge.style.visibility = 'hidden';
+            }
+        });
+        console.log(`Badge visibility updated: ${enabled ? 'shown' : 'hidden'}, found ${badges.length} badges`);
+    }
+    
+    // Function to check if badge display is enabled
+    async function isBadgeDisplayEnabled() {
+        return new Promise((resolve) => {
+            chrome.storage.local.get(['badgeDisplayEnabled'], (result) => {
+                // Default to true if not set
+                resolve(result.badgeDisplayEnabled !== false);
+            });
+        });
+    }
+    
     // Function to display product IDs on product list page
-    function displayProductIdsOnListPage() {
+    async function displayProductIdsOnListPage() {
         if (!isProductListPage()) {
+            return;
+        }
+        
+        // Check if badge display is enabled
+        const badgeEnabled = await isBadgeDisplayEnabled();
+        if (!badgeEnabled) {
+            // Hide existing badges if setting is disabled
+            updateBadgeVisibility(false);
             return;
         }
         
@@ -2100,19 +2133,45 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             finalProductLinks.push(...Array.from(allLinks));
         }
         
+        // Track processed products to avoid duplicates
+        const processedProducts = new Set();
+        
         finalProductLinks.forEach((link, index) => {
-            // Skip if already processed (has badge)
-            const existingBadge = link.closest('.product-item, .product, [class*="product"]')?.querySelector('.cp-product-id-badge');
-            if (existingBadge) return;
-            
-            // For CYO products, wait for preview-image to load if not found immediately
             const href = link.getAttribute('href');
+            if (!href) return;
+            
+            // Create unique identifier for this product
+            const productContainer = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"]');
+            const productId = productContainer ? `${href}-${productContainer.getBoundingClientRect().top}-${productContainer.getBoundingClientRect().left}` : href;
+            
+            // Skip if already processed
+            if (processedProducts.has(productId)) {
+                return;
+            }
+            
+            // Skip if badge already exists in container
+            if (productContainer) {
+                const existingBadge = productContainer.querySelector('.cp-product-id-badge');
+                if (existingBadge) {
+                    processedProducts.add(productId);
+                    return;
+                }
+            } else {
+                const existingBadge = link.closest('.product-item, .product, [class*="product"]')?.querySelector('.cp-product-id-badge');
+                if (existingBadge) {
+                    processedProducts.add(productId);
+                    return;
+                }
+            }
+            
+            // Mark as processing
+            processedProducts.add(productId);
+            
             // Check if this is a CYO product (includes /designer/ or /make/ in href, or current page is /make/)
             const isCYOProduct = href && (href.includes('/designer/') || href.includes('/make/'));
             const isMakePage = /\/make\/[^/]+/.test(window.location.href);
             
             if (isCYOProduct || isMakePage) {
-                const productContainer = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"]');
                 if (productContainer) {
                     const previewImage = productContainer.querySelector('.preview-image img');
                     if (!previewImage || !previewImage.src || previewImage.src.includes('data:image/gif') || previewImage.src.includes('placeholder')) {
@@ -2121,10 +2180,14 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         const maxRetries = 10;
                         let processed = false;
                         
-                        const processWhenReady = () => {
+                        const processWhenReady = async () => {
                             if (!processed) {
                                 processed = true;
-                                processProductLink(link);
+                                // Double check badge doesn't exist before processing
+                                const existingBadge = productContainer.querySelector('.cp-product-id-badge');
+                                if (!existingBadge) {
+                                    await processProductLink(link);
+                                }
                             }
                         };
                         
@@ -2192,26 +2255,48 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             if (isMakePage && !href) {
                 // On /make/ pages, product might be displayed directly without a link
                 // Try to find product container and process it
-                const productContainer = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"]');
                 if (productContainer) {
-                    // Create a virtual link for processing
-                    const virtualLink = document.createElement('a');
-                    virtualLink.setAttribute('href', window.location.href);
-                    virtualLink.style.display = 'none';
-                    productContainer.appendChild(virtualLink);
-                    processProductLink(virtualLink);
+                    // Check if badge already exists
+                    const existingBadge = productContainer.querySelector('.cp-product-id-badge');
+                    if (!existingBadge) {
+                        // Create a virtual link for processing
+                        const virtualLink = document.createElement('a');
+                        virtualLink.setAttribute('href', window.location.href);
+                        virtualLink.style.display = 'none';
+                        productContainer.appendChild(virtualLink);
+                        processProductLink(virtualLink).catch(err => console.error('Error processing virtual link:', err));
+                    }
                 }
             } else {
-                processProductLink(link);
+                // Double check before processing
+                if (productContainer) {
+                    const existingBadge = productContainer.querySelector('.cp-product-id-badge');
+                    if (!existingBadge) {
+                        processProductLink(link).catch(err => console.error('Error processing product link:', err));
+                    }
+                } else {
+                    processProductLink(link).catch(err => console.error('Error processing product link:', err));
+                }
             }
         });
     }
     
     // Helper function to process a single product link
-    function processProductLink(link) {
-        // Skip if already processed (has badge)
-        const existingBadge = link.closest('.product-item, .product, [class*="product"]')?.querySelector('.cp-product-id-badge');
-        if (existingBadge) return;
+    async function processProductLink(link) {
+        // Find product container first
+        const productContainer = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"]');
+        
+        // Skip if badge already exists in container
+        if (productContainer) {
+            const existingBadge = productContainer.querySelector('.cp-product-id-badge');
+            if (existingBadge) {
+                return; // Badge already exists, skip
+            }
+        } else {
+            // Fallback: check in link's parent
+            const existingBadge = link.closest('.product-item, .product, [class*="product"]')?.querySelector('.cp-product-id-badge');
+            if (existingBadge) return;
+        }
         
         const href = link.getAttribute('href');
         if (!href) return;
@@ -2617,6 +2702,11 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const badge = document.createElement('div');
             badge.className = 'cp-product-id-badge';
             badge.textContent = badgeContent;
+            
+            // Get badge display setting synchronously (we already checked it before creating badge)
+            // But apply it immediately to avoid flash
+            const badgeEnabled = await isBadgeDisplayEnabled();
+            
             // Unified badge style for both CYO and regular products to ensure consistency
             badge.style.cssText = `
                 position: absolute;
@@ -2640,6 +2730,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 cursor: pointer;
                 user-select: text;
                 transition: background-color 0.2s ease, transform 0.1s ease;
+                display: ${badgeEnabled ? 'block' : 'none'};
+                visibility: ${badgeEnabled ? 'visible' : 'hidden'};
             `;
             
             // Unified hover effect for both CYO and regular products
@@ -2812,27 +2904,52 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             }
             
             // Ensure badge is always added, especially for CYO products
+            // Double check no duplicate badge exists before adding
             if (imageContainer) {
-                imageContainer.appendChild(badge);
-            } else if (isCYO) {
+                // Check if badge already exists in this container
+                const existingBadge = imageContainer.querySelector('.cp-product-id-badge');
+                if (!existingBadge) {
+                    imageContainer.appendChild(badge);
+                } else {
+                    // Badge already exists, don't add duplicate
+                    return;
+                }
+            } else if (isCYO || isMakePage) {
                 // For CYO products, always ensure badge is added even if container search fails
                 // Try to use link's closest product wrapper or create a wrapper
                 const fallbackContainer = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"], [class*="tile"]') || 
                                           link.parentElement || 
                                           link;
                 if (fallbackContainer !== link || fallbackContainer.tagName !== 'A') {
-                    const containerStyle = window.getComputedStyle(fallbackContainer);
-                    if (containerStyle.position === 'static') {
-                        fallbackContainer.style.position = 'relative';
+                    // Check if badge already exists
+                    const existingBadge = fallbackContainer.querySelector('.cp-product-id-badge');
+                    if (!existingBadge) {
+                        const containerStyle = window.getComputedStyle(fallbackContainer);
+                        if (containerStyle.position === 'static') {
+                            fallbackContainer.style.position = 'relative';
+                        }
+                        fallbackContainer.appendChild(badge);
+                    } else {
+                        // Badge already exists, don't add duplicate
+                        return;
                     }
-                    fallbackContainer.appendChild(badge);
                 } else {
                     // If link itself is the only option, wrap badge in a positioned div
-                    const wrapper = document.createElement('div');
-                    wrapper.style.cssText = 'position: relative; display: inline-block;';
-                    link.parentNode.insertBefore(wrapper, link);
-                    wrapper.appendChild(link);
-                    wrapper.appendChild(badge);
+                    // But first check if parent already has a badge
+                    const parent = link.parentElement;
+                    if (parent) {
+                        const existingBadge = parent.querySelector('.cp-product-id-badge');
+                        if (!existingBadge) {
+                            const wrapper = document.createElement('div');
+                            wrapper.style.cssText = 'position: relative; display: inline-block;';
+                            link.parentNode.insertBefore(wrapper, link);
+                            wrapper.appendChild(link);
+                            wrapper.appendChild(badge);
+                        } else {
+                            // Badge already exists, don't add duplicate
+                            return;
+                        }
+                    }
                 }
             }
             
@@ -2938,12 +3055,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     function initProductListDisplay() {
         // Initial check
         if (isProductListPage()) {
-            setTimeout(displayProductIdsOnListPage, 1000);
+            setTimeout(() => {
+                displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
+            }, 1000);
             
             // Also try when window is fully loaded
             if (document.readyState !== 'complete') {
                 window.addEventListener('load', () => {
-                    setTimeout(displayProductIdsOnListPage, 500);
+                    setTimeout(() => {
+                        displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
+                    }, 500);
                 }, { once: true });
             }
         }
@@ -2968,7 +3089,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 });
                 
                 if (shouldUpdate) {
-                    setTimeout(displayProductIdsOnListPage, 300);
+                    setTimeout(() => {
+                        displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
+                    }, 300);
                 }
             }
         });
@@ -2985,7 +3108,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             if (currentUrl !== lastUrl) {
                 lastUrl = currentUrl;
                 if (isProductListPage()) {
-                    setTimeout(displayProductIdsOnListPage, 500);
+                    setTimeout(() => {
+                        displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
+                    }, 500);
                 }
             }
         }, 500);
@@ -3029,20 +3154,33 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         header.style.cssText = `
             padding: 15px 20px;
             border-bottom: 1px solid rgba(255,255,255,0.2);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             background: rgba(0,0,0,0.1);
             position: relative;
             border-top-left-radius: 10px;
             border-top-right-radius: 10px;
         `;
         
+        // Top row: title, setting button, and control buttons
+        const headerTop = document.createElement('div');
+        headerTop.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        `;
+        
+        // Left side: title and setting button
+        const titleContainer = document.createElement('div');
+        titleContainer.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        `;
+        
         const title = document.createElement('h3');
         title.textContent = 'Cafepress QA Tools';
         title.style.cssText = `
             margin: 0;
-            font-size: 16px;
+            font-size: 12px;
             font-weight: 600;
             color: white;
         `;
@@ -3226,10 +3364,144 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             closeButton.style.backgroundColor = 'transparent';
         });
         
-        header.appendChild(title);
-        header.appendChild(ssoButton);
-        header.appendChild(minimizeButton);
-        header.appendChild(closeButton);
+        // Setting button (icon only) next to title
+        const settingButton = document.createElement('button');
+        settingButton.innerHTML = '⚙️';
+        settingButton.id = 'cp-setting-button';
+        settingButton.title = 'Settings';
+        settingButton.style.cssText = `
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 2px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            opacity: 0.8;
+        `;
+        
+        titleContainer.appendChild(title);
+        titleContainer.appendChild(settingButton);
+        
+        // Right side: SSO Login and control buttons
+        const rightButtons = document.createElement('div');
+        rightButtons.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        `;
+        
+        rightButtons.appendChild(ssoButton);
+        rightButtons.appendChild(minimizeButton);
+        rightButtons.appendChild(closeButton);
+        
+        headerTop.appendChild(titleContainer);
+        headerTop.appendChild(rightButtons);
+        
+        let settingsPanelVisible = false;
+        const settingsPanel = document.createElement('div');
+        settingsPanel.id = 'cp-settings-panel';
+        settingsPanel.style.cssText = `
+            display: none;
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+            border-top: 1px solid rgba(255,255,255,0.2);
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        `;
+        
+        // Badge display toggle
+        const badgeToggleContainer = document.createElement('div');
+        badgeToggleContainer.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        `;
+        
+        const badgeToggle = document.createElement('input');
+        badgeToggle.type = 'checkbox';
+        badgeToggle.id = 'cp-badge-toggle';
+        badgeToggle.style.cssText = `
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #ffeb3b;
+            flex-shrink: 0;
+        `;
+        
+        const badgeToggleLabel = document.createElement('label');
+        badgeToggleLabel.textContent = 'Show Thumbs Badge';
+        badgeToggleLabel.setAttribute('for', 'cp-badge-toggle');
+        badgeToggleLabel.style.cssText = `
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            user-select: none;
+        `;
+        
+        // Load badge display setting
+        chrome.storage.local.get(['badgeDisplayEnabled'], (result) => {
+            const enabled = result.badgeDisplayEnabled !== false; // Default to true
+            badgeToggle.checked = enabled;
+            // Update existing badges
+            updateBadgeVisibility(enabled);
+        });
+        
+        badgeToggle.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            chrome.storage.local.set({ badgeDisplayEnabled: enabled }, () => {
+                // Update all existing badges immediately
+                updateBadgeVisibility(enabled);
+                console.log('Badge display setting saved:', enabled);
+                // Also trigger a refresh of product list display if on product list page
+                if (isProductListPage()) {
+                    setTimeout(() => {
+                        displayProductIdsOnListPage().catch(err => console.error('Error refreshing badges:', err));
+                    }, 100);
+                }
+            });
+        });
+        
+        // Listen for storage changes from other tabs/windows
+        chrome.storage.onChanged.addListener((changes, areaName) => {
+            if (areaName === 'local' && changes.badgeDisplayEnabled) {
+                const enabled = changes.badgeDisplayEnabled.newValue !== false;
+                badgeToggle.checked = enabled;
+                updateBadgeVisibility(enabled);
+            }
+        });
+        
+        badgeToggleContainer.appendChild(badgeToggle);
+        badgeToggleContainer.appendChild(badgeToggleLabel);
+        settingsPanel.appendChild(badgeToggleContainer);
+        
+        settingButton.addEventListener('click', () => {
+            settingsPanelVisible = !settingsPanelVisible;
+            if (settingsPanelVisible) {
+                settingsPanel.style.display = 'block';
+                settingButton.style.opacity = '1';
+            } else {
+                settingsPanel.style.display = 'none';
+                settingButton.style.opacity = '0.8';
+            }
+        });
+        
+        settingButton.addEventListener('mouseenter', () => {
+            settingButton.style.opacity = '1';
+        });
+        
+        settingButton.addEventListener('mouseleave', () => {
+            if (!settingsPanelVisible) {
+                settingButton.style.opacity = '0.8';
+            }
+        });
+        
+        header.appendChild(headerTop);
         
         // Create content area
         const content = document.createElement('div');
@@ -3241,6 +3513,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         `;
         
         floatingWindow.appendChild(header);
+        floatingWindow.appendChild(settingsPanel);
         floatingWindow.appendChild(content);
         floatingWindow.appendChild(pinButton);  // Add pin button to floating window container
         document.body.appendChild(floatingWindow);
