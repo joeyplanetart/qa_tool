@@ -2095,16 +2095,31 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         // 1. /+ pattern (regular products)
         // 2. /designer/ pattern (CYO products)
         // 3. /make/ pattern (CYO product category pages - may link to /designer/ or /+)
+        // Exclude non-product pages like /make/design-your-own
         const productLinks = document.querySelectorAll('a[href*="/+"], a[href*="/designer/"], a[href*="/make/"]');
+        
+        // Filter out non-product links from productLinks
+        const filteredProductLinks = Array.from(productLinks).filter(link => {
+            const href = link.getAttribute('href');
+            if (!href) return false;
+            // Exclude non-product pages
+            if (href.includes('/make/design-your-own') || href.includes('/make/design-your-own/')) {
+                return false;
+            }
+            return true;
+        });
         
         // Also find product cards/items that might contain product links
         // For /make/ pages, products might be in different containers
         const makePageLinks = document.querySelectorAll('.product-item a, .product-card a, [class*="product"] a, [class*="item"] a');
-        const allLinks = new Set([...productLinks]);
+        const allLinks = new Set([...filteredProductLinks]);
         makePageLinks.forEach(link => {
             const href = link.getAttribute('href');
             if (href && (href.includes('/+') || href.includes('/designer/') || href.includes('/make/'))) {
-                allLinks.add(link);
+                // Exclude non-product pages
+                if (!href.includes('/make/design-your-own') && !href.includes('/make/design-your-own/')) {
+                    allLinks.add(link);
+                }
             }
         });
         
@@ -2112,14 +2127,28 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         const finalProductLinks = Array.from(allLinks);
         
         // For /make/ pages, if no product links found, try to find product containers directly
+        // But exclude /make/design-your-own page
         const isMakePage = /\/make\/[^/]+/.test(window.location.href);
-        if (isMakePage && finalProductLinks.length === 0) {
+        const isDesignYourOwnPage = window.location.href.includes('/make/design-your-own');
+        if (isMakePage && !isDesignYourOwnPage && finalProductLinks.length === 0) {
             // Look for product containers that might contain product images
             const productContainers = document.querySelectorAll('.product-item, .product, [class*="product"], [class*="item"], [class*="card"], [class*="design-item"]');
             productContainers.forEach(container => {
-                // Check if container has product image or preview-image
-                const hasImage = container.querySelector('img, .preview-image, [class*="image"]');
-                if (hasImage) {
+                // Check if container has product image or preview-image (but not logo)
+                const images = container.querySelectorAll('img');
+                let hasValidImage = false;
+                for (let img of images) {
+                    // Skip logo images
+                    const src = (img.getAttribute('src') || '').toLowerCase();
+                    const className = (img.className || '').toLowerCase();
+                    const parentClass = (img.parentElement?.className || '').toLowerCase();
+                    if (src.includes('logo') || className.includes('logo') || parentClass.includes('logo')) {
+                        continue;
+                    }
+                    hasValidImage = true;
+                    break;
+                }
+                if (hasValidImage || container.querySelector('.preview-image, [class*="image"]')) {
                     // Create a virtual link for this container
                     const virtualLink = document.createElement('a');
                     virtualLink.setAttribute('href', window.location.href);
@@ -2301,8 +2330,35 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         const href = link.getAttribute('href');
         if (!href) return;
         
+        // Exclude non-product pages
+        if (href.includes('/make/design-your-own') || href.includes('/make/design-your-own/')) {
+            return;
+        }
+        
         // Find the product image (img tag) - priority: preview-image class for CYO products
         let productImage = null;
+        
+        // Helper function to check if an image is a logo
+        function isLogoImage(img) {
+            if (!img) return false;
+            const src = (img.getAttribute('src') || '').toLowerCase();
+            const dataSrc = (img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '').toLowerCase();
+            const className = (img.className || '').toLowerCase();
+            const alt = (img.getAttribute('alt') || '').toLowerCase();
+            const id = (img.id || '').toLowerCase();
+            const parentClass = (img.parentElement?.className || '').toLowerCase();
+            
+            // Check for logo indicators
+            return src.includes('logo') || 
+                   src.includes('cp-logo') || 
+                   src.includes('cafepress-logo') ||
+                   dataSrc.includes('logo') ||
+                   dataSrc.includes('cp-logo') ||
+                   className.includes('logo') ||
+                   alt.includes('logo') ||
+                   id.includes('logo') ||
+                   parentClass.includes('logo');
+        }
         
         // For CYO products, prioritize finding img in class="preview-image"
         // Also handle /make/ pages which are CYO product category pages
@@ -2317,12 +2373,17 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 if (previewImageContainer) {
                     productImage = previewImageContainer.querySelector('img');
                     if (productImage) {
-                        const src = productImage.getAttribute('src') || '';
-                        // Verify it's not a placeholder
-                        if (!src.startsWith('data:image/gif') && !src.includes('placeholder') && !src.includes('1x1')) {
-                            // Found valid preview-image img
+                        // Skip if it's a logo
+                        if (isLogoImage(productImage)) {
+                            productImage = null;
                         } else {
-                            productImage = null; // Continue searching
+                            const src = productImage.getAttribute('src') || '';
+                            // Verify it's not a placeholder
+                            if (!src.startsWith('data:image/gif') && !src.includes('placeholder') && !src.includes('1x1')) {
+                                // Found valid preview-image img
+                            } else {
+                                productImage = null; // Continue searching
+                            }
                         }
                     }
                 }
@@ -2330,7 +2391,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             
             // If not found in preview-image, search within the link
             if (!productImage) {
-                productImage = link.querySelector('img');
+                const linkImg = link.querySelector('img');
+                if (linkImg && !isLogoImage(linkImg)) {
+                    productImage = linkImg;
+                }
             }
             
             // If not found in link, search in parent elements
@@ -2344,7 +2408,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         const previewImageContainer = parent.querySelector('.preview-image');
                         if (previewImageContainer) {
                             const img = previewImageContainer.querySelector('img');
-                            if (img) {
+                            if (img && !isLogoImage(img)) {
                                 const src = img.getAttribute('src') || '';
                                 if (!src.startsWith('data:image/gif') && !src.includes('placeholder') && !src.includes('1x1')) {
                                     productImage = img;
@@ -2354,8 +2418,11 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         }
                     }
                     
-                    productImage = parent.querySelector('img');
-                    if (productImage) break;
+                    const parentImg = parent.querySelector('img');
+                    if (parentImg && !isLogoImage(parentImg)) {
+                        productImage = parentImg;
+                        break;
+                    }
                     parent = parent.parentElement;
                     depth++;
                 }
@@ -2371,7 +2438,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     const previewImageContainer = link.closest('.product-item, .product, [class*="product"]')?.querySelector('.preview-image');
                     if (previewImageContainer) {
                         const previewImg = previewImageContainer.querySelector('img');
-                        if (previewImg) {
+                        if (previewImg && !isLogoImage(previewImg)) {
                             const previewSrc = previewImg.getAttribute('src') || '';
                             const previewDataSrc = previewImg.getAttribute('data-src') || previewImg.getAttribute('data-lazy-src') || '';
                             if (previewSrc && !previewSrc.startsWith('data:image/gif') && !previewSrc.includes('placeholder') && !previewSrc.includes('1x1')) {
@@ -2411,7 +2478,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 const containerPreview = container.querySelector('.preview-image');
                                 if (containerPreview) {
                                     const previewImg = containerPreview.querySelector('img');
-                                    if (previewImg) {
+                                    if (previewImg && !isLogoImage(previewImg)) {
                                         const previewSrc = previewImg.getAttribute('src') || '';
                                         if (previewSrc && !previewSrc.startsWith('data:image/gif') && !previewSrc.includes('placeholder')) {
                                             productImage = previewImg;
@@ -2422,6 +2489,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 
                                 const otherImages = container.querySelectorAll('img:not([src*="data:image/gif"])');
                                 for (let otherImg of otherImages) {
+                                    if (isLogoImage(otherImg)) continue;
                                     const otherSrc = otherImg.getAttribute('src') || '';
                                     const otherDataSrc = otherImg.getAttribute('data-src') || otherImg.getAttribute('data-lazy-src') || '';
                                     if ((otherSrc && !otherSrc.startsWith('data:') && !otherSrc.includes('placeholder')) ||
@@ -2509,7 +2577,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     const previewImageContainer = link.closest('.product-item, .product, [class*="product"]')?.querySelector('.preview-image');
                     if (previewImageContainer) {
                         const img = previewImageContainer.querySelector('img');
-                        if (img) {
+                        if (img && !isLogoImage(img)) {
                             const imgSrc = img.getAttribute('src') || '';
                             const imgDataSrc = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
                             if (imgSrc && !imgSrc.startsWith('data:image/gif') && !imgSrc.includes('placeholder')) {
@@ -2526,6 +2594,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         for (let i = 0; i < 5 && container && container !== document.body; i++) {
                             const images = container.querySelectorAll('img');
                             for (let img of images) {
+                                if (isLogoImage(img)) continue;
                                 const imgSrc = img.getAttribute('src') || '';
                                 const imgDataSrc = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
                                 if (imgSrc && !imgSrc.startsWith('data:image/gif') && !imgSrc.includes('placeholder')) {
