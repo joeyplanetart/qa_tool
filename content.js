@@ -5889,6 +5889,30 @@ ${address.cityStateZip}</div>
                         }
                         
                         try {
+                            // First, verify bucket exists by listing buckets
+                            console.log('🔍 Verifying bucket access...');
+                            const bucketsUrl = `${supabaseUrl}/storage/v1/bucket`;
+                            const bucketsResponse = await fetch(bucketsUrl, {
+                                method: 'GET',
+                                headers: {
+                                    'apikey': supabaseAnonKey,
+                                    'Authorization': `Bearer ${supabaseAnonKey}`
+                                }
+                            });
+                            
+                            if (bucketsResponse.ok) {
+                                const buckets = await bucketsResponse.json();
+                                const bucketExists = Array.isArray(buckets) && buckets.some(b => b.name === supabaseBucket);
+                                console.log('📦 Available buckets:', buckets.map(b => b.name));
+                                
+                                if (!bucketExists) {
+                                    throw new Error(`存储桶 "${supabaseBucket}" 不存在。请检查：1) 存储桶名称是否正确 2) 存储桶是否已创建 3) 存储桶是否设置为公开访问`);
+                                }
+                                console.log(`✅ Bucket "${supabaseBucket}" found`);
+                            } else {
+                                console.warn('⚠️ Could not verify buckets, continuing anyway...');
+                            }
+                            
                             // Use Supabase REST API directly to avoid CSP issues
                             // Correct API endpoint format: /storage/v1/object/list/{bucket}?prefix={path}
                             const prefix = sessionId + '/';
@@ -5918,14 +5942,19 @@ ${address.cityStateZip}</div>
                                     } catch {
                                         errorData = await response.text();
                                     }
-                                    listError = new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
+                                    
                                     console.error('❌ List files HTTP error:', response.status, errorData);
                                     
                                     // Handle specific error cases
-                                    if (response.status === 400) {
-                                        // 400 usually means bad request - might be prefix format issue
+                                    if (errorData && (errorData.error === 'Bucket not found' || errorData.message === 'Bucket not found')) {
+                                        throw new Error(`存储桶 "${supabaseBucket}" 不存在。请在 Supabase Dashboard > Storage 中创建存储桶，并确保名称完全匹配（区分大小写）`);
+                                    } else if (response.status === 400 && errorData) {
+                                        // 400 with bucket not found
+                                        if (errorData.error === 'Bucket not found' || errorData.message === 'Bucket not found') {
+                                            throw new Error(`存储桶 "${supabaseBucket}" 不存在。请检查存储桶名称是否正确`);
+                                        }
+                                        // Try alternative format
                                         console.warn('⚠️ 400 error - trying alternative API format');
-                                        // Try without trailing slash
                                         const altUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?prefix=${encodeURIComponent(sessionId)}&limit=100`;
                                         const altResponse = await fetch(altUrl, {
                                             method: 'GET',
@@ -5940,13 +5969,17 @@ ${address.cityStateZip}</div>
                                             const altData = await altResponse.json();
                                             files = Array.isArray(altData) ? altData : [];
                                             console.log('✅ Files from alternative API:', files);
-                                            listError = null; // Clear error since we got data
+                                            listError = null;
+                                        } else {
+                                            listError = new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
                                         }
                                     } else if (response.status === 404) {
                                         // Folder doesn't exist yet - not really an error
-                                        console.log('ℹ️ Folder does not exist yet');
-                                        listError = null; // Clear error, treat as empty
+                                        console.log('ℹ️ Folder does not exist yet (404)');
+                                        listError = null;
                                         files = [];
+                                    } else {
+                                        listError = new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
                                     }
                                 } else {
                                     const data = await response.json();
