@@ -5931,11 +5931,15 @@ ${address.cityStateZip}</div>
                                     console.error('❌ List files HTTP error:', response.status, errorData);
                                     
                                     // Handle specific error cases
-                                    if (errorData && (errorData.error === 'Bucket not found' || errorData.message === 'Bucket not found')) {
-                                        // Even if bucket exists, API might return this error
-                                        // Try to list from root to verify bucket access
-                                        console.warn('⚠️ Bucket not found error, trying to list from root...');
-                                        const rootUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?limit=1`;
+                                    if (errorData && (errorData.error === 'Bucket not found' || errorData.message === 'Bucket not found' || errorData.statusCode === '404')) {
+                                        // This might be a permissions issue rather than bucket not existing
+                                        // Try alternative approaches
+                                        console.warn('⚠️ Bucket not found error (might be permissions), trying alternative methods...');
+                                        
+                                        // Method 1: Try listing from root without prefix
+                                        const rootUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?limit=100`;
+                                        console.log('📡 Trying root listing:', rootUrl);
+                                        
                                         const rootResponse = await fetch(rootUrl, {
                                             method: 'GET',
                                             headers: {
@@ -5945,14 +5949,35 @@ ${address.cityStateZip}</div>
                                             }
                                         });
                                         
+                                        console.log('📡 Root response status:', rootResponse.status);
+                                        
                                         if (rootResponse.ok) {
-                                            // Bucket exists, folder just doesn't exist yet
-                                            console.log('✅ Bucket exists, folder does not exist yet');
-                                            listError = null;
-                                            files = [];
+                                            const rootData = await rootResponse.json();
+                                            console.log('✅ Root listing successful, filtering by session...');
+                                            
+                                            // Filter files that match our session
+                                            const sessionFiles = Array.isArray(rootData) 
+                                                ? rootData.filter(f => f.name && f.name.startsWith(sessionId + '/'))
+                                                : [];
+                                            
+                                            if (sessionFiles.length > 0) {
+                                                files = sessionFiles;
+                                                console.log('✅ Found files for session:', files);
+                                                listError = null;
+                                            } else {
+                                                // Bucket exists but no files for this session
+                                                console.log('ℹ️ Bucket exists, but no files for this session yet');
+                                                listError = null;
+                                                files = [];
+                                            }
                                         } else {
-                                            // Real bucket error
-                                            throw new Error(`存储桶 "${supabaseBucket}" 无法访问。请检查：1) 存储桶名称是否正确 2) 存储桶是否设置为公开访问 3) API key 是否正确`);
+                                            // Try using public URL approach - list all objects and filter client-side
+                                            console.warn('⚠️ Root listing also failed, this might be a permissions/RLS issue');
+                                            console.warn('💡 Suggestion: Check Supabase Storage policies to allow SELECT operations');
+                                            
+                                            // Since we can't list, show helpful error
+                                            const rootError = await rootResponse.json().catch(() => ({ error: 'Unknown error' }));
+                                            throw new Error(`存储桶访问被拒绝。这可能是因为：1) 存储桶的 RLS 策略阻止了读取 2) Anon key 权限不足。请在 Supabase Dashboard > Storage > Policies 中为 "sync-images" 存储桶添加允许 SELECT 的策略。错误详情: ${JSON.stringify(rootError)}`);
                                         }
                                     } else if (response.status === 400 && errorData) {
                                         // 400 error - might be prefix format issue
