@@ -5892,10 +5892,14 @@ ${address.cityStateZip}</div>
                             console.log('🔑 Loading images for session:', sessionId);
                             
                             // Use Supabase REST API directly (avoid CSP issues with SDK)
-                            // The correct endpoint is: /storage/v1/object/list/{bucket}/{path}
-                            const listUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}/${sessionId}`;
+                            // Correct endpoint format: /storage/v1/object/list/{bucket}?prefix={path}/
+                            // Note: prefix should include trailing slash for folder listing
+                            const prefix = sessionId + '/';
+                            const listUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?prefix=${encodeURIComponent(prefix)}`;
                             
                             console.log('📡 Listing files from:', listUrl);
+                            console.log('📡 Session ID:', sessionId);
+                            console.log('📡 Prefix:', prefix);
                             
                             const response = await fetch(listUrl, {
                                 method: 'GET',
@@ -5908,6 +5912,92 @@ ${address.cityStateZip}</div>
                             if (!response.ok) {
                                 const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
                                 console.error('❌ List files error:', response.status, errorData);
+                                
+                                // Handle specific error cases
+                                if (errorData && (errorData.error === 'Bucket not found' || errorData.message === 'Bucket not found')) {
+                                    // This is likely an RLS policy issue, not that bucket doesn't exist
+                                    // Try listing from root to verify bucket access
+                                    console.warn('⚠️ Bucket not found error - might be RLS policy issue');
+                                    console.warn('💡 Trying to list from root to verify bucket access...');
+                                    
+                                    const rootUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?limit=100`;
+                                    const rootResponse = await fetch(rootUrl, {
+                                        method: 'GET',
+                                        headers: {
+                                            'apikey': supabaseAnonKey,
+                                            'Authorization': `Bearer ${supabaseAnonKey}`
+                                        }
+                                    });
+                                    
+                                    if (rootResponse.ok) {
+                                        const rootData = await rootResponse.json();
+                                        console.log('✅ Root listing successful, filtering by session...');
+                                        
+                                        // Filter files that match our session
+                                        const sessionFiles = Array.isArray(rootData) 
+                                            ? rootData.filter(f => f.name && f.name.startsWith(prefix))
+                                            : [];
+                                        
+                                        if (sessionFiles.length > 0) {
+                                            // Process the filtered files
+                                            const fileList = sessionFiles.filter(file => {
+                                                if (!file || !file.name) return false;
+                                                const hasExtension = file.name.includes('.') && file.name.split('.').length > 1;
+                                                return hasExtension;
+                                            });
+                                            
+                                            if (fileList.length > 0) {
+                                                // Remove prefix from file names
+                                                const processedFiles = fileList.map(file => ({
+                                                    ...file,
+                                                    name: file.name.startsWith(prefix) ? file.name.substring(prefix.length) : file.name,
+                                                    originalName: file.name
+                                                }));
+                                                
+                                                // Continue with image processing
+                                                const images = processedFiles.map(file => {
+                                                    const publicUrl = `${supabaseUrl}/storage/v1/object/public/${supabaseBucket}/${file.originalName}`;
+                                                    const fileName = file.name || '';
+                                                    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+                                                    
+                                                    let fileType = 'image/jpeg';
+                                                    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) {
+                                                        fileType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+                                                    } else if (['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(ext)) {
+                                                        fileType = `video/${ext}`;
+                                                    }
+                                                    
+                                                    let displayName = fileName;
+                                                    const nameParts = fileName.split('_');
+                                                    if (nameParts.length >= 3 && /^\d+$/.test(nameParts[2].split('.')[0])) {
+                                                        displayName = nameParts.slice(3).join('_');
+                                                    }
+                                                    
+                                                    return {
+                                                        name: displayName || fileName,
+                                                        originalName: file.originalName,
+                                                        url: publicUrl,
+                                                        type: fileType,
+                                                        size: file.metadata?.size || file.size || 0,
+                                                        created_at: file.created_at
+                                                    };
+                                                });
+                                                
+                                                console.log('✅ Loaded images from root listing:', images);
+                                                displaySyncImages(images);
+                                                return;
+                                            }
+                                        }
+                                        
+                                        // No files for this session
+                                        imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">暂无上传的图片</div>';
+                                        return;
+                                    } else {
+                                        // Real bucket access issue
+                                        const rootError = await rootResponse.json().catch(() => ({ error: 'Unknown error' }));
+                                        throw new Error(`存储桶访问被拒绝。这可能是因为 RLS 策略未配置。请在 Supabase Dashboard > Storage > Policies 中为 "sync-images" 存储桶添加允许 SELECT 的策略。错误: ${rootError.error || rootError.message || 'Unknown'}`);
+                                    }
+                                }
                                 
                                 // If folder doesn't exist (404), that's okay
                                 if (response.status === 404) {
