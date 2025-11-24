@@ -5878,9 +5878,14 @@ ${address.cityStateZip}</div>
                 imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">正在加载图片...</div>';
                 
                 try {
-                    // Get Supabase configuration from storage
+                    // Get Supabase configuration from storage, with defaults
                     chrome.storage.local.get(['supabaseUrl', 'supabaseAnonKey', 'supabaseBucket'], async (result) => {
-                        if (!result.supabaseUrl || !result.supabaseAnonKey || !result.supabaseBucket) {
+                        // Use default values if not configured
+                        const supabaseUrl = result.supabaseUrl || 'https://hgjmoyhmlanlrgbvttax.supabase.co';
+                        const supabaseAnonKey = result.supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhnam1veWhtbGFubHJnYnZ0dGF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNTI2MTIsImV4cCI6MjA3NjgyODYxMn0.iaZarnzuQMBNoPDj4iyhMqmJ08x-OXWiAhZF7RiOleI';
+                        const supabaseBucket = result.supabaseBucket || 'sync-images';
+                        
+                        if (!supabaseUrl || !supabaseAnonKey || !supabaseBucket) {
                             imagesListEl.innerHTML = '<div style="color: #ff9800; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">请先配置Supabase设置</div>';
                             return;
                         }
@@ -5897,11 +5902,11 @@ ${address.cityStateZip}</div>
                                 });
                             }
                             
-                            const supabaseClient = window.supabase.createClient(result.supabaseUrl, result.supabaseAnonKey);
+                            const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
                             
                             // List files in the session folder
                             const { data: files, error } = await supabaseClient.storage
-                                .from(result.supabaseBucket)
+                                .from(supabaseBucket)
                                 .list(sessionId, {
                                     limit: 100,
                                     offset: 0,
@@ -5920,7 +5925,7 @@ ${address.cityStateZip}</div>
                             // Get public URLs for all files
                             const images = files.map(file => {
                                 const { data: urlData } = supabaseClient.storage
-                                    .from(result.supabaseBucket)
+                                    .from(supabaseBucket)
                                     .getPublicUrl(`${sessionId}/${file.name}`);
                                 
                                 return {

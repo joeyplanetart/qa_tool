@@ -242,10 +242,9 @@
             window.close();
         }
         
-        // Supabase configuration (user needs to configure)
-        // TODO: Replace with your Supabase URL and anon key
-        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        // Supabase configuration
+        const SUPABASE_URL = 'https://hgjmoyhmlanlrgbvttax.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhnam1veWhtbGFubHJnYnZ0dGF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNTI2MTIsImV4cCI6MjA3NjgyODYxMn0.iaZarnzuQMBNoPDj4iyhMqmJ08x-OXWiAhZF7RiOleI';
         const STORAGE_BUCKET = 'sync-images'; // Bucket name in Supabase Storage
         
         let selectedFiles = [];
@@ -262,15 +261,13 @@
         
         // Initialize Supabase client
         let supabase = null;
-        if (SUPABASE_URL && SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
-            // Load Supabase client library
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-            script.onload = () => {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            };
-            document.head.appendChild(script);
-        }
+        // Load Supabase client library
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+        script.onload = () => {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        };
+        document.head.appendChild(script);
         
         // Click to select files
         uploadArea.addEventListener('click', () => {
@@ -414,9 +411,22 @@
             if (selectedFiles.length === 0) return;
             
             if (!supabase) {
-                showMessage('请先配置Supabase', 'error');
+                showMessage('正在初始化Supabase，请稍候...', 'error');
+                // Wait for Supabase to initialize
+                const checkSupabase = setInterval(() => {
+                    if (supabase) {
+                        clearInterval(checkSupabase);
+                        uploadFiles();
+                    }
+                }, 100);
                 return;
             }
+            
+            await uploadFiles();
+        });
+        
+        async function uploadFiles() {
+            if (selectedFiles.length === 0) return;
             
             uploadBtn.disabled = true;
             progress.style.display = 'block';
@@ -493,7 +503,7 @@
             } finally {
                 uploadBtn.disabled = false;
             }
-        });
+        }
     </script>
 </body>
 </html>
