@@ -5889,204 +5889,63 @@ ${address.cityStateZip}</div>
                         }
                         
                         try {
-                            // Verify configuration
-                            console.log('🔑 Supabase Config:', {
-                                url: supabaseUrl,
-                                bucket: supabaseBucket,
-                                sessionId: sessionId,
-                                keyPrefix: supabaseAnonKey.substring(0, 20) + '...'
-                            });
+                            console.log('🔑 Loading images for session:', sessionId);
                             
-                            // Use Supabase REST API directly to list files
-                            // Correct API endpoint format: /storage/v1/object/list/{bucket}?prefix={path}
-                            const prefix = sessionId + '/';
-                            const listFilesUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?prefix=${encodeURIComponent(prefix)}&limit=100`;
-                            
-                            console.log('📡 Fetching files from:', listFilesUrl);
-                            
-                            let files = [];
-                            let listError = null;
-                            
-                            try {
-                                const response = await fetch(listFilesUrl, {
-                                    method: 'GET',
-                                    headers: {
-                                        'apikey': supabaseAnonKey,
-                                        'Authorization': `Bearer ${supabaseAnonKey}`,
-                                        'Content-Type': 'application/json'
-                                    }
+                            // Load Supabase JS library if not already loaded
+                            if (!window.supabase) {
+                                console.log('📦 Loading Supabase library...');
+                                const script = document.createElement('script');
+                                script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+                                script.crossOrigin = 'anonymous';
+                                await new Promise((resolve, reject) => {
+                                    script.onload = () => {
+                                        console.log('✅ Supabase library loaded');
+                                        resolve();
+                                    };
+                                    script.onerror = (error) => {
+                                        console.error('❌ Failed to load Supabase library:', error);
+                                        reject(new Error('无法加载 Supabase 库'));
+                                    };
+                                    document.head.appendChild(script);
                                 });
-                                
-                                console.log('📡 Response status:', response.status, response.statusText);
-                                console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
-                                
-                                if (!response.ok) {
-                                    let errorData;
-                                    try {
-                                        errorData = await response.json();
-                                    } catch {
-                                        errorData = await response.text();
-                                    }
-                                    
-                                    console.error('❌ List files HTTP error:', response.status, errorData);
-                                    
-                                    // Handle specific error cases
-                                    if (errorData && (errorData.error === 'Bucket not found' || errorData.message === 'Bucket not found' || errorData.statusCode === '404')) {
-                                        // This might be a permissions issue rather than bucket not existing
-                                        // Try alternative approaches
-                                        console.warn('⚠️ Bucket not found error (might be permissions), trying alternative methods...');
-                                        
-                                        // Method 1: Try listing from root without prefix
-                                        const rootUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?limit=100`;
-                                        console.log('📡 Trying root listing:', rootUrl);
-                                        
-                                        const rootResponse = await fetch(rootUrl, {
-                                            method: 'GET',
-                                            headers: {
-                                                'apikey': supabaseAnonKey,
-                                                'Authorization': `Bearer ${supabaseAnonKey}`,
-                                                'Content-Type': 'application/json'
-                                            }
-                                        });
-                                        
-                                        console.log('📡 Root response status:', rootResponse.status);
-                                        
-                                        if (rootResponse.ok) {
-                                            const rootData = await rootResponse.json();
-                                            console.log('✅ Root listing successful, filtering by session...');
-                                            
-                                            // Filter files that match our session
-                                            const sessionFiles = Array.isArray(rootData) 
-                                                ? rootData.filter(f => f.name && f.name.startsWith(sessionId + '/'))
-                                                : [];
-                                            
-                                            if (sessionFiles.length > 0) {
-                                                files = sessionFiles;
-                                                console.log('✅ Found files for session:', files);
-                                                listError = null;
-                                            } else {
-                                                // Bucket exists but no files for this session
-                                                console.log('ℹ️ Bucket exists, but no files for this session yet');
-                                                listError = null;
-                                                files = [];
-                                            }
-                                        } else {
-                                            // Try using public URL approach - list all objects and filter client-side
-                                            console.warn('⚠️ Root listing also failed, this might be a permissions/RLS issue');
-                                            console.warn('💡 Suggestion: Check Supabase Storage policies to allow SELECT operations');
-                                            
-                                            // Since we can't list, show helpful error
-                                            const rootError = await rootResponse.json().catch(() => ({ error: 'Unknown error' }));
-                                            throw new Error(`存储桶访问被拒绝。这可能是因为：1) 存储桶的 RLS 策略阻止了读取 2) Anon key 权限不足。请在 Supabase Dashboard > Storage > Policies 中为 "sync-images" 存储桶添加允许 SELECT 的策略。错误详情: ${JSON.stringify(rootError)}`);
-                                        }
-                                    } else if (response.status === 400 && errorData) {
-                                        // 400 error - might be prefix format issue
-                                        console.warn('⚠️ 400 error - trying alternative API format');
-                                        // Try without trailing slash
-                                        const altUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?prefix=${encodeURIComponent(sessionId)}&limit=100`;
-                                        const altResponse = await fetch(altUrl, {
-                                            method: 'GET',
-                                            headers: {
-                                                'apikey': supabaseAnonKey,
-                                                'Authorization': `Bearer ${supabaseAnonKey}`,
-                                                'Content-Type': 'application/json'
-                                            }
-                                        });
-                                        
-                                        if (altResponse.ok) {
-                                            const altData = await altResponse.json();
-                                            files = Array.isArray(altData) ? altData : [];
-                                            console.log('✅ Files from alternative API:', files);
-                                            listError = null;
-                                        } else {
-                                            // Try listing from root to see if we get any files
-                                            console.warn('⚠️ Alternative format also failed, trying root...');
-                                            const rootUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?limit=100`;
-                                            const rootResponse = await fetch(rootUrl, {
-                                                method: 'GET',
-                                                headers: {
-                                                    'apikey': supabaseAnonKey,
-                                                    'Authorization': `Bearer ${supabaseAnonKey}`,
-                                                    'Content-Type': 'application/json'
-                                                }
-                                            });
-                                            
-                                            if (rootResponse.ok) {
-                                                const rootData = await rootResponse.json();
-                                                // Filter files that match our session
-                                                const sessionFiles = Array.isArray(rootData) ? rootData.filter(f => f.name && f.name.startsWith(sessionId + '/')) : [];
-                                                files = sessionFiles;
-                                                console.log('✅ Files from root listing:', files);
-                                                listError = null;
-                                            } else {
-                                                listError = new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
-                                            }
-                                        }
-                                    } else if (response.status === 404) {
-                                        // Folder doesn't exist yet - not really an error
-                                        console.log('ℹ️ Folder does not exist yet (404)');
-                                        listError = null;
-                                        files = [];
-                                    } else {
-                                        listError = new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
-                                    }
-                                } else {
-                                    const data = await response.json();
-                                    files = Array.isArray(data) ? data : [];
-                                    console.log('✅ Files from API:', files);
-                                }
-                            } catch (err) {
-                                listError = err;
-                                console.error('❌ List files exception:', err);
                             }
                             
-                            // If folder doesn't exist or is empty, show empty message
-                            if (listError) {
-                                // Check if it's a "not found" error (folder doesn't exist yet)
-                                const errorMsg = listError?.message || String(listError);
-                                if (errorMsg.includes('not found') || errorMsg.includes('No such file') || errorMsg.includes('does not exist')) {
-                                    imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">暂无上传的图片</div>';
-                                    return;
-                                }
-                                // For other errors, try to continue or show error
-                                console.error('❌ List files error:', listError);
+                            if (!window.supabase || !window.supabase.createClient) {
+                                throw new Error('Supabase 库未正确加载');
                             }
                             
-                            if (!files || files.length === 0) {
+                            // Create Supabase client
+                            const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+                            
+                            // Use the correct API: supabase.storage.from('sync-images').list(sessionId, {...})
+                            console.log('📡 Listing files from storage using Supabase SDK...');
+                            const { data, error } = await supabaseClient.storage
+                                .from(supabaseBucket)
+                                .list(sessionId, {
+                                    limit: 100,
+                                    offset: 0,
+                                    sortBy: { column: 'created_at', order: 'desc' }
+                                });
+                            
+                            if (error) {
+                                console.error('❌ List files error:', error);
+                                imagesListEl.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">读取文件失败: ${error.message}</div>`;
+                                return;
+                            }
+                            
+                            if (!data || data.length === 0) {
                                 imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">暂无上传的图片</div>';
                                 return;
                             }
                             
+                            console.log('✅ Files from storage:', data);
+                            
                             // Filter out folders (only get files)
-                            // Supabase returns objects with 'name' property
-                            // Files have extensions, folders typically don't (or have different structure)
-                            const fileList = files.filter(file => {
+                            const fileList = data.filter(file => {
                                 if (!file || !file.name) return false;
-                                
-                                // Remove prefix from name if present
-                                let fileName = file.name;
-                                if (fileName.startsWith(prefix)) {
-                                    fileName = fileName.substring(prefix.length);
-                                }
-                                
                                 // Files should have an extension
-                                const hasExtension = fileName.includes('.') && fileName.split('.').length > 1;
-                                
-                                // Also check if it's not a folder (folders might have id or be empty)
-                                const isFile = hasExtension && fileName.length > 0;
-                                
-                                return isFile;
-                            }).map(file => {
-                                // Clean up file name (remove prefix)
-                                let fileName = file.name;
-                                if (fileName.startsWith(prefix)) {
-                                    fileName = fileName.substring(prefix.length);
-                                }
-                                return {
-                                    ...file,
-                                    name: fileName,
-                                    originalName: file.name
-                                };
+                                const hasExtension = file.name.includes('.') && file.name.split('.').length > 1;
+                                return hasExtension;
                             });
                             
                             if (fileList.length === 0) {
@@ -6094,36 +5953,44 @@ ${address.cityStateZip}</div>
                                 return;
                             }
                             
-                            // Get public URLs for all files
+                            // Get public URLs and prepare image data
                             const images = fileList.map(file => {
-                                // Use original name for path (includes full path with prefix)
-                                const filePath = file.originalName || `${sessionId}/${file.name}`;
-                                // Construct public URL directly
-                                const publicUrl = `${supabaseUrl}/storage/v1/object/public/${supabaseBucket}/${filePath}`;
+                                // Get public URL using Supabase API
+                                const { data: { publicUrl } } = supabaseClient.storage
+                                    .from(supabaseBucket)
+                                    .getPublicUrl(`${sessionId}/${file.name}`);
                                 
-                                // Determine file type from extension or metadata
+                                // Determine file type
                                 let fileType = 'image/jpeg';
+                                const fileName = file.name || '';
+                                const ext = fileName.split('.').pop()?.toLowerCase() || '';
+                                
                                 if (file.metadata && file.metadata.mimetype) {
                                     fileType = file.metadata.mimetype;
-                                } else if (file.metadata && file.metadata.contentType) {
-                                    fileType = file.metadata.contentType;
-                                } else {
-                                    const ext = file.name.split('.').pop().toLowerCase();
-                                    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) {
-                                        fileType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-                                    } else if (['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(ext)) {
-                                        fileType = `video/${ext}`;
+                                } else if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) {
+                                    fileType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+                                } else if (['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(ext)) {
+                                    fileType = `video/${ext}`;
+                                }
+                                
+                                // Extract display name (remove session prefix and timestamp if present)
+                                let displayName = fileName;
+                                const nameParts = fileName.split('_');
+                                if (nameParts.length >= 3) {
+                                    // Check if third part looks like a number (timestamp)
+                                    const thirdPart = nameParts[2];
+                                    if (/^\d+$/.test(thirdPart.split('.')[0])) {
+                                        // Skip session ID and timestamp, use rest
+                                        displayName = nameParts.slice(3).join('_');
+                                    } else {
+                                        // Just skip session ID
+                                        displayName = nameParts.slice(1).join('_');
                                     }
                                 }
                                 
-                                // Extract original filename (remove session prefix if present)
-                                let displayName = file.name;
-                                // File name format: sessionId_timestamp_index.ext
-                                // Try to extract original name or use a cleaner version
-                                const nameParts = file.name.split('_');
-                                if (nameParts.length >= 3) {
-                                    // Skip session ID and timestamp, use rest
-                                    displayName = nameParts.slice(2).join('_');
+                                // If display name is empty or too short, use original name
+                                if (!displayName || displayName.length < 3) {
+                                    displayName = fileName;
                                 }
                                 
                                 return {
@@ -6131,12 +5998,12 @@ ${address.cityStateZip}</div>
                                     originalName: file.name,
                                     url: publicUrl,
                                     type: fileType,
-                                    size: file.metadata?.size || file.size || 0
+                                    size: file.metadata?.size || file.size || 0,
+                                    created_at: file.created_at
                                 };
                             });
                             
                             console.log('✅ Loaded images:', images);
-                            console.log('✅ Files from storage:', fileList);
                             displaySyncImages(images);
                         } catch (error) {
                             console.error('❌ Load sync images error:', error);
