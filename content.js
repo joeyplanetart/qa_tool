@@ -5889,6 +5889,14 @@ ${address.cityStateZip}</div>
                         }
                         
                         try {
+                            // Verify configuration
+                            console.log('🔑 Supabase Config:', {
+                                url: supabaseUrl,
+                                bucket: supabaseBucket,
+                                sessionId: sessionId,
+                                keyPrefix: supabaseAnonKey.substring(0, 20) + '...'
+                            });
+                            
                             // Use Supabase REST API directly to list files
                             // Correct API endpoint format: /storage/v1/object/list/{bucket}?prefix={path}
                             const prefix = sessionId + '/';
@@ -5910,6 +5918,7 @@ ${address.cityStateZip}</div>
                                 });
                                 
                                 console.log('📡 Response status:', response.status, response.statusText);
+                                console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
                                 
                                 if (!response.ok) {
                                     let errorData;
