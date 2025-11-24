@@ -5903,16 +5903,40 @@ ${address.cityStateZip}</div>
                             const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
                             
                             // List files in the session folder
-                            const { data: files, error } = await supabaseClient.storage
-                                .from(supabaseBucket)
-                                .list(sessionId, {
-                                    limit: 100,
-                                    offset: 0,
-                                    sortBy: { column: 'created_at', order: 'desc' }
-                                });
+                            // Try to list files in the session folder
+                            let files = [];
+                            let listError = null;
                             
-                            if (error) {
-                                throw error;
+                            try {
+                                const result = await supabaseClient.storage
+                                    .from(supabaseBucket)
+                                    .list(sessionId, {
+                                        limit: 100,
+                                        offset: 0,
+                                        sortBy: { column: 'created_at', order: 'desc' }
+                                    });
+                                
+                                if (result.error) {
+                                    listError = result.error;
+                                    console.warn('List files error:', result.error);
+                                } else {
+                                    files = result.data || [];
+                                }
+                            } catch (err) {
+                                listError = err;
+                                console.warn('List files exception:', err);
+                            }
+                            
+                            // If folder doesn't exist or is empty, show empty message
+                            if (listError) {
+                                // Check if it's a "not found" error (folder doesn't exist yet)
+                                const errorMsg = listError?.message || String(listError);
+                                if (errorMsg.includes('not found') || errorMsg.includes('No such file') || errorMsg.includes('does not exist')) {
+                                    imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">暂无上传的图片</div>';
+                                    return;
+                                }
+                                // For other errors, try to continue or show error
+                                console.error('❌ List files error:', listError);
                             }
                             
                             if (!files || files.length === 0) {
@@ -5920,24 +5944,70 @@ ${address.cityStateZip}</div>
                                 return;
                             }
                             
+                            // Filter out folders (only get files)
+                            // Files typically don't have an 'id' property, folders might
+                            const fileList = files.filter(file => {
+                                // Filter out folders - files have a name with extension
+                                if (!file.name) return false;
+                                // Folders might have id or be objects without metadata
+                                // Files should have a name with extension
+                                const hasExtension = file.name.includes('.');
+                                return hasExtension;
+                            });
+                            
+                            if (fileList.length === 0) {
+                                imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">暂无上传的图片</div>';
+                                return;
+                            }
+                            
                             // Get public URLs for all files
-                            const images = files.map(file => {
+                            const images = fileList.map(file => {
+                                const filePath = `${sessionId}/${file.name}`;
                                 const { data: urlData } = supabaseClient.storage
                                     .from(supabaseBucket)
-                                    .getPublicUrl(`${sessionId}/${file.name}`);
+                                    .getPublicUrl(filePath);
+                                
+                                // Determine file type from extension or metadata
+                                let fileType = 'image/jpeg';
+                                if (file.metadata && file.metadata.mimetype) {
+                                    fileType = file.metadata.mimetype;
+                                } else if (file.metadata && file.metadata.contentType) {
+                                    fileType = file.metadata.contentType;
+                                } else {
+                                    const ext = file.name.split('.').pop().toLowerCase();
+                                    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) {
+                                        fileType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+                                    } else if (['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(ext)) {
+                                        fileType = `video/${ext}`;
+                                    }
+                                }
+                                
+                                // Extract original filename (remove session prefix if present)
+                                let displayName = file.name;
+                                // File name format: sessionId_timestamp_index.ext
+                                // Try to extract original name or use a cleaner version
+                                const nameParts = file.name.split('_');
+                                if (nameParts.length >= 3) {
+                                    // Skip session ID and timestamp, use rest
+                                    displayName = nameParts.slice(2).join('_');
+                                }
                                 
                                 return {
-                                    name: file.name,
+                                    name: displayName,
+                                    originalName: file.name,
                                     url: urlData.publicUrl,
-                                    type: file.metadata?.mimetype || 'image/jpeg',
-                                    size: file.metadata?.size || 0
+                                    type: fileType,
+                                    size: file.metadata?.size || file.size || 0
                                 };
                             });
                             
+                            console.log('✅ Loaded images:', images);
+                            console.log('✅ Files from storage:', fileList);
                             displaySyncImages(images);
                         } catch (error) {
                             console.error('❌ Load sync images error:', error);
-                            imagesListEl.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">加载图片失败: ' + error.message + '</div>';
+                            const errorMsg = error?.message || error?.error?.message || String(error) || '未知错误';
+                            imagesListEl.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">加载图片失败: ' + errorMsg + '</div>';
                         }
                     });
                 } catch (error) {
