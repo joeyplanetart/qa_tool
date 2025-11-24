@@ -1,0 +1,17 @@
+node_modules
+.git
+*.md
+!README.md
+background.js
+config.js
+content.js
+manifest.json
+popup.html
+popup.js
+cpdata/
+*.png
+*.svg
+*.csv
+icon*.png
+icon*.svg
+

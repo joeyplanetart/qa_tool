@@ -1,0 +1,17 @@
+{
+  "name": "sync-image-upload",
+  "version": "1.0.0",
+  "description": "Sync image upload page for Chrome extension",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "upload",
+    "image",
+    "sync"
+  ],
+  "author": "",
+  "license": "MIT"
+}
+
