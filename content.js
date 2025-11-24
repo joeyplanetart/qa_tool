@@ -5889,31 +5889,7 @@ ${address.cityStateZip}</div>
                         }
                         
                         try {
-                            // First, verify bucket exists by listing buckets
-                            console.log('🔍 Verifying bucket access...');
-                            const bucketsUrl = `${supabaseUrl}/storage/v1/bucket`;
-                            const bucketsResponse = await fetch(bucketsUrl, {
-                                method: 'GET',
-                                headers: {
-                                    'apikey': supabaseAnonKey,
-                                    'Authorization': `Bearer ${supabaseAnonKey}`
-                                }
-                            });
-                            
-                            if (bucketsResponse.ok) {
-                                const buckets = await bucketsResponse.json();
-                                const bucketExists = Array.isArray(buckets) && buckets.some(b => b.name === supabaseBucket);
-                                console.log('📦 Available buckets:', buckets.map(b => b.name));
-                                
-                                if (!bucketExists) {
-                                    throw new Error(`存储桶 "${supabaseBucket}" 不存在。请检查：1) 存储桶名称是否正确 2) 存储桶是否已创建 3) 存储桶是否设置为公开访问`);
-                                }
-                                console.log(`✅ Bucket "${supabaseBucket}" found`);
-                            } else {
-                                console.warn('⚠️ Could not verify buckets, continuing anyway...');
-                            }
-                            
-                            // Use Supabase REST API directly to avoid CSP issues
+                            // Use Supabase REST API directly to list files
                             // Correct API endpoint format: /storage/v1/object/list/{bucket}?prefix={path}
                             const prefix = sessionId + '/';
                             const listFilesUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?prefix=${encodeURIComponent(prefix)}&limit=100`;
@@ -5947,14 +5923,32 @@ ${address.cityStateZip}</div>
                                     
                                     // Handle specific error cases
                                     if (errorData && (errorData.error === 'Bucket not found' || errorData.message === 'Bucket not found')) {
-                                        throw new Error(`存储桶 "${supabaseBucket}" 不存在。请在 Supabase Dashboard > Storage 中创建存储桶，并确保名称完全匹配（区分大小写）`);
-                                    } else if (response.status === 400 && errorData) {
-                                        // 400 with bucket not found
-                                        if (errorData.error === 'Bucket not found' || errorData.message === 'Bucket not found') {
-                                            throw new Error(`存储桶 "${supabaseBucket}" 不存在。请检查存储桶名称是否正确`);
+                                        // Even if bucket exists, API might return this error
+                                        // Try to list from root to verify bucket access
+                                        console.warn('⚠️ Bucket not found error, trying to list from root...');
+                                        const rootUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?limit=1`;
+                                        const rootResponse = await fetch(rootUrl, {
+                                            method: 'GET',
+                                            headers: {
+                                                'apikey': supabaseAnonKey,
+                                                'Authorization': `Bearer ${supabaseAnonKey}`,
+                                                'Content-Type': 'application/json'
+                                            }
+                                        });
+                                        
+                                        if (rootResponse.ok) {
+                                            // Bucket exists, folder just doesn't exist yet
+                                            console.log('✅ Bucket exists, folder does not exist yet');
+                                            listError = null;
+                                            files = [];
+                                        } else {
+                                            // Real bucket error
+                                            throw new Error(`存储桶 "${supabaseBucket}" 无法访问。请检查：1) 存储桶名称是否正确 2) 存储桶是否设置为公开访问 3) API key 是否正确`);
                                         }
-                                        // Try alternative format
+                                    } else if (response.status === 400 && errorData) {
+                                        // 400 error - might be prefix format issue
                                         console.warn('⚠️ 400 error - trying alternative API format');
+                                        // Try without trailing slash
                                         const altUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?prefix=${encodeURIComponent(sessionId)}&limit=100`;
                                         const altResponse = await fetch(altUrl, {
                                             method: 'GET',
@@ -5971,7 +5965,28 @@ ${address.cityStateZip}</div>
                                             console.log('✅ Files from alternative API:', files);
                                             listError = null;
                                         } else {
-                                            listError = new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
+                                            // Try listing from root to see if we get any files
+                                            console.warn('⚠️ Alternative format also failed, trying root...');
+                                            const rootUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?limit=100`;
+                                            const rootResponse = await fetch(rootUrl, {
+                                                method: 'GET',
+                                                headers: {
+                                                    'apikey': supabaseAnonKey,
+                                                    'Authorization': `Bearer ${supabaseAnonKey}`,
+                                                    'Content-Type': 'application/json'
+                                                }
+                                            });
+                                            
+                                            if (rootResponse.ok) {
+                                                const rootData = await rootResponse.json();
+                                                // Filter files that match our session
+                                                const sessionFiles = Array.isArray(rootData) ? rootData.filter(f => f.name && f.name.startsWith(sessionId + '/')) : [];
+                                                files = sessionFiles;
+                                                console.log('✅ Files from root listing:', files);
+                                                listError = null;
+                                            } else {
+                                                listError = new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
+                                            }
                                         }
                                     } else if (response.status === 404) {
                                         // Folder doesn't exist yet - not really an error
