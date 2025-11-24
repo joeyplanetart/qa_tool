@@ -5820,6 +5820,418 @@ ${address.cityStateZip}</div>
                 console.log('✓ ShipAddress button event listener added');
             }
             
+            // Add Sync Image button event listener
+            const syncImageBtn = content.querySelector('#sync-image-btn');
+            const syncImageCard = content.querySelector('#sync-image-card');
+            let isSyncImageToolOpen = false;
+            let currentSyncSessionId = null;
+            
+            // Generate unique session ID
+            function generateSessionId() {
+                return 'sync_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            }
+            
+            // Generate QR code for sync image
+            function generateSyncQRCode(sessionId) {
+                const qrcodeDisplay = content.querySelector('#sync-qrcode-display');
+                if (!qrcodeDisplay) return;
+                
+                // Get upload page URL from storage or use default
+                chrome.storage.local.get(['uploadPageUrl'], (result) => {
+                    let uploadUrl;
+                    if (result.uploadPageUrl && result.uploadPageUrl !== '') {
+                        uploadUrl = `${result.uploadPageUrl}?session=${sessionId}`;
+                    } else {
+                        // Default: use chrome-extension:// URL if upload.html is in web_accessible_resources
+                        // Or use a placeholder that user needs to configure
+                        uploadUrl = `https://your-upload-endpoint.com/upload.html?session=${sessionId}`;
+                        console.warn('⚠️ Upload page URL not configured. Please set uploadPageUrl in storage.');
+                    }
+                    
+                    // Generate QR code using the same API as the QR code tool
+                    const encodedText = encodeURIComponent(uploadUrl);
+                    const qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=' + encodedText;
+                    
+                    const img = document.createElement('img');
+                    img.src = qrCodeUrl;
+                    img.alt = 'Sync Image QR Code';
+                    img.style.maxWidth = '280px';
+                    img.style.maxHeight = '280px';
+                    img.style.display = 'block';
+                    
+                    img.onload = () => {
+                        qrcodeDisplay.innerHTML = '';
+                        qrcodeDisplay.appendChild(img);
+                    };
+                    
+                    img.onerror = () => {
+                        qrcodeDisplay.innerHTML = '<div style="color: #f44336; font-size: 14px; text-align: center;">生成二维码失败，请重试</div>';
+                    };
+                });
+            }
+            
+            // Load uploaded images from Supabase
+            async function loadSyncImages(sessionId) {
+                const imagesListEl = content.querySelector('#sync-images-list');
+                if (!imagesListEl) return;
+                
+                imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">正在加载图片...</div>';
+                
+                try {
+                    // Get Supabase configuration from storage
+                    chrome.storage.local.get(['supabaseUrl', 'supabaseAnonKey', 'supabaseBucket'], async (result) => {
+                        if (!result.supabaseUrl || !result.supabaseAnonKey || !result.supabaseBucket) {
+                            imagesListEl.innerHTML = '<div style="color: #ff9800; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">请先配置Supabase设置</div>';
+                            return;
+                        }
+                        
+                        try {
+                            // Load Supabase client library dynamically
+                            if (!window.supabase) {
+                                const script = document.createElement('script');
+                                script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+                                await new Promise((resolve, reject) => {
+                                    script.onload = resolve;
+                                    script.onerror = reject;
+                                    document.head.appendChild(script);
+                                });
+                            }
+                            
+                            const supabaseClient = window.supabase.createClient(result.supabaseUrl, result.supabaseAnonKey);
+                            
+                            // List files in the session folder
+                            const { data: files, error } = await supabaseClient.storage
+                                .from(result.supabaseBucket)
+                                .list(sessionId, {
+                                    limit: 100,
+                                    offset: 0,
+                                    sortBy: { column: 'created_at', order: 'desc' }
+                                });
+                            
+                            if (error) {
+                                throw error;
+                            }
+                            
+                            if (!files || files.length === 0) {
+                                imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">暂无上传的图片</div>';
+                                return;
+                            }
+                            
+                            // Get public URLs for all files
+                            const images = files.map(file => {
+                                const { data: urlData } = supabaseClient.storage
+                                    .from(result.supabaseBucket)
+                                    .getPublicUrl(`${sessionId}/${file.name}`);
+                                
+                                return {
+                                    name: file.name,
+                                    url: urlData.publicUrl,
+                                    type: file.metadata?.mimetype || 'image/jpeg',
+                                    size: file.metadata?.size || 0
+                                };
+                            });
+                            
+                            displaySyncImages(images);
+                        } catch (error) {
+                            console.error('❌ Load sync images error:', error);
+                            imagesListEl.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">加载图片失败: ' + error.message + '</div>';
+                        }
+                    });
+                } catch (error) {
+                    console.error('❌ Load sync images error:', error);
+                    imagesListEl.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">加载图片失败</div>';
+                }
+            }
+            
+            // Display uploaded images
+            function displaySyncImages(images) {
+                const imagesListEl = content.querySelector('#sync-images-list');
+                if (!imagesListEl) return;
+                
+                if (!images || images.length === 0) {
+                    imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">暂无上传的图片</div>';
+                    return;
+                }
+                
+                let html = '';
+                images.forEach((image, index) => {
+                    const isVideo = image.type && image.type.startsWith('video/');
+                    html += `
+                        <div style="
+                            position: relative;
+                            background: rgba(255,255,255,0.1);
+                            border: 1px solid rgba(255,255,255,0.2);
+                            border-radius: 8px;
+                            overflow: hidden;
+                            aspect-ratio: 1;
+                        ">
+                            ${isVideo ? `
+                                <video 
+                                    src="${image.url}" 
+                                    style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;"
+                                    onclick="window.openSyncImageModal('${image.url}', '${image.name || 'video'}', true)"
+                                ></video>
+                            ` : `
+                                <img 
+                                    src="${image.url}" 
+                                    alt="${image.name || 'image'}"
+                                    style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;"
+                                    onclick="window.openSyncImageModal('${image.url}', '${image.name || 'image'}', false)"
+                                />
+                            `}
+                            <div style="
+                                position: absolute;
+                                bottom: 0;
+                                left: 0;
+                                right: 0;
+                                background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+                                padding: 8px;
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                            ">
+                                <span style="
+                                    font-size: 11px;
+                                    color: #fff;
+                                    overflow: hidden;
+                                    text-overflow: ellipsis;
+                                    white-space: nowrap;
+                                    flex: 1;
+                                ">${image.name || '未命名'}</span>
+                                <button 
+                                    onclick="event.stopPropagation(); window.downloadSyncImage('${image.url}', '${image.name || 'download'}')"
+                                    style="
+                                        background: rgba(255,255,255,0.2);
+                                        border: none;
+                                        color: #fff;
+                                        padding: 4px 8px;
+                                        border-radius: 4px;
+                                        cursor: pointer;
+                                        font-size: 10px;
+                                        margin-left: 5px;
+                                    "
+                                    onmouseover="this.style.background='rgba(255,255,255,0.3)'"
+                                    onmouseout="this.style.background='rgba(255,255,255,0.2)'"
+                                >下载</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                imagesListEl.innerHTML = html;
+            }
+            
+            // Open image modal for viewing
+            window.openSyncImageModal = function(url, name, isVideo) {
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0,0,0,0.9);
+                    z-index: 10000;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                `;
+                
+                const content = document.createElement('div');
+                content.style.cssText = `
+                    max-width: 90%;
+                    max-height: 90%;
+                    position: relative;
+                `;
+                
+                if (isVideo) {
+                    const video = document.createElement('video');
+                    video.src = url;
+                    video.controls = true;
+                    video.style.cssText = 'max-width: 100%; max-height: 100%;';
+                    content.appendChild(video);
+                } else {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = name;
+                    img.style.cssText = 'max-width: 100%; max-height: 100%;';
+                    content.appendChild(img);
+                }
+                
+                const closeBtn = document.createElement('button');
+                closeBtn.innerHTML = '×';
+                closeBtn.style.cssText = `
+                    position: absolute;
+                    top: -40px;
+                    right: 0;
+                    background: rgba(255,255,255,0.2);
+                    border: none;
+                    color: #fff;
+                    font-size: 30px;
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                `;
+                closeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    document.body.removeChild(modal);
+                };
+                content.appendChild(closeBtn);
+                
+                modal.appendChild(content);
+                modal.onclick = (e) => {
+                    if (e.target === modal) {
+                        document.body.removeChild(modal);
+                    }
+                };
+                
+                document.body.appendChild(modal);
+            };
+            
+            // Download image
+            window.downloadSyncImage = function(url, name) {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = name;
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            };
+            
+            if (syncImageBtn && syncImageCard) {
+                syncImageBtn.addEventListener('click', () => {
+                    console.log('📷 Toggle Sync Image Tool');
+                    
+                    isSyncImageToolOpen = !isSyncImageToolOpen;
+                    
+                    if (isSyncImageToolOpen) {
+                        // Hide other cards
+                        if (translationCard) {
+                            translationCard.style.display = 'none';
+                        }
+                        if (qrcodeCard) {
+                            qrcodeCard.style.display = 'none';
+                        }
+                        if (cookieCard) {
+                            cookieCard.style.display = 'none';
+                        }
+                        const shipAddressCardEl = content.querySelector('#ship-address-card');
+                        if (shipAddressCardEl) {
+                            shipAddressCardEl.style.display = 'none';
+                        }
+                        
+                        // Hide other buttons - only show Sync Image
+                        const translationBtn = content.querySelector('#open-translation-tool-btn');
+                        const qrBtn = content.querySelector('#qrcode-btn');
+                        const cookieBtnEl = content.querySelector('#cookie-btn');
+                        const shipAddressBtnEl = content.querySelector('#ship-address-btn');
+                        if (translationBtn) {
+                            translationBtn.style.display = 'none';
+                        }
+                        if (qrBtn) {
+                            qrBtn.style.display = 'none';
+                        }
+                        if (cookieBtnEl) {
+                            cookieBtnEl.style.display = 'none';
+                        }
+                        if (shipAddressBtnEl) {
+                            shipAddressBtnEl.style.display = 'none';
+                        }
+                        
+                        // Show Sync Image card
+                        syncImageCard.style.display = 'block';
+                        
+                        // Show Back button
+                        if (translationBackBtn) {
+                            translationBackBtn.style.display = 'block';
+                        }
+                        
+                        // Generate new session ID and QR code
+                        currentSyncSessionId = generateSessionId();
+                        const sessionIdValueEl = content.querySelector('#sync-session-id-value');
+                        if (sessionIdValueEl) {
+                            sessionIdValueEl.textContent = currentSyncSessionId;
+                        }
+                        generateSyncQRCode(currentSyncSessionId);
+                        
+                        // Load existing images
+                        loadSyncImages(currentSyncSessionId);
+                        
+                        // Hide other content
+                        if (environmentInfoPanel) {
+                            environmentInfoPanel.style.display = 'none';
+                        }
+                        if (searchPanel) {
+                            searchPanel.style.display = 'none';
+                        }
+                        if (functionPanel) {
+                            functionPanel.style.display = 'none';
+                        }
+                        if (navLinksCardEl) {
+                            navLinksCardEl.style.display = 'none';
+                        }
+                    } else {
+                        // Hide Sync Image card
+                        syncImageCard.style.display = 'none';
+                        
+                        // Show other buttons again
+                        const translationBtn = content.querySelector('#open-translation-tool-btn');
+                        const qrBtn = content.querySelector('#qrcode-btn');
+                        const cookieBtnEl = content.querySelector('#cookie-btn');
+                        const shipAddressBtnEl = content.querySelector('#ship-address-btn');
+                        if (translationBtn) {
+                            translationBtn.style.display = 'flex';
+                        }
+                        if (qrBtn) {
+                            qrBtn.style.display = 'flex';
+                        }
+                        if (cookieBtnEl) {
+                            cookieBtnEl.style.display = 'flex';
+                        }
+                        if (shipAddressBtnEl) {
+                            shipAddressBtnEl.style.display = 'flex';
+                        }
+                        
+                        // Hide Back button
+                        if (translationBackBtn) {
+                            translationBackBtn.style.display = 'none';
+                        }
+                        
+                        // Show all content
+                        if (environmentInfoPanel) {
+                            environmentInfoPanel.style.display = 'flex';
+                        }
+                        if (searchPanel) {
+                            searchPanel.style.display = 'block';
+                        }
+                        if (functionPanel) {
+                            functionPanel.style.display = 'block';
+                        }
+                        if (navLinksCardEl) {
+                            navLinksCardEl.style.display = 'block';
+                        }
+                    }
+                });
+                
+                // Add Refresh Images button event listener
+                const refreshSyncImagesBtn = content.querySelector('#refresh-sync-images-btn');
+                if (refreshSyncImagesBtn) {
+                    refreshSyncImagesBtn.addEventListener('click', () => {
+                        console.log('🔄 Refreshing sync images...');
+                        if (currentSyncSessionId) {
+                            loadSyncImages(currentSyncSessionId);
+                        }
+                    });
+                }
+                
+                console.log('✓ Sync Image button event listener added');
+            }
+            
             // Add Back button event listener for Translation, QR Code and Cookie
             const translationBackBtn = content.querySelector('#translation-back-btn');
             if (translationBackBtn) {
@@ -5839,6 +6251,10 @@ ${address.cityStateZip}</div>
                     const shipAddressCardEl = content.querySelector('#ship-address-card');
                     if (shipAddressCardEl) {
                         shipAddressCardEl.style.display = 'none';
+                    }
+                    const syncImageCardEl = content.querySelector('#sync-image-card');
+                    if (syncImageCardEl) {
+                        syncImageCardEl.style.display = 'none';
                     }
                     
                     // Show all buttons again
@@ -5887,6 +6303,9 @@ ${address.cityStateZip}</div>
                     isCookieToolOpen = false;
                     if (typeof isShipAddressToolOpen !== 'undefined') {
                         isShipAddressToolOpen = false;
+                    }
+                    if (typeof isSyncImageToolOpen !== 'undefined') {
+                        isSyncImageToolOpen = false;
                     }
                 });
                 
@@ -8440,6 +8859,103 @@ ${address.cityStateZip}</div>
                             "
                         >
                             <div style="color: #999; text-align: center; padding: 20px; width: 100%;">Generating addresses...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sync Image Card (hidden by default) -->
+                <div id="sync-image-card" style="display: none; padding: 0; margin-top: 15px;">
+                    
+                    <!-- QR Code Section -->
+                    <div style="
+                        background: rgba(255,255,255,0.15);
+                        border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 8px;
+                        padding: 15px;
+                        margin-bottom: 15px;
+                    ">
+                        <div style="
+                            font-size: 14px;
+                            font-weight: bold;
+                            color: #fff;
+                            margin-bottom: 10px;
+                            text-align: center;
+                        ">扫描二维码上传图片/视频</div>
+                        
+                        <div 
+                            id="sync-qrcode-display"
+                            style="
+                                background: #fff;
+                                border-radius: 8px;
+                                padding: 20px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                min-height: 280px;
+                                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                            "
+                        >
+                            <div style="
+                                color: #999;
+                                font-size: 14px;
+                                text-align: center;
+                            ">正在生成二维码...</div>
+                        </div>
+                        
+                        <div style="
+                            font-size: 12px;
+                            color: rgba(255,255,255,0.7);
+                            text-align: center;
+                            margin-top: 10px;
+                        " id="sync-session-id">会话ID: <span id="sync-session-id-value">-</span></div>
+                    </div>
+                    
+                    <!-- Uploaded Images Section -->
+                    <div style="
+                        background: rgba(255,255,255,0.15);
+                        border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 8px;
+                        padding: 15px;
+                        margin-bottom: 15px;
+                    ">
+                        <div style="
+                            font-size: 14px;
+                            font-weight: bold;
+                            color: #fff;
+                            margin-bottom: 10px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                        ">
+                            <span>已上传的图片/视频</span>
+                            <button 
+                                id="refresh-sync-images-btn"
+                                style="
+                                    background: #10b981;
+                                    color: #fff;
+                                    border: none;
+                                    padding: 6px 12px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    font-weight: bold;
+                                    transition: all 0.2s ease;
+                                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                                "
+                                onmouseover="this.style.background='#059669'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.3)';"
+                                onmouseout="this.style.background='#10b981'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.2)';"
+                            >刷新</button>
+                        </div>
+                        
+                        <div 
+                            id="sync-images-list"
+                            style="
+                                display: grid;
+                                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                                gap: 10px;
+                            "
+                        >
+                            <div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">暂无上传的图片</div>
                         </div>
                     </div>
                 </div>

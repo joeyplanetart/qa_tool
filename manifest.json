@@ -23,7 +23,10 @@
     "*://cafepress.com.au/*",
     "*://admin.planetart.com/*",
     "*://login.planetart.com/*",
-    "*://api.mymemory.translated.net/*"
+    "*://api.mymemory.translated.net/*",
+    "*://api.qrserver.com/*",
+    "*://*.supabase.co/*",
+    "*://cdn.jsdelivr.net/*"
   ],
   "content_scripts": [
     {
