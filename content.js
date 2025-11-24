@@ -5890,7 +5890,11 @@ ${address.cityStateZip}</div>
                         
                         try {
                             // Use Supabase REST API directly to avoid CSP issues
-                            const listFilesUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?prefix=${encodeURIComponent(sessionId + '/')}`;
+                            // Correct API endpoint format: /storage/v1/object/list/{bucket}?prefix={path}
+                            const prefix = sessionId + '/';
+                            const listFilesUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?prefix=${encodeURIComponent(prefix)}&limit=100`;
+                            
+                            console.log('📡 Fetching files from:', listFilesUrl);
                             
                             let files = [];
                             let listError = null;
@@ -5900,14 +5904,50 @@ ${address.cityStateZip}</div>
                                     method: 'GET',
                                     headers: {
                                         'apikey': supabaseAnonKey,
-                                        'Authorization': `Bearer ${supabaseAnonKey}`
+                                        'Authorization': `Bearer ${supabaseAnonKey}`,
+                                        'Content-Type': 'application/json'
                                     }
                                 });
                                 
+                                console.log('📡 Response status:', response.status, response.statusText);
+                                
                                 if (!response.ok) {
-                                    const errorData = await response.text();
-                                    listError = new Error(`HTTP ${response.status}: ${errorData}`);
-                                    console.warn('List files HTTP error:', response.status, errorData);
+                                    let errorData;
+                                    try {
+                                        errorData = await response.json();
+                                    } catch {
+                                        errorData = await response.text();
+                                    }
+                                    listError = new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
+                                    console.error('❌ List files HTTP error:', response.status, errorData);
+                                    
+                                    // Handle specific error cases
+                                    if (response.status === 400) {
+                                        // 400 usually means bad request - might be prefix format issue
+                                        console.warn('⚠️ 400 error - trying alternative API format');
+                                        // Try without trailing slash
+                                        const altUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?prefix=${encodeURIComponent(sessionId)}&limit=100`;
+                                        const altResponse = await fetch(altUrl, {
+                                            method: 'GET',
+                                            headers: {
+                                                'apikey': supabaseAnonKey,
+                                                'Authorization': `Bearer ${supabaseAnonKey}`,
+                                                'Content-Type': 'application/json'
+                                            }
+                                        });
+                                        
+                                        if (altResponse.ok) {
+                                            const altData = await altResponse.json();
+                                            files = Array.isArray(altData) ? altData : [];
+                                            console.log('✅ Files from alternative API:', files);
+                                            listError = null; // Clear error since we got data
+                                        }
+                                    } else if (response.status === 404) {
+                                        // Folder doesn't exist yet - not really an error
+                                        console.log('ℹ️ Folder does not exist yet');
+                                        listError = null; // Clear error, treat as empty
+                                        files = [];
+                                    }
                                 } else {
                                     const data = await response.json();
                                     files = Array.isArray(data) ? data : [];
@@ -5915,7 +5955,7 @@ ${address.cityStateZip}</div>
                                 }
                             } catch (err) {
                                 listError = err;
-                                console.warn('List files exception:', err);
+                                console.error('❌ List files exception:', err);
                             }
                             
                             // If folder doesn't exist or is empty, show empty message
@@ -5936,14 +5976,35 @@ ${address.cityStateZip}</div>
                             }
                             
                             // Filter out folders (only get files)
-                            // Files typically don't have an 'id' property, folders might
+                            // Supabase returns objects with 'name' property
+                            // Files have extensions, folders typically don't (or have different structure)
                             const fileList = files.filter(file => {
-                                // Filter out folders - files have a name with extension
-                                if (!file.name) return false;
-                                // Folders might have id or be objects without metadata
-                                // Files should have a name with extension
-                                const hasExtension = file.name.includes('.');
-                                return hasExtension;
+                                if (!file || !file.name) return false;
+                                
+                                // Remove prefix from name if present
+                                let fileName = file.name;
+                                if (fileName.startsWith(prefix)) {
+                                    fileName = fileName.substring(prefix.length);
+                                }
+                                
+                                // Files should have an extension
+                                const hasExtension = fileName.includes('.') && fileName.split('.').length > 1;
+                                
+                                // Also check if it's not a folder (folders might have id or be empty)
+                                const isFile = hasExtension && fileName.length > 0;
+                                
+                                return isFile;
+                            }).map(file => {
+                                // Clean up file name (remove prefix)
+                                let fileName = file.name;
+                                if (fileName.startsWith(prefix)) {
+                                    fileName = fileName.substring(prefix.length);
+                                }
+                                return {
+                                    ...file,
+                                    name: fileName,
+                                    originalName: file.name
+                                };
                             });
                             
                             if (fileList.length === 0) {
@@ -5953,7 +6014,8 @@ ${address.cityStateZip}</div>
                             
                             // Get public URLs for all files
                             const images = fileList.map(file => {
-                                const filePath = `${sessionId}/${file.name}`;
+                                // Use original name for path (includes full path with prefix)
+                                const filePath = file.originalName || `${sessionId}/${file.name}`;
                                 // Construct public URL directly
                                 const publicUrl = `${supabaseUrl}/storage/v1/object/public/${supabaseBucket}/${filePath}`;
                                 
