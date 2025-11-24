@@ -5868,8 +5868,60 @@ ${address.cityStateZip}</div>
                 });
             }
             
-            // Load uploaded images from Supabase
+            // Load uploaded images from local storage only (no API calls)
+            // This avoids all storage bucket list API permission issues
             async function loadSyncImages(sessionId) {
+                const imagesListEl = content.querySelector('#sync-images-list');
+                if (!imagesListEl) return;
+                
+                imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">正在加载图片...</div>';
+                
+                try {
+                    const storageKey = `sync_images_${sessionId}`;
+                    console.log('🔑 Loading images for session:', sessionId);
+                    console.log('📦 Storage key:', storageKey);
+                    
+                    // Load from chrome.storage.local (primary source)
+                    chrome.storage.local.get([storageKey], (result) => {
+                        let images = result[storageKey];
+                        
+                        // If chrome.storage is empty, try localStorage (fallback)
+                        if (!images || !Array.isArray(images) || images.length === 0) {
+                            try {
+                                const localStorageData = localStorage.getItem(storageKey);
+                                if (localStorageData) {
+                                    images = JSON.parse(localStorageData);
+                                    console.log('📦 Loaded from localStorage:', images?.length || 0, 'images');
+                                    
+                                    // Copy to chrome.storage for future use
+                                    if (images && Array.isArray(images) && images.length > 0) {
+                                        chrome.storage.local.set({ [storageKey]: images }, () => {
+                                            console.log('💾 Copied to chrome.storage');
+                                        });
+                                    }
+                                }
+                            } catch (e) {
+                                console.log('⚠️ Could not read from localStorage:', e);
+                            }
+                        } else {
+                            console.log('✅ Loaded from chrome.storage:', images.length, 'images');
+                        }
+                        
+                        if (images && Array.isArray(images) && images.length > 0) {
+                            console.log('✅ Displaying', images.length, 'images');
+                            displaySyncImages(images);
+                        } else {
+                            imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">暂无上传的图片<br><small style="color: #666; font-size: 12px; margin-top: 10px; display: block;">提示：上传图片后会自动保存并显示</small></div>';
+                        }
+                    });
+                } catch (error) {
+                    console.error('❌ Load sync images error:', error);
+                    imagesListEl.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">加载图片失败: ' + (error.message || '未知错误') + '</div>';
+                }
+            }
+            
+            // Old function with API calls - kept for reference but not used
+            async function loadSyncImages_OLD_WITH_API(sessionId) {
                 const imagesListEl = content.querySelector('#sync-images-list');
                 if (!imagesListEl) return;
                 
@@ -5892,33 +5944,6 @@ ${address.cityStateZip}</div>
                             console.log('🔑 Loading images for session:', sessionId);
                             console.log('🔑 Supabase config:', { url: supabaseUrl, bucket: supabaseBucket });
                             
-                            // First, try to get bucket info to verify it exists and get its ID
-                            // This helps us understand if the issue is with bucket name vs ID
-                            const bucketInfoUrl = `${supabaseUrl}/storage/v1/bucket/${supabaseBucket}`;
-                            console.log('📡 Checking bucket info:', bucketInfoUrl);
-                            
-                            let bucketInfo = null;
-                            try {
-                                const bucketInfoResponse = await fetch(bucketInfoUrl, {
-                                    method: 'GET',
-                                    headers: {
-                                        'apikey': supabaseAnonKey,
-                                        'Authorization': `Bearer ${supabaseAnonKey}`
-                                    }
-                                });
-                                
-                                if (bucketInfoResponse.ok) {
-                                    bucketInfo = await bucketInfoResponse.json();
-                                    console.log('✅ Bucket info:', bucketInfo);
-                                } else {
-                                    console.warn('⚠️ Could not get bucket info:', bucketInfoResponse.status);
-                                }
-                            } catch (err) {
-                                console.warn('⚠️ Bucket info check failed:', err);
-                            }
-                            
-                            // Use Supabase REST API directly (avoid CSP issues with SDK)
-                            // Try multiple API endpoint formats to find the correct one
                             const prefix = sessionId + '/';
                             
                             // Try multiple API formats - Supabase Storage API can be finicky
@@ -6597,6 +6622,53 @@ ${address.cityStateZip}</div>
                             loadSyncImages(currentSyncSessionId);
                         }
                     });
+                }
+                
+                // Listen for messages from upload.html (when files are uploaded)
+                window.addEventListener('message', (event) => {
+                    // Accept messages from any origin (upload.html might be on different domain)
+                    if (event.data && event.data.type === 'sync_images_uploaded') {
+                        const { sessionId, images } = event.data;
+                        console.log('📨 Received postMessage for session:', sessionId);
+                        
+                        // Save to chrome.storage
+                        const storageKey = `sync_images_${sessionId}`;
+                        chrome.storage.local.set({ [storageKey]: images }, () => {
+                            console.log('💾 Saved', images.length, 'images from postMessage');
+                        });
+                        
+                        // If this is the current session, refresh the display
+                        if (sessionId === currentSyncSessionId) {
+                            console.log('🔄 Refreshing display for current session');
+                            loadSyncImages(sessionId);
+                        }
+                    }
+                });
+                
+                // Also listen for BroadcastChannel messages (for same-origin communication)
+                try {
+                    const channel = new BroadcastChannel('sync_images_channel');
+                    channel.addEventListener('message', (event) => {
+                        if (event.data && event.data.type === 'sync_images_uploaded') {
+                            const { sessionId, images } = event.data;
+                            console.log('📨 Received BroadcastChannel message for session:', sessionId);
+                            
+                            // Save to chrome.storage
+                            const storageKey = `sync_images_${sessionId}`;
+                            chrome.storage.local.set({ [storageKey]: images }, () => {
+                                console.log('💾 Saved', images.length, 'images from BroadcastChannel');
+                            });
+                            
+                            // If this is the current session, refresh the display
+                            if (sessionId === currentSyncSessionId) {
+                                console.log('🔄 Refreshing display for current session');
+                                loadSyncImages(sessionId);
+                            }
+                        }
+                    });
+                    console.log('✅ BroadcastChannel listener set up');
+                } catch (e) {
+                    console.log('⚠️ BroadcastChannel not available:', e);
                 }
                 
                 console.log('✓ Sync Image button event listener added');

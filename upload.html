@@ -489,9 +489,96 @@
                     });
                 });
                 
-                await Promise.all(uploadPromises);
+                const uploadedFiles = await Promise.all(uploadPromises);
                 
-                showMessage('上传成功！', 'success');
+                // Save uploaded files info to localStorage for extension to read
+                // This is critical - without this, the extension won't know about uploaded files
+                try {
+                    const storageKey = `sync_images_${sessionId}`;
+                    
+                    // Get existing images from localStorage
+                    const existingData = localStorage.getItem(storageKey);
+                    const existingImages = existingData ? JSON.parse(existingData) : [];
+                    
+                    // Process new uploaded files
+                    const newImages = uploadedFiles.map(file => {
+                        const fileName = file.name;
+                        const ext = fileName.split('.').pop()?.toLowerCase() || '';
+                        
+                        let fileType = 'image/jpeg';
+                        if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) {
+                            fileType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+                        } else if (['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(ext)) {
+                            fileType = `video/${ext}`;
+                        }
+                        
+                        // Extract display name (remove session ID and timestamp if present)
+                        let displayName = fileName;
+                        const nameParts = fileName.split('_');
+                        if (nameParts.length >= 3 && /^\d+$/.test(nameParts[2].split('.')[0])) {
+                            // Format: sessionId_timestamp_index.extension
+                            // Skip sessionId and timestamp, use rest
+                            displayName = nameParts.slice(3).join('_');
+                        }
+                        
+                        return {
+                            name: displayName || fileName,
+                            originalName: file.path,
+                            url: file.url,
+                            type: fileType,
+                            isVideo: ['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(ext),
+                            size: file.size,
+                            created_at: new Date().toISOString()
+                        };
+                    });
+                    
+                    // Merge with existing (avoid duplicates by URL)
+                    const allImages = [...existingImages];
+                    newImages.forEach(newImg => {
+                        if (!allImages.find(img => img.url === newImg.url)) {
+                            allImages.push(newImg);
+                        }
+                    });
+                    
+                    // Save to localStorage
+                    localStorage.setItem(storageKey, JSON.stringify(allImages));
+                    console.log('💾 Saved', allImages.length, 'images to localStorage for session:', sessionId);
+                    
+                    // Try to notify parent window if opened from extension (via postMessage)
+                    // This helps the extension update immediately
+                    try {
+                        if (window.opener && !window.opener.closed) {
+                            window.opener.postMessage({
+                                type: 'sync_images_uploaded',
+                                sessionId: sessionId,
+                                images: allImages
+                            }, '*');
+                            console.log('📨 Sent postMessage to parent window');
+                        }
+                    } catch (e) {
+                        console.log('⚠️ Could not send postMessage (this is OK if page opened directly):', e);
+                    }
+                    
+                    // Also try to notify via BroadcastChannel (for same-origin communication)
+                    try {
+                        const channel = new BroadcastChannel('sync_images_channel');
+                        channel.postMessage({
+                            type: 'sync_images_uploaded',
+                            sessionId: sessionId,
+                            images: allImages
+                        });
+                        console.log('📨 Sent BroadcastChannel message');
+                        channel.close();
+                    } catch (e) {
+                        console.log('⚠️ BroadcastChannel not available:', e);
+                    }
+                    
+                } catch (storageError) {
+                    console.error('❌ Failed to save to localStorage:', storageError);
+                    // Continue anyway - upload was successful, user can refresh manually
+                }
+                
+                showMessage('上传成功！图片已保存', 'success');
                 
                 // Clear files after 2 seconds
                 setTimeout(() => {
