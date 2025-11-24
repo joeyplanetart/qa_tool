@@ -5865,16 +5865,10 @@ ${address.cityStateZip}</div>
                     img.onload = () => {
                         qrcodeDisplay.innerHTML = '';
                         qrcodeDisplay.appendChild(img);
-                        
-                        // Add URL info below QR code for debugging
-                        const urlInfo = document.createElement('div');
-                        urlInfo.style.cssText = 'font-size: 10px; color: #666; text-align: center; margin-top: 5px; word-break: break-all;';
-                        urlInfo.textContent = uploadUrl;
-                        qrcodeDisplay.appendChild(urlInfo);
                     };
                     
                     img.onerror = () => {
-                        qrcodeDisplay.innerHTML = '<div style="color: #f44336; font-size: 14px; text-align: center;">生成二维码失败，请重试<br><small style="font-size: 10px; color: #666;">URL: ' + uploadUrl + '</small></div>';
+                        qrcodeDisplay.innerHTML = '<div style="color: #f44336; font-size: 14px; text-align: center;">生成二维码失败，请重试</div>';
                     };
                 });
             }
