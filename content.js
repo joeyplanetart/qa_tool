@@ -5843,8 +5843,13 @@ ${address.cityStateZip}</div>
                         uploadUrl = `${result.uploadPageUrl}?session=${sessionId}`;
                     } else {
                         // Default: use Vercel deployment URL
-                        uploadUrl = `https://cp-qa-tool.vercel.app/upload.html?session=${sessionId}`;
+                        // If this doesn't work, user needs to configure uploadPageUrl
+                        // Try multiple possible URLs
+                        uploadUrl = `https://qa-tool-five.vercel.app/upload.html?session=${sessionId}`;
                     }
+                    
+                    // Show URL info for debugging
+                    console.log('📡 Upload page URL:', uploadUrl);
                     
                     // Generate QR code using the same API as the QR code tool
                     const encodedText = encodeURIComponent(uploadUrl);
@@ -5860,10 +5865,16 @@ ${address.cityStateZip}</div>
                     img.onload = () => {
                         qrcodeDisplay.innerHTML = '';
                         qrcodeDisplay.appendChild(img);
+                        
+                        // Add URL info below QR code for debugging
+                        const urlInfo = document.createElement('div');
+                        urlInfo.style.cssText = 'font-size: 10px; color: #666; text-align: center; margin-top: 5px; word-break: break-all;';
+                        urlInfo.textContent = uploadUrl;
+                        qrcodeDisplay.appendChild(urlInfo);
                     };
                     
                     img.onerror = () => {
-                        qrcodeDisplay.innerHTML = '<div style="color: #f44336; font-size: 14px; text-align: center;">生成二维码失败，请重试</div>';
+                        qrcodeDisplay.innerHTML = '<div style="color: #f44336; font-size: 14px; text-align: center;">生成二维码失败，请重试<br><small style="font-size: 10px; color: #666;">URL: ' + uploadUrl + '</small></div>';
                     };
                 });
             }
