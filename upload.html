@@ -433,6 +433,18 @@
             progressFill.style.width = '0%';
             
             try {
+                // First, check if bucket exists and is accessible
+                const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+                if (bucketError) {
+                    console.error('Bucket access error:', bucketError);
+                    throw new Error('无法访问存储桶，请检查 Supabase 配置');
+                }
+                
+                const bucketExists = buckets && buckets.some(b => b.name === STORAGE_BUCKET);
+                if (!bucketExists) {
+                    throw new Error(`存储桶 "${STORAGE_BUCKET}" 不存在，请在 Supabase 中创建`);
+                }
+                
                 const uploadPromises = selectedFiles.map(async (file, index) => {
                     const fileExt = file.name.split('.').pop();
                     const fileName = `${sessionId}_${Date.now()}_${index}.${fileExt}`;
@@ -443,36 +455,34 @@
                         .from(STORAGE_BUCKET)
                         .upload(filePath, file, {
                             cacheControl: '3600',
-                            upsert: false
+                            upsert: false,
+                            contentType: file.type || 'application/octet-stream'
                         });
                     
-                    if (error) throw error;
+                    if (error) {
+                        // Provide more helpful error messages
+                        if (error.message.includes('row-level security') || error.message.includes('RLS')) {
+                            throw new Error('存储桶权限配置错误。请在 Supabase Dashboard > Storage > Policies 中设置允许公开上传的策略');
+                        } else if (error.message.includes('new row violates')) {
+                            throw new Error('存储桶权限不足。请确保存储桶设置为公开访问，并配置正确的存储策略');
+                        } else if (error.message.includes('Bucket not found')) {
+                            throw new Error(`存储桶 "${STORAGE_BUCKET}" 不存在`);
+                        } else {
+                            throw new Error(error.message || '上传失败');
+                        }
+                    }
                     
                     // Get public URL
                     const { data: urlData } = supabase.storage
                         .from(STORAGE_BUCKET)
                         .getPublicUrl(filePath);
                     
-                    // Save metadata to database (optional)
-                    // You can create a table in Supabase to store file metadata
-                    // const { error: dbError } = await supabase
-                    //     .from('uploaded_images')
-                    //     .insert({
-                    //         session_id: sessionId,
-                    //         file_name: file.name,
-                    //         file_path: filePath,
-                    //         file_url: urlData.publicUrl,
-                    //         file_type: file.type,
-                    //         file_size: file.size,
-                    //         created_at: new Date().toISOString(),
-                    //         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 1 day
-                    //     });
-                    
                     return {
                         name: file.name,
                         url: urlData.publicUrl,
                         type: file.type,
-                        size: file.size
+                        size: file.size,
+                        path: filePath
                     };
                 });
                 
