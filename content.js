@@ -5842,10 +5842,8 @@ ${address.cityStateZip}</div>
                     if (result.uploadPageUrl && result.uploadPageUrl !== '') {
                         uploadUrl = `${result.uploadPageUrl}?session=${sessionId}`;
                     } else {
-                        // Default: use chrome-extension:// URL if upload.html is in web_accessible_resources
-                        // Or use a placeholder that user needs to configure
-                        uploadUrl = `https://your-upload-endpoint.com/upload.html?session=${sessionId}`;
-                        console.warn('⚠️ Upload page URL not configured. Please set uploadPageUrl in storage.');
+                        // Default: use Vercel deployment URL
+                        uploadUrl = `https://cp-qa-tool.vercel.app/upload.html?session=${sessionId}`;
                     }
                     
                     // Generate QR code using the same API as the QR code tool
