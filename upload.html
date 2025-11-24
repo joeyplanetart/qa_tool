@@ -433,18 +433,6 @@
             progressFill.style.width = '0%';
             
             try {
-                // First, check if bucket exists and is accessible
-                const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
-                if (bucketError) {
-                    console.error('Bucket access error:', bucketError);
-                    throw new Error('无法访问存储桶，请检查 Supabase 配置');
-                }
-                
-                const bucketExists = buckets && buckets.some(b => b.name === STORAGE_BUCKET);
-                if (!bucketExists) {
-                    throw new Error(`存储桶 "${STORAGE_BUCKET}" 不存在，请在 Supabase 中创建`);
-                }
-                
                 const uploadPromises = selectedFiles.map(async (file, index) => {
                     const fileExt = file.name.split('.').pop();
                     const fileName = `${sessionId}_${Date.now()}_${index}.${fileExt}`;
@@ -461,14 +449,20 @@
                     
                     if (error) {
                         // Provide more helpful error messages
-                        if (error.message.includes('row-level security') || error.message.includes('RLS')) {
-                            throw new Error('存储桶权限配置错误。请在 Supabase Dashboard > Storage > Policies 中设置允许公开上传的策略');
-                        } else if (error.message.includes('new row violates')) {
-                            throw new Error('存储桶权限不足。请确保存储桶设置为公开访问，并配置正确的存储策略');
-                        } else if (error.message.includes('Bucket not found')) {
-                            throw new Error(`存储桶 "${STORAGE_BUCKET}" 不存在`);
+                        console.error('Upload error details:', error);
+                        
+                        if (error.message && error.message.includes('row-level security')) {
+                            throw new Error('存储桶权限配置错误。请在 Supabase Dashboard > Storage > Policies 中设置允许公开上传的策略。详细步骤请查看 SUPABASE_STORAGE_SETUP.md');
+                        } else if (error.message && (error.message.includes('new row violates') || error.message.includes('RLS'))) {
+                            throw new Error('存储桶权限不足。请确保：1) 存储桶设置为公开访问 2) 配置了正确的存储策略。详细步骤请查看 SUPABASE_STORAGE_SETUP.md');
+                        } else if (error.message && (error.message.includes('Bucket not found') || error.message.includes('not found'))) {
+                            throw new Error(`存储桶 "${STORAGE_BUCKET}" 不存在或无法访问。请检查：1) 存储桶名称是否正确 2) 存储桶是否已创建 3) API key 是否正确`);
+                        } else if (error.message && error.message.includes('JWT')) {
+                            throw new Error('Supabase API key 无效。请检查 SUPABASE_ANON_KEY 配置是否正确');
+                        } else if (error.message && error.message.includes('permission') || error.message.includes('denied')) {
+                            throw new Error('权限被拒绝。请确保存储桶设置为公开访问，并配置了正确的存储策略');
                         } else {
-                            throw new Error(error.message || '上传失败');
+                            throw new Error(error.message || '上传失败，请检查控制台获取详细信息');
                         }
                     }
                     
