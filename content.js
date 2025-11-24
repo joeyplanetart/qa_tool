@@ -4806,6 +4806,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         const qrBtn = content.querySelector('#qrcode-btn');
                         const cookieBtnEl = content.querySelector('#cookie-btn');
                         const shipAddressBtnEl = content.querySelector('#ship-address-btn');
+                        const syncImageBtn = content.querySelector('#sync-image-btn');
                         if (qrBtn) {
                             qrBtn.style.display = 'none';
                         }
@@ -4814,6 +4815,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         }
                         if (shipAddressBtnEl) {
                             shipAddressBtnEl.style.display = 'none';
+                        }
+                        if (syncImageBtn) {
+                            syncImageBtn.style.display = 'none';
                         }
                         
                         // Hide all content (environment info, search panel, function panel, navLinksCard)
@@ -4837,14 +4841,18 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         const qrBtn = content.querySelector('#qrcode-btn');
                         const cookieBtnEl = content.querySelector('#cookie-btn');
                         const shipAddressBtnEl = content.querySelector('#ship-address-btn');
+                        const syncImageBtn = content.querySelector('#sync-image-btn');
                         if (qrBtn) {
-                            qrBtn.style.display = 'block';
+                            qrBtn.style.display = 'flex';
                         }
                         if (cookieBtnEl) {
-                            cookieBtnEl.style.display = 'block';
+                            cookieBtnEl.style.display = 'flex';
                         }
                         if (shipAddressBtnEl) {
-                            shipAddressBtnEl.style.display = 'block';
+                            shipAddressBtnEl.style.display = 'flex';
+                        }
+                        if (syncImageBtn) {
+                            syncImageBtn.style.display = 'flex';
                         }
                         
                         // Hide Back button
@@ -5114,6 +5122,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         const translationBtn = content.querySelector('#open-translation-tool-btn');
                         const cookieBtnEl = content.querySelector('#cookie-btn');
                         const shipAddressBtnEl = content.querySelector('#ship-address-btn');
+                        const syncImageBtn = content.querySelector('#sync-image-btn');
                         if (translationBtn) {
                             translationBtn.style.display = 'none';
                         }
@@ -5122,6 +5131,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         }
                         if (shipAddressBtnEl) {
                             shipAddressBtnEl.style.display = 'none';
+                        }
+                        if (syncImageBtn) {
+                            syncImageBtn.style.display = 'none';
                         }
                         
                         // Hide all content
@@ -5157,14 +5169,18 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         const translationBtn = content.querySelector('#open-translation-tool-btn');
                         const cookieBtnEl = content.querySelector('#cookie-btn');
                         const shipAddressBtnEl = content.querySelector('#ship-address-btn');
+                        const syncImageBtn = content.querySelector('#sync-image-btn');
                         if (translationBtn) {
-                            translationBtn.style.display = 'block';
+                            translationBtn.style.display = 'flex';
                         }
                         if (cookieBtnEl) {
-                            cookieBtnEl.style.display = 'block';
+                            cookieBtnEl.style.display = 'flex';
                         }
                         if (shipAddressBtnEl) {
-                            shipAddressBtnEl.style.display = 'block';
+                            shipAddressBtnEl.style.display = 'flex';
+                        }
+                        if (syncImageBtn) {
+                            syncImageBtn.style.display = 'flex';
                         }
                         
                         // Hide Back button
@@ -5241,6 +5257,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         const translationBtn = content.querySelector('#open-translation-tool-btn');
                         const qrBtn = content.querySelector('#qrcode-btn');
                         const shipAddressBtnEl = content.querySelector('#ship-address-btn');
+                        const syncImageBtn = content.querySelector('#sync-image-btn');
                         if (translationBtn) {
                             translationBtn.style.display = 'none';
                         }
@@ -5249,6 +5266,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         }
                         if (shipAddressBtnEl) {
                             shipAddressBtnEl.style.display = 'none';
+                        }
+                        if (syncImageBtn) {
+                            syncImageBtn.style.display = 'none';
                         }
                         
                         // Show Cookie card
@@ -5282,14 +5302,18 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         const translationBtn = content.querySelector('#open-translation-tool-btn');
                         const qrBtn = content.querySelector('#qrcode-btn');
                         const shipAddressBtnEl = content.querySelector('#ship-address-btn');
+                        const syncImageBtn = content.querySelector('#sync-image-btn');
                         if (translationBtn) {
-                            translationBtn.style.display = 'block';
+                            translationBtn.style.display = 'flex';
                         }
                         if (qrBtn) {
-                            qrBtn.style.display = 'block';
+                            qrBtn.style.display = 'flex';
                         }
                         if (shipAddressBtnEl) {
-                            shipAddressBtnEl.style.display = 'block';
+                            shipAddressBtnEl.style.display = 'flex';
+                        }
+                        if (syncImageBtn) {
+                            syncImageBtn.style.display = 'flex';
                         }
                         
                         if (translationBackBtn) {
@@ -5705,6 +5729,7 @@ ${address.cityStateZip}</div>
                         const translationBtn = content.querySelector('#open-translation-tool-btn');
                         const qrBtn = content.querySelector('#qrcode-btn');
                         const cookieBtnEl = content.querySelector('#cookie-btn');
+                        const syncImageBtn = content.querySelector('#sync-image-btn');
                         if (translationBtn) {
                             translationBtn.style.display = 'none';
                         }
@@ -5713,6 +5738,9 @@ ${address.cityStateZip}</div>
                         }
                         if (cookieBtnEl) {
                             cookieBtnEl.style.display = 'none';
+                        }
+                        if (syncImageBtn) {
+                            syncImageBtn.style.display = 'none';
                         }
                         
                         // Show ShipAddress card
@@ -5746,14 +5774,18 @@ ${address.cityStateZip}</div>
                         const translationBtn = content.querySelector('#open-translation-tool-btn');
                         const qrBtn = content.querySelector('#qrcode-btn');
                         const cookieBtnEl = content.querySelector('#cookie-btn');
+                        const syncImageBtn = content.querySelector('#sync-image-btn');
                         if (translationBtn) {
-                            translationBtn.style.display = 'block';
+                            translationBtn.style.display = 'flex';
                         }
                         if (qrBtn) {
-                            qrBtn.style.display = 'block';
+                            qrBtn.style.display = 'flex';
                         }
                         if (cookieBtnEl) {
-                            cookieBtnEl.style.display = 'block';
+                            cookieBtnEl.style.display = 'flex';
+                        }
+                        if (syncImageBtn) {
+                            syncImageBtn.style.display = 'flex';
                         }
                         
                         if (translationBackBtn) {
@@ -5814,18 +5846,22 @@ ${address.cityStateZip}</div>
                     const qrBtn = content.querySelector('#qrcode-btn');
                     const cookieBtnEl = content.querySelector('#cookie-btn');
                     const shipAddressBtnEl = content.querySelector('#ship-address-btn');
+                    const syncImageBtn = content.querySelector('#sync-image-btn');
                     
                     if (translationBtn) {
-                        translationBtn.style.display = 'block';
+                        translationBtn.style.display = 'flex';
                     }
                     if (qrBtn) {
-                        qrBtn.style.display = 'block';
+                        qrBtn.style.display = 'flex';
                     }
                     if (cookieBtnEl) {
-                        cookieBtnEl.style.display = 'block';
+                        cookieBtnEl.style.display = 'flex';
                     }
                     if (shipAddressBtnEl) {
-                        shipAddressBtnEl.style.display = 'block';
+                        shipAddressBtnEl.style.display = 'flex';
+                    }
+                    if (syncImageBtn) {
+                        syncImageBtn.style.display = 'flex';
                     }
                     
                     // Hide Back button
@@ -7776,91 +7812,146 @@ ${address.cityStateZip}</div>
                     <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; flex: 1;">
                         <div 
                             id="open-translation-tool-btn"
+                            title="Translation"
                             style="
                                 background: rgba(255, 235, 59, 0.2);
                                 color: #ffeb3b;
                                 border: 1px solid rgba(255, 235, 59, 0.4);
-                                padding: 5px 10px;
+                                padding: 8px;
                                 border-radius: 6px;
                                 cursor: pointer;
-                                font-size: 11px;
-                                font-weight: bold;
                                 transition: all 0.2s ease;
                                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                white-space: nowrap;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
-                                flex-shrink: 1;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                width: 32px;
+                                height: 32px;
                             "
                             onmouseover="this.style.background='rgba(255, 235, 59, 0.35)'; this.style.borderColor='rgba(255, 235, 59, 0.6)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)';"
                             onmouseout="this.style.background='rgba(255, 235, 59, 0.2)'; this.style.borderColor='rgba(255, 235, 59, 0.4)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
-                        >Translation</div>
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 8l6 6"></path>
+                                <path d="M4 14l6-6 2-3"></path>
+                                <path d="M2 5h12"></path>
+                                <path d="M7 2h1"></path>
+                                <path d="M22 22l-5-10-5 10"></path>
+                                <path d="M14 18h6"></path>
+                            </svg>
+                        </div>
                         
                         <div 
                             id="qrcode-btn"
+                            title="QRcode"
                             style="
                                 background: rgba(255, 235, 59, 0.2);
                                 color: #ffeb3b;
                                 border: 1px solid rgba(255, 235, 59, 0.4);
-                                padding: 5px 10px;
+                                padding: 8px;
                                 border-radius: 6px;
                                 cursor: pointer;
-                                font-size: 11px;
-                                font-weight: bold;
                                 transition: all 0.2s ease;
                                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                white-space: nowrap;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
-                                flex-shrink: 1;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                width: 32px;
+                                height: 32px;
                             "
                             onmouseover="this.style.background='rgba(255, 235, 59, 0.35)'; this.style.borderColor='rgba(255, 235, 59, 0.6)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)';"
                             onmouseout="this.style.background='rgba(255, 235, 59, 0.2)'; this.style.borderColor='rgba(255, 235, 59, 0.4)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
-                        >QRcode</div>
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="5" height="5"></rect>
+                                <rect x="16" y="3" width="5" height="5"></rect>
+                                <rect x="3" y="16" width="5" height="5"></rect>
+                                <path d="M21 16h-3a2 2 0 0 1-2-2v-3"></path>
+                            </svg>
+                        </div>
                         
                         <div 
                             id="cookie-btn"
+                            title="Cookie"
                             style="
                                 background: rgba(255, 235, 59, 0.2);
                                 color: #ffeb3b;
                                 border: 1px solid rgba(255, 235, 59, 0.4);
-                                padding: 5px 10px;
+                                padding: 8px;
                                 border-radius: 6px;
                                 cursor: pointer;
-                                font-size: 11px;
-                                font-weight: bold;
                                 transition: all 0.2s ease;
                                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                white-space: nowrap;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
-                                flex-shrink: 1;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                width: 32px;
+                                height: 32px;
                             "
                             onmouseover="this.style.background='rgba(255, 235, 59, 0.35)'; this.style.borderColor='rgba(255, 235, 59, 0.6)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)';"
                             onmouseout="this.style.background='rgba(255, 235, 59, 0.2)'; this.style.borderColor='rgba(255, 235, 59, 0.4)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
-                        >Cookie</div>
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"></path>
+                                <path d="M8.5 8.5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1z"></path>
+                                <path d="M16 15a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1z"></path>
+                            </svg>
+                        </div>
                         
                         <div 
                             id="ship-address-btn"
+                            title="ShipAddress"
                             style="
                                 background: rgba(255, 235, 59, 0.2);
                                 color: #ffeb3b;
                                 border: 1px solid rgba(255, 235, 59, 0.4);
-                                padding: 5px 10px;
+                                padding: 8px;
                                 border-radius: 6px;
                                 cursor: pointer;
-                                font-size: 11px;
-                                font-weight: bold;
                                 transition: all 0.2s ease;
                                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                white-space: nowrap;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
-                                flex-shrink: 1;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                width: 32px;
+                                height: 32px;
                             "
                             onmouseover="this.style.background='rgba(255, 235, 59, 0.35)'; this.style.borderColor='rgba(255, 235, 59, 0.6)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)';"
                             onmouseout="this.style.background='rgba(255, 235, 59, 0.2)'; this.style.borderColor='rgba(255, 235, 59, 0.4)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
-                        >ShipAddress</div>
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                <circle cx="12" cy="10" r="3"></circle>
+                            </svg>
+                        </div>
+                        
+                        <div 
+                            id="sync-image-btn"
+                            title="Sync Image"
+                            style="
+                                background: rgba(255, 235, 59, 0.2);
+                                color: #ffeb3b;
+                                border: 1px solid rgba(255, 235, 59, 0.4);
+                                padding: 8px;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                transition: all 0.2s ease;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                width: 32px;
+                                height: 32px;
+                            "
+                            onmouseover="this.style.background='rgba(255, 235, 59, 0.35)'; this.style.borderColor='rgba(255, 235, 59, 0.6)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)';"
+                            onmouseout="this.style.background='rgba(255, 235, 59, 0.2)'; this.style.borderColor='rgba(255, 235, 59, 0.4)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <polyline points="1 20 1 14 7 14"></polyline>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                        </div>
                     </div>
                     
                     <button 
