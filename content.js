@@ -5890,18 +5890,47 @@ ${address.cityStateZip}</div>
                         
                         try {
                             console.log('🔑 Loading images for session:', sessionId);
+                            console.log('🔑 Supabase config:', { url: supabaseUrl, bucket: supabaseBucket });
+                            
+                            // First, try to get bucket info to verify it exists and get its ID
+                            // This helps us understand if the issue is with bucket name vs ID
+                            const bucketInfoUrl = `${supabaseUrl}/storage/v1/bucket/${supabaseBucket}`;
+                            console.log('📡 Checking bucket info:', bucketInfoUrl);
+                            
+                            let bucketInfo = null;
+                            try {
+                                const bucketInfoResponse = await fetch(bucketInfoUrl, {
+                                    method: 'GET',
+                                    headers: {
+                                        'apikey': supabaseAnonKey,
+                                        'Authorization': `Bearer ${supabaseAnonKey}`
+                                    }
+                                });
+                                
+                                if (bucketInfoResponse.ok) {
+                                    bucketInfo = await bucketInfoResponse.json();
+                                    console.log('✅ Bucket info:', bucketInfo);
+                                } else {
+                                    console.warn('⚠️ Could not get bucket info:', bucketInfoResponse.status);
+                                }
+                            } catch (err) {
+                                console.warn('⚠️ Bucket info check failed:', err);
+                            }
                             
                             // Use Supabase REST API directly (avoid CSP issues with SDK)
-                            // Correct endpoint format: /storage/v1/object/list/{bucket}?prefix={path}/
-                            // Note: prefix should include trailing slash for folder listing
+                            // Try multiple API endpoint formats to find the correct one
                             const prefix = sessionId + '/';
-                            const listUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?prefix=${encodeURIComponent(prefix)}`;
                             
-                            console.log('📡 Listing files from:', listUrl);
-                            console.log('📡 Session ID:', sessionId);
-                            console.log('📡 Prefix:', prefix);
+                            // Try multiple API formats - Supabase Storage API can be finicky
+                            let response = null;
+                            let listUrl = '';
+                            let lastError = null;
                             
-                            const response = await fetch(listUrl, {
+                            // Format 1: Standard format with prefix query parameter (most common)
+                            listUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?prefix=${encodeURIComponent(prefix)}`;
+                            console.log('📡 Attempting Format 1 (prefix only):', listUrl);
+                            
+                            response = await fetch(listUrl, {
                                 method: 'GET',
                                 headers: {
                                     'apikey': supabaseAnonKey,
@@ -5909,34 +5938,144 @@ ${address.cityStateZip}</div>
                                 }
                             });
                             
+                            console.log('📡 Format 1 response:', response.status, response.statusText);
+                            
                             if (!response.ok) {
-                                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-                                console.error('❌ List files error:', response.status, errorData);
+                                const errorText = await response.text();
+                                console.log('📡 Format 1 error:', errorText);
+                                lastError = { status: response.status, text: errorText };
+                                
+                                // Format 2: With limit parameter
+                                listUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?prefix=${encodeURIComponent(prefix)}&limit=1000`;
+                                console.log('📡 Attempting Format 2 (with limit):', listUrl);
+                                
+                                response = await fetch(listUrl, {
+                                    method: 'GET',
+                                    headers: {
+                                        'apikey': supabaseAnonKey,
+                                        'Authorization': `Bearer ${supabaseAnonKey}`
+                                    }
+                                });
+                                
+                                console.log('📡 Format 2 response:', response.status, response.statusText);
+                            }
+                            
+                            if (!response.ok) {
+                                const errorText = await response.text();
+                                console.log('📡 Format 2 error:', errorText);
+                                lastError = { status: response.status, text: errorText };
+                                
+                                // Format 3: Try without trailing slash in prefix
+                                const prefixNoSlash = sessionId;
+                                listUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?prefix=${encodeURIComponent(prefixNoSlash)}`;
+                                console.log('📡 Attempting Format 3 (prefix without trailing slash):', listUrl);
+                                
+                                response = await fetch(listUrl, {
+                                    method: 'GET',
+                                    headers: {
+                                        'apikey': supabaseAnonKey,
+                                        'Authorization': `Bearer ${supabaseAnonKey}`
+                                    }
+                                });
+                                
+                                console.log('📡 Format 3 response:', response.status, response.statusText);
+                            }
+                            
+                            if (!response.ok) {
+                                const errorText = await response.text();
+                                console.log('📡 Format 3 error:', errorText);
+                                lastError = { status: response.status, text: errorText };
+                                
+                                // Format 4: Try listing root and filter client-side
+                                listUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}`;
+                                console.log('📡 Attempting Format 4 (root listing):', listUrl);
+                                
+                                response = await fetch(listUrl, {
+                                    method: 'GET',
+                                    headers: {
+                                        'apikey': supabaseAnonKey,
+                                        'Authorization': `Bearer ${supabaseAnonKey}`
+                                    }
+                                });
+                                
+                                console.log('📡 Format 4 response:', response.status, response.statusText);
+                            }
+                            
+                            if (!response.ok) {
+                                let errorData;
+                                let errorText = '';
+                                try {
+                                    errorText = await response.text();
+                                    try {
+                                        errorData = JSON.parse(errorText);
+                                    } catch {
+                                        errorData = { error: errorText, message: errorText };
+                                    }
+                                } catch {
+                                    errorData = { error: 'Unknown error', message: 'Unknown error' };
+                                }
+                                
+                                console.error('❌ All API formats failed. Last attempt:', {
+                                    url: listUrl,
+                                    status: response.status,
+                                    statusText: response.statusText,
+                                    error: errorData,
+                                    rawText: errorText.substring(0, 500)
+                                });
                                 
                                 // Handle specific error cases
-                                if (errorData && (errorData.error === 'Bucket not found' || errorData.message === 'Bucket not found')) {
+                                if (errorData && (errorData.error === 'Bucket not found' || errorData.message === 'Bucket not found' || errorData.statusCode === '404')) {
                                     // This is likely an RLS policy issue, not that bucket doesn't exist
                                     // Try listing from root to verify bucket access
                                     console.warn('⚠️ Bucket not found error - might be RLS policy issue');
                                     console.warn('💡 Trying to list from root to verify bucket access...');
                                     
-                                    const rootUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?limit=100`;
-                                    const rootResponse = await fetch(rootUrl, {
+                                    // Try listing from root without prefix to verify bucket access
+                                    // Try different API formats
+                                    const rootUrl1 = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}`;
+                                    const rootUrl2 = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?limit=100`;
+                                    
+                                    console.log('📡 Trying root listing (format 1):', rootUrl1);
+                                    
+                                    let rootResponse = await fetch(rootUrl1, {
                                         method: 'GET',
                                         headers: {
                                             'apikey': supabaseAnonKey,
-                                            'Authorization': `Bearer ${supabaseAnonKey}`
+                                            'Authorization': `Bearer ${supabaseAnonKey}`,
+                                            'Content-Type': 'application/json'
                                         }
                                     });
                                     
+                                    // If first format fails, try second format
+                                    if (!rootResponse.ok) {
+                                        console.log('📡 Format 1 failed, trying format 2:', rootUrl2);
+                                        rootResponse = await fetch(rootUrl2, {
+                                            method: 'GET',
+                                            headers: {
+                                                'apikey': supabaseAnonKey,
+                                                'Authorization': `Bearer ${supabaseAnonKey}`,
+                                                'Content-Type': 'application/json'
+                                            }
+                                        });
+                                    }
+                                    
+                                    console.log('📡 Root response status:', rootResponse.status);
+                                    
                                     if (rootResponse.ok) {
                                         const rootData = await rootResponse.json();
-                                        console.log('✅ Root listing successful, filtering by session...');
+                                        console.log('✅ Root listing successful, got', rootData?.length || 0, 'items');
+                                        console.log('📦 Root data sample:', rootData?.slice(0, 3));
                                         
                                         // Filter files that match our session
                                         const sessionFiles = Array.isArray(rootData) 
-                                            ? rootData.filter(f => f.name && f.name.startsWith(prefix))
+                                            ? rootData.filter(f => {
+                                                if (!f || !f.name) return false;
+                                                // Check if file name starts with session prefix
+                                                return f.name.startsWith(prefix);
+                                            })
                                             : [];
+                                        
+                                        console.log('🔍 Filtered session files:', sessionFiles.length);
                                         
                                         if (sessionFiles.length > 0) {
                                             // Process the filtered files
@@ -5946,8 +6085,10 @@ ${address.cityStateZip}</div>
                                                 return hasExtension;
                                             });
                                             
+                                            console.log('📄 Files after filtering:', fileList.length);
+                                            
                                             if (fileList.length > 0) {
-                                                // Remove prefix from file names
+                                                // Remove prefix from file names for display
                                                 const processedFiles = fileList.map(file => ({
                                                     ...file,
                                                     name: file.name.startsWith(prefix) ? file.name.substring(prefix.length) : file.name,
@@ -5993,9 +6134,20 @@ ${address.cityStateZip}</div>
                                         imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">暂无上传的图片</div>';
                                         return;
                                     } else {
-                                        // Real bucket access issue
+                                        // Root listing also failed - this confirms it's a policy/access issue
                                         const rootError = await rootResponse.json().catch(() => ({ error: 'Unknown error' }));
-                                        throw new Error(`存储桶访问被拒绝。这可能是因为 RLS 策略未配置。请在 Supabase Dashboard > Storage > Policies 中为 "sync-images" 存储桶添加允许 SELECT 的策略。错误: ${rootError.error || rootError.message || 'Unknown'}`);
+                                        console.error('❌ Root listing also failed:', rootError);
+                                        
+                                        // Provide detailed error message
+                                        let errorMsg = '存储桶访问被拒绝。';
+                                        if (rootError.error === 'Bucket not found' || rootError.message === 'Bucket not found') {
+                                            errorMsg += '即使策略已配置，API 仍然返回 "Bucket not found"。';
+                                            errorMsg += '请检查：1) 策略是否已保存并生效 2) 策略的 USING 子句是否正确 3) 等待几秒钟让策略生效后重试';
+                                        } else {
+                                            errorMsg += `错误: ${rootError.error || rootError.message || 'Unknown'}`;
+                                        }
+                                        
+                                        throw new Error(errorMsg);
                                     }
                                 }
                                 
@@ -6008,32 +6160,75 @@ ${address.cityStateZip}</div>
                                 throw new Error(`读取文件失败: ${errorData.error || errorData.message || 'HTTP ' + response.status}`);
                             }
                             
-                            const data = await response.json();
-                            
-                            if (!data || !Array.isArray(data) || data.length === 0) {
-                                imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">暂无上传的图片</div>';
+                            // Success! Parse the response
+                            let data = null;
+                            try {
+                                data = await response.json();
+                                console.log('✅ API call successful, received data type:', Array.isArray(data) ? 'array' : typeof data);
+                                console.log('✅ Data length/size:', Array.isArray(data) ? data.length : Object.keys(data || {}).length);
+                            } catch (err) {
+                                console.error('❌ Failed to parse JSON response:', err);
+                                imagesListEl.innerHTML = '<div style="color: #ff4444; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">响应解析失败</div>';
                                 return;
                             }
                             
-                            console.log('✅ Files from storage:', data);
+                            // Handle different response formats
+                            let fileList = [];
+                            if (Array.isArray(data)) {
+                                fileList = data;
+                            } else if (data && Array.isArray(data.files)) {
+                                fileList = data.files;
+                            } else if (data && Array.isArray(data.items)) {
+                                fileList = data.items;
+                            } else {
+                                console.warn('⚠️ Unexpected response format:', data);
+                                fileList = [];
+                            }
                             
-                            // Filter out folders (only get files)
-                            const fileList = data.filter(file => {
+                            // If we got root listing (Format 4), filter by session prefix
+                            if (listUrl === `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}`) {
+                                console.log('📦 Root listing successful, filtering by session:', sessionId);
+                                const beforeFilter = fileList.length;
+                                fileList = fileList.filter(f => {
+                                    if (!f || !f.name) return false;
+                                    return f.name.startsWith(prefix);
+                                });
+                                console.log('🔍 Filtered from', beforeFilter, 'to', fileList.length, 'files for session');
+                            }
+                            
+                            // Filter out folders (only get files with extensions)
+                            fileList = fileList.filter(file => {
                                 if (!file || !file.name) return false;
-                                // Files should have an extension
                                 const hasExtension = file.name.includes('.') && file.name.split('.').length > 1;
                                 return hasExtension;
                             });
+                            
+                            console.log('📄 Files after filtering:', fileList.length);
                             
                             if (fileList.length === 0) {
                                 imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">暂无上传的图片</div>';
                                 return;
                             }
                             
+                            // Process files for display
+                            const processedFiles = fileList.map(file => {
+                                const fullPath = file.name || '';
+                                // Remove prefix from file names for display
+                                const displayName = fullPath.startsWith(prefix) 
+                                    ? fullPath.substring(prefix.length) 
+                                    : fullPath;
+                                
+                                return {
+                                    ...file,
+                                    name: displayName,
+                                    originalName: fullPath
+                                };
+                            });
+                            
                             // Get public URLs and prepare image data
-                            const images = fileList.map(file => {
-                                // Construct public URL directly
-                                const publicUrl = `${supabaseUrl}/storage/v1/object/public/${supabaseBucket}/${sessionId}/${file.name}`;
+                            const images = processedFiles.map(file => {
+                                // Construct public URL - use full path from originalName
+                                const publicUrl = `${supabaseUrl}/storage/v1/object/public/${supabaseBucket}/${file.originalName}`;
                                 
                                 // Determine file type
                                 let fileType = 'image/jpeg';
@@ -6070,9 +6265,10 @@ ${address.cityStateZip}</div>
                                 
                                 return {
                                     name: displayName,
-                                    originalName: file.name,
+                                    originalName: file.originalName,
                                     url: publicUrl,
                                     type: fileType,
+                                    isVideo: ['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(ext),
                                     size: file.metadata?.size || file.size || 0,
                                     created_at: file.created_at
                                 };
