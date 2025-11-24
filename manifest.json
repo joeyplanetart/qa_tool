@@ -69,7 +69,7 @@
     "512": "icon512.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.supabase.co; object-src 'self'"
+    "extension_pages": "script-src 'self'; object-src 'self'"
   },
   "background": {
     "service_worker": "background.js"
