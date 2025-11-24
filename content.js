@@ -5891,49 +5891,36 @@ ${address.cityStateZip}</div>
                         try {
                             console.log('🔑 Loading images for session:', sessionId);
                             
-                            // Load Supabase JS library if not already loaded
-                            if (!window.supabase) {
-                                console.log('📦 Loading Supabase library...');
-                                const script = document.createElement('script');
-                                script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-                                script.crossOrigin = 'anonymous';
-                                await new Promise((resolve, reject) => {
-                                    script.onload = () => {
-                                        console.log('✅ Supabase library loaded');
-                                        resolve();
-                                    };
-                                    script.onerror = (error) => {
-                                        console.error('❌ Failed to load Supabase library:', error);
-                                        reject(new Error('无法加载 Supabase 库'));
-                                    };
-                                    document.head.appendChild(script);
-                                });
+                            // Use Supabase REST API directly (avoid CSP issues with SDK)
+                            // The correct endpoint is: /storage/v1/object/list/{bucket}/{path}
+                            const listUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}/${sessionId}`;
+                            
+                            console.log('📡 Listing files from:', listUrl);
+                            
+                            const response = await fetch(listUrl, {
+                                method: 'GET',
+                                headers: {
+                                    'apikey': supabaseAnonKey,
+                                    'Authorization': `Bearer ${supabaseAnonKey}`
+                                }
+                            });
+                            
+                            if (!response.ok) {
+                                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                                console.error('❌ List files error:', response.status, errorData);
+                                
+                                // If folder doesn't exist (404), that's okay
+                                if (response.status === 404) {
+                                    imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">暂无上传的图片</div>';
+                                    return;
+                                }
+                                
+                                throw new Error(`读取文件失败: ${errorData.error || errorData.message || 'HTTP ' + response.status}`);
                             }
                             
-                            if (!window.supabase || !window.supabase.createClient) {
-                                throw new Error('Supabase 库未正确加载');
-                            }
+                            const data = await response.json();
                             
-                            // Create Supabase client
-                            const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
-                            
-                            // Use the correct API: supabase.storage.from('sync-images').list(sessionId, {...})
-                            console.log('📡 Listing files from storage using Supabase SDK...');
-                            const { data, error } = await supabaseClient.storage
-                                .from(supabaseBucket)
-                                .list(sessionId, {
-                                    limit: 100,
-                                    offset: 0,
-                                    sortBy: { column: 'created_at', order: 'desc' }
-                                });
-                            
-                            if (error) {
-                                console.error('❌ List files error:', error);
-                                imagesListEl.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">读取文件失败: ${error.message}</div>`;
-                                return;
-                            }
-                            
-                            if (!data || data.length === 0) {
+                            if (!data || !Array.isArray(data) || data.length === 0) {
                                 imagesListEl.innerHTML = '<div style="color: #999; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">暂无上传的图片</div>';
                                 return;
                             }
@@ -5955,10 +5942,8 @@ ${address.cityStateZip}</div>
                             
                             // Get public URLs and prepare image data
                             const images = fileList.map(file => {
-                                // Get public URL using Supabase API
-                                const { data: { publicUrl } } = supabaseClient.storage
-                                    .from(supabaseBucket)
-                                    .getPublicUrl(`${sessionId}/${file.name}`);
+                                // Construct public URL directly
+                                const publicUrl = `${supabaseUrl}/storage/v1/object/public/${supabaseBucket}/${sessionId}/${file.name}`;
                                 
                                 // Determine file type
                                 let fileType = 'image/jpeg';
