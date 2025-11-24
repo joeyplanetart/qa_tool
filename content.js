@@ -5889,38 +5889,29 @@ ${address.cityStateZip}</div>
                         }
                         
                         try {
-                            // Load Supabase client library dynamically
-                            if (!window.supabase) {
-                                const script = document.createElement('script');
-                                script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-                                await new Promise((resolve, reject) => {
-                                    script.onload = resolve;
-                                    script.onerror = reject;
-                                    document.head.appendChild(script);
-                                });
-                            }
+                            // Use Supabase REST API directly to avoid CSP issues
+                            const listFilesUrl = `${supabaseUrl}/storage/v1/object/list/${supabaseBucket}?prefix=${encodeURIComponent(sessionId + '/')}`;
                             
-                            const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
-                            
-                            // List files in the session folder
-                            // Try to list files in the session folder
                             let files = [];
                             let listError = null;
                             
                             try {
-                                const result = await supabaseClient.storage
-                                    .from(supabaseBucket)
-                                    .list(sessionId, {
-                                        limit: 100,
-                                        offset: 0,
-                                        sortBy: { column: 'created_at', order: 'desc' }
-                                    });
+                                const response = await fetch(listFilesUrl, {
+                                    method: 'GET',
+                                    headers: {
+                                        'apikey': supabaseAnonKey,
+                                        'Authorization': `Bearer ${supabaseAnonKey}`
+                                    }
+                                });
                                 
-                                if (result.error) {
-                                    listError = result.error;
-                                    console.warn('List files error:', result.error);
+                                if (!response.ok) {
+                                    const errorData = await response.text();
+                                    listError = new Error(`HTTP ${response.status}: ${errorData}`);
+                                    console.warn('List files HTTP error:', response.status, errorData);
                                 } else {
-                                    files = result.data || [];
+                                    const data = await response.json();
+                                    files = Array.isArray(data) ? data : [];
+                                    console.log('✅ Files from API:', files);
                                 }
                             } catch (err) {
                                 listError = err;
@@ -5963,9 +5954,8 @@ ${address.cityStateZip}</div>
                             // Get public URLs for all files
                             const images = fileList.map(file => {
                                 const filePath = `${sessionId}/${file.name}`;
-                                const { data: urlData } = supabaseClient.storage
-                                    .from(supabaseBucket)
-                                    .getPublicUrl(filePath);
+                                // Construct public URL directly
+                                const publicUrl = `${supabaseUrl}/storage/v1/object/public/${supabaseBucket}/${filePath}`;
                                 
                                 // Determine file type from extension or metadata
                                 let fileType = 'image/jpeg';
@@ -5995,7 +5985,7 @@ ${address.cityStateZip}</div>
                                 return {
                                     name: displayName,
                                     originalName: file.name,
-                                    url: urlData.publicUrl,
+                                    url: publicUrl,
                                     type: fileType,
                                     size: file.metadata?.size || file.size || 0
                                 };
@@ -6006,7 +5996,32 @@ ${address.cityStateZip}</div>
                             displaySyncImages(images);
                         } catch (error) {
                             console.error('❌ Load sync images error:', error);
-                            const errorMsg = error?.message || error?.error?.message || String(error) || '未知错误';
+                            console.error('Error type:', typeof error);
+                            console.error('Error details:', {
+                                message: error?.message,
+                                error: error?.error,
+                                type: error?.type,
+                                target: error?.target,
+                                toString: String(error)
+                            });
+                            
+                            // Handle different error types
+                            let errorMsg = '未知错误';
+                            if (error instanceof Error) {
+                                errorMsg = error.message;
+                            } else if (error?.message) {
+                                errorMsg = error.message;
+                            } else if (error?.error?.message) {
+                                errorMsg = error.error.message;
+                            } else if (typeof error === 'string') {
+                                errorMsg = error;
+                            } else if (error?.type) {
+                                // Event object
+                                errorMsg = `加载失败 (${error.type})。请检查：1) Supabase 配置是否正确 2) 网络连接是否正常 3) 浏览器控制台是否有 CSP 错误`;
+                            } else {
+                                errorMsg = String(error) || '未知错误';
+                            }
+                            
                             imagesListEl.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 20px; width: 100%; grid-column: 1 / -1;">加载图片失败: ' + errorMsg + '</div>';
                         }
                     });
