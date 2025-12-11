@@ -4111,6 +4111,41 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 }
             });
             
+            // 异步获取并显示 cart_id (在 DOM 创建后执行)
+            // 通过 background script 获取 cookie（因为 content script 不能访问 chrome.cookies）
+            chrome.runtime.sendMessage({
+                type: 'GET_CART_ID',
+                url: window.location.href
+            }, (response) => {
+                if (response && response.success && response.value) {
+                    const cartId = response.value;
+                    const container = content.querySelector('#cart-id-container');
+                    if (container) {
+                        container.innerHTML = `
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="
+                                    font-size: 10px;
+                                    color: rgba(255,255,255,0.6);
+                                    white-space: nowrap;
+                                ">cart_id:</div>
+                                <div style="
+                                    font-size: 10px;
+                                    color: #ffeb3b;
+                                    font-family: monospace;
+                                    overflow: hidden;
+                                    text-overflow: ellipsis;
+                                    white-space: nowrap;
+                                    max-width: 280px;
+                                " title="${cartId}">${cartId}</div>
+                            </div>
+                        `;
+                        console.log('✅ cart_id loaded:', cartId);
+                    }
+                } else {
+                    console.log('ℹ️ No cart_id cookie found');
+                }
+            });
+            
             // Add search functionality event listeners
             const searchBtn = content.querySelector('#floating-search-btn');
             const cancelOrderBtn = content.querySelector('#floating-cancel-order-btn');
@@ -9479,6 +9514,9 @@ ${address.cityStateZip}</div>
                 
                 <!-- 第2行：PHPSESSID 容器（动态加载） -->
                 <div id="phpsessid-container"></div>
+                
+                <!-- 第3行：cart_id 容器（动态加载） -->
+                <div id="cart-id-container"></div>
             </div>
         `;
         

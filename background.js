@@ -33,6 +33,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
     
+    if (request.type === 'GET_CART_ID') {
+        console.log('🔍 Background: Getting cart_id cookie');
+        
+        const url = request.url || sender.url;
+        
+        chrome.cookies.getAll({ url: url }, (cookies) => {
+            const cartIdCookie = cookies.find(cookie => cookie.name === 'cart_id');
+            
+            if (cartIdCookie) {
+                console.log('✅ Background: cart_id found:', cartIdCookie.value);
+                sendResponse({
+                    success: true,
+                    value: cartIdCookie.value
+                });
+            } else {
+                console.log('ℹ️ Background: No cart_id cookie found');
+                sendResponse({
+                    success: false,
+                    value: null
+                });
+            }
+        });
+        
+        // Return true to indicate async response
+        return true;
+    }
+    
     if (request.type === 'FETCH_ORDER_FROM_ADMIN') {
         console.log('🔍 Background: Fetching order from Admin:', request.orderId);
         
