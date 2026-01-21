@@ -2005,6 +2005,14 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         return /\/\+[^,]*,\d+/.test(currentUrl);
     }
     
+    // Function to check if we're on a design library page
+    function isDesignLibraryPage() {
+        const currentUrl = window.location.href;
+        // Design library page patterns:
+        // /sell/design/library
+        return /\/sell\/design\/library/.test(currentUrl);
+    }
+    
     // Function to extract designId from image URL
     function extractDesignIdFromImage(img) {
         if (!img) return null;
@@ -2074,6 +2082,210 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 // Default to true if not set
                 resolve(result.badgeDisplayEnabled !== false);
             });
+        });
+    }
+    
+    // Function to update design badge visibility based on settings
+    function updateDesignBadgeVisibility(enabled) {
+        const badges = document.querySelectorAll('.cp-design-image-id-badge');
+        badges.forEach(badge => {
+            if (enabled) {
+                badge.style.display = 'block';
+                badge.style.visibility = 'visible';
+            } else {
+                badge.style.display = 'none';
+                badge.style.visibility = 'hidden';
+            }
+        });
+        console.log(`Design badge visibility updated: ${enabled ? 'shown' : 'hidden'}, found ${badges.length} badges`);
+    }
+    
+    // Function to check if design badge display is enabled
+    async function isDesignBadgeDisplayEnabled() {
+        return new Promise((resolve) => {
+            chrome.storage.local.get(['designBadgeDisplayEnabled'], (result) => {
+                // Default to true if not set
+                resolve(result.designBadgeDisplayEnabled !== false);
+            });
+        });
+    }
+    
+    // Function to display Image IDs on design library page
+    async function displayDesignImageIdsOnLibraryPage() {
+        if (!isDesignLibraryPage()) {
+            return;
+        }
+        
+        // Check if design badge display is enabled
+        const badgeEnabled = await isDesignBadgeDisplayEnabled();
+        if (!badgeEnabled) {
+            // Hide existing badges if setting is disabled
+            updateDesignBadgeVisibility(false);
+            return;
+        }
+        
+        // Find all design items with data-drag-design attribute
+        const designItems = document.querySelectorAll('[data-drag-design]');
+        
+        console.log(`Design Library: Found ${designItems.length} design items with data-drag-design`);
+        
+        // Track processed designs to avoid duplicates
+        const processedDesigns = new Set();
+        
+        designItems.forEach((designItem, index) => {
+            const imageId = designItem.getAttribute('data-drag-design');
+            if (!imageId) return;
+            
+            // Create unique identifier for this design
+            const designRect = designItem.getBoundingClientRect();
+            const designKey = `${imageId}-${designRect.top}-${designRect.left}`;
+            
+            // Skip if already processed
+            if (processedDesigns.has(designKey)) {
+                return;
+            }
+            
+            // Skip if badge already exists
+            const existingBadge = designItem.querySelector('.cp-design-image-id-badge');
+            if (existingBadge) {
+                processedDesigns.add(designKey);
+                return;
+            }
+            
+            // Mark as processing
+            processedDesigns.add(designKey);
+            
+            // Find the image first to calculate proper positioning
+            const img = designItem.querySelector('img');
+            
+            // Create Image ID badge
+            const badge = document.createElement('div');
+            badge.className = 'cp-design-image-id-badge';
+            badge.textContent = `Image ID: ${imageId}`;
+            
+            // Badge style - positioned at the bottom left of the image container
+            badge.style.cssText = `
+                position: absolute;
+                bottom: 5px;
+                left: 5px;
+                background: rgba(119, 165, 233, 0.4);
+                color: #333;
+                padding: 6px 10px;
+                border-radius: 4px;
+                font-size: 10px;
+                font-weight: bold;
+                z-index: 1001;
+                pointer-events: auto;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                line-height: 1.4;
+                white-space: pre-line;
+                text-align: left;
+                max-width: 150px;
+                word-wrap: break-word;
+                cursor: pointer;
+                user-select: text;
+                transition: background-color 0.2s ease, transform 0.1s ease;
+                display: ${badgeEnabled ? 'block' : 'none'};
+                visibility: ${badgeEnabled ? 'visible' : 'hidden'};
+            `;
+            
+            // Hover effect
+            badge.addEventListener('mouseenter', function() {
+                badge.style.background = 'rgba(119, 165, 233, 0.6)';
+                badge.style.transform = 'scale(1.02)';
+            });
+            
+            badge.addEventListener('mouseleave', function() {
+                badge.style.background = 'rgba(119, 165, 233, 0.4)';
+                badge.style.transform = 'scale(1)';
+            });
+            
+            // Click handler to copy Image ID
+            badge.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const textToCopy = imageId;
+                
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        // Show temporary feedback
+                        const originalText = badge.textContent;
+                        const originalBackground = badge.style.background;
+                        badge.textContent = 'Copied!';
+                        badge.style.background = 'rgba(76, 175, 80, 0.8)';
+                        badge.style.transform = 'scale(1.05)';
+                        setTimeout(() => {
+                            badge.textContent = originalText;
+                            badge.style.background = originalBackground || 'rgba(119, 165, 233, 0.4)';
+                            badge.style.transform = 'scale(1)';
+                        }, 1000);
+                    }).catch(err => {
+                        console.error('Failed to copy:', err);
+                    });
+                } else {
+                    // Fallback: select text
+                    const range = document.createRange();
+                    range.selectNodeContents(badge);
+                    const selection = window.getSelection();
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+            });
+            
+            // Prevent badge clicks from triggering other events
+            badge.addEventListener('mousedown', function(e) {
+                e.stopPropagation();
+            });
+            
+            badge.addEventListener('mouseup', function(e) {
+                e.stopPropagation();
+            });
+            
+            // Find the best container for the badge - use .el-image class as the container
+            let imageContainer = null;
+            
+            // First, try to find the .el-image element inside the design item
+            const elImageContainer = designItem.querySelector('.el-image');
+            if (elImageContainer) {
+                imageContainer = elImageContainer;
+                // Ensure container has proper positioning
+                const containerStyle = window.getComputedStyle(imageContainer);
+                if (containerStyle.position === 'static') {
+                    imageContainer.style.position = 'relative';
+                }
+            } else if (img) {
+                // Fallback: use the image's parent element
+                let imgParent = img.parentElement;
+                if (imgParent) {
+                    imageContainer = imgParent;
+                    const containerStyle = window.getComputedStyle(imageContainer);
+                    if (containerStyle.position === 'static') {
+                        imageContainer.style.position = 'relative';
+                    }
+                }
+            }
+            
+            // Fallback: use the design item itself
+            if (!imageContainer) {
+                const containerStyle = window.getComputedStyle(designItem);
+                if (containerStyle.position === 'static') {
+                    designItem.style.position = 'relative';
+                }
+                imageContainer = designItem;
+            }
+            
+            // Add badge to container
+            if (imageContainer) {
+                const existingBadgeInContainer = imageContainer.querySelector('.cp-design-image-id-badge');
+                if (!existingBadgeInContainer) {
+                    imageContainer.appendChild(badge);
+                }
+            }
+            
+            // Store imageId on badge for later use
+            badge.setAttribute('data-image-id', imageId);
         });
     }
     
@@ -3192,6 +3404,78 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         initProductListDisplay();
     }
     
+    // Initial call and observe for dynamic content on design library page
+    function initDesignLibraryDisplay() {
+        // Initial check
+        if (isDesignLibraryPage()) {
+            setTimeout(() => {
+                displayDesignImageIdsOnLibraryPage().catch(err => console.error('Error displaying design Image IDs:', err));
+            }, 1000);
+            
+            // Also try when window is fully loaded
+            if (document.readyState !== 'complete') {
+                window.addEventListener('load', () => {
+                    setTimeout(() => {
+                        displayDesignImageIdsOnLibraryPage().catch(err => console.error('Error displaying design Image IDs:', err));
+                    }, 500);
+                }, { once: true });
+            }
+        }
+        
+        // Observe DOM changes for dynamically loaded designs
+        const observer = new MutationObserver((mutations) => {
+            if (isDesignLibraryPage()) {
+                let shouldUpdate = false;
+                mutations.forEach((mutation) => {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1) { // Element node
+                            // Check if new design items were added
+                            if (node.querySelectorAll && node.querySelectorAll('[data-drag-design]').length > 0) {
+                                shouldUpdate = true;
+                            }
+                            // Also check if the node itself has data-drag-design
+                            if (node.hasAttribute && node.hasAttribute('data-drag-design')) {
+                                shouldUpdate = true;
+                            }
+                        }
+                    });
+                });
+                
+                if (shouldUpdate) {
+                    setTimeout(() => {
+                        displayDesignImageIdsOnLibraryPage().catch(err => console.error('Error displaying design Image IDs:', err));
+                    }, 300);
+                }
+            }
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // Also re-run on URL changes
+        let lastUrl = window.location.href;
+        setInterval(() => {
+            const currentUrl = window.location.href;
+            if (currentUrl !== lastUrl) {
+                lastUrl = currentUrl;
+                if (isDesignLibraryPage()) {
+                    setTimeout(() => {
+                        displayDesignImageIdsOnLibraryPage().catch(err => console.error('Error displaying design Image IDs:', err));
+                    }, 500);
+                }
+            }
+        }, 500);
+    }
+    
+    // Initialize design library display
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDesignLibraryDisplay);
+    } else {
+        initDesignLibraryDisplay();
+    }
+    
     // Create floating window
     function createFloatingWindow() {
         if (floatingWindow) {
@@ -3548,6 +3832,72 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         badgeToggleContainer.appendChild(badgeToggle);
         badgeToggleContainer.appendChild(badgeToggleLabel);
         settingsPanel.appendChild(badgeToggleContainer);
+        
+        // Design Badge display toggle
+        const designBadgeToggleContainer = document.createElement('div');
+        designBadgeToggleContainer.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        `;
+        
+        const designBadgeToggle = document.createElement('input');
+        designBadgeToggle.type = 'checkbox';
+        designBadgeToggle.id = 'cp-design-badge-toggle';
+        designBadgeToggle.style.cssText = `
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #ffeb3b;
+            flex-shrink: 0;
+        `;
+        
+        const designBadgeToggleLabel = document.createElement('label');
+        designBadgeToggleLabel.textContent = 'Show Design Image ID Badge';
+        designBadgeToggleLabel.setAttribute('for', 'cp-design-badge-toggle');
+        designBadgeToggleLabel.style.cssText = `
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            user-select: none;
+        `;
+        
+        // Load design badge display setting
+        chrome.storage.local.get(['designBadgeDisplayEnabled'], (result) => {
+            const enabled = result.designBadgeDisplayEnabled !== false; // Default to true
+            designBadgeToggle.checked = enabled;
+            // Update existing design badges
+            updateDesignBadgeVisibility(enabled);
+        });
+        
+        designBadgeToggle.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            chrome.storage.local.set({ designBadgeDisplayEnabled: enabled }, () => {
+                // Update all existing design badges immediately
+                updateDesignBadgeVisibility(enabled);
+                console.log('Design badge display setting saved:', enabled);
+                // Also trigger a refresh of design library display if on design library page
+                if (isDesignLibraryPage()) {
+                    setTimeout(() => {
+                        displayDesignImageIdsOnLibraryPage().catch(err => console.error('Error refreshing design badges:', err));
+                    }, 100);
+                }
+            });
+        });
+        
+        // Listen for storage changes from other tabs/windows for design badges
+        chrome.storage.onChanged.addListener((changes, areaName) => {
+            if (areaName === 'local' && changes.designBadgeDisplayEnabled) {
+                const enabled = changes.designBadgeDisplayEnabled.newValue !== false;
+                designBadgeToggle.checked = enabled;
+                updateDesignBadgeVisibility(enabled);
+            }
+        });
+        
+        designBadgeToggleContainer.appendChild(designBadgeToggle);
+        designBadgeToggleContainer.appendChild(designBadgeToggleLabel);
+        settingsPanel.appendChild(designBadgeToggleContainer);
         
         settingButton.addEventListener('click', () => {
             settingsPanelVisible = !settingsPanelVisible;
