@@ -3476,6 +3476,441 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         initDesignLibraryDisplay();
     }
     
+    // =============================================
+    // PTN Search Floating Bar (Fixed at top of page)
+    // =============================================
+    
+    let ptnFloatingBar = null;
+    let ptnDataCache = null;
+    
+    // Parse CSV line with proper quote handling
+    function parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            const nextChar = line[i + 1];
+            
+            if (char === '"' && inQuotes && nextChar === '"') {
+                current += '"';
+                i++;
+            } else if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        
+        result.push(current.trim());
+        return result;
+    }
+    
+    // Load PTN CSV data
+    async function loadPTNData() {
+        if (ptnDataCache) {
+            return ptnDataCache;
+        }
+        
+        try {
+            const response = await fetch(chrome.runtime.getURL('cpdata/cafepress_product_types.csv'));
+            const csvText = await response.text();
+            
+            const lines = csvText.split('\n');
+            const data = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                const fields = parseCSVLine(line);
+                if (fields.length >= 4) {
+                    data.push({
+                        ptn: fields[0],
+                        caption: fields[1],
+                        stockMessage: fields[2],
+                        active: fields[3]
+                    });
+                }
+            }
+            
+            ptnDataCache = data;
+            console.log('PTN data loaded:', data.length, 'records');
+            return data;
+        } catch (error) {
+            console.error('Error loading PTN data:', error);
+            return [];
+        }
+    }
+    
+    // Create PTN Search Floating Bar
+    function createPTNFloatingBar() {
+        if (ptnFloatingBar) {
+            return ptnFloatingBar;
+        }
+        
+        ptnFloatingBar = document.createElement('div');
+        ptnFloatingBar.id = 'cp-ptn-floating-bar';
+        ptnFloatingBar.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 28px;
+            background: rgba(102, 126, 234, 0.45);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 99999;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: white;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        `;
+        
+        // Title
+        const title = document.createElement('span');
+        title.textContent = '🔍 PTN';
+        title.style.cssText = `
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+        `;
+        
+        // Search input
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.id = 'cp-ptn-search-input';
+        searchInput.placeholder = 'PTN number or name...';
+        searchInput.style.cssText = `
+            flex: 1;
+            max-width: 250px;
+            padding: 4px 8px;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 3px;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            font-size: 12px;
+            outline: none;
+            height: 20px;
+        `;
+        searchInput.addEventListener('focus', () => {
+            searchInput.style.borderColor = '#ffeb3b';
+            searchInput.style.background = 'rgba(255,255,255,0.25)';
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.style.borderColor = 'rgba(255,255,255,0.3)';
+            searchInput.style.background = 'rgba(255,255,255,0.15)';
+        });
+        
+        // Search button
+        const searchBtn = document.createElement('button');
+        searchBtn.textContent = 'Search';
+        searchBtn.id = 'cp-ptn-search-btn';
+        searchBtn.style.cssText = `
+            background: #ffeb3b;
+            color: #333;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            height: 22px;
+        `;
+        searchBtn.addEventListener('mouseenter', () => {
+            searchBtn.style.background = '#fff';
+        });
+        searchBtn.addEventListener('mouseleave', () => {
+            searchBtn.style.background = '#ffeb3b';
+        });
+        
+        // Results container (dropdown style)
+        const resultsContainer = document.createElement('div');
+        resultsContainer.id = 'cp-ptn-results';
+        resultsContainer.style.cssText = `
+            display: none;
+            position: fixed;
+            top: 28px;
+            left: 20px;
+            width: 400px;
+            background: linear-gradient(180deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+            border-radius: 0 0 8px 8px;
+            padding: 12px;
+            font-size: 12px;
+            max-height: 450px;
+            overflow-y: auto;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            z-index: 99998;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-top: none;
+        `;
+        
+        // Close button
+        const closeBtn = document.createElement('button');
+        closeBtn.innerHTML = '✕';
+        closeBtn.title = 'Hide PTN Search Bar';
+        closeBtn.style.cssText = `
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 2px 5px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+            line-height: 1;
+        `;
+        closeBtn.addEventListener('mouseenter', () => {
+            closeBtn.style.opacity = '1';
+        });
+        closeBtn.addEventListener('mouseleave', () => {
+            closeBtn.style.opacity = '0.7';
+        });
+        closeBtn.addEventListener('click', () => {
+            hidePTNFloatingBar();
+            resultsContainer.style.display = 'none';
+        });
+        
+        // Search function
+        async function performPTNSearch() {
+            const searchTerm = searchInput.value.trim();
+            
+            if (!searchTerm) {
+                resultsContainer.innerHTML = '<span style="color: #ff9800;">Please enter PTN number or name</span>';
+                resultsContainer.style.display = 'block';
+                return;
+            }
+            
+            searchBtn.textContent = 'Searching...';
+            searchBtn.disabled = true;
+            
+            try {
+                const ptnData = await loadPTNData();
+                const isNumericSearch = /^\d+$/.test(searchTerm);
+                
+                let results;
+                
+                if (isNumericSearch) {
+                    // Search by PTN number - show all matching results (not just In Stock)
+                    results = ptnData.filter(item => item.ptn === searchTerm);
+                } else {
+                    // Search by name
+                    const searchLower = searchTerm.toLowerCase();
+                    results = ptnData.filter(item => 
+                        item.caption.toLowerCase().includes(searchLower)
+                    );
+                }
+                
+                // Display results
+                if (!results || results.length === 0) {
+                    resultsContainer.innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: #ff9800;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">🔍</div>
+                            <div>No PTN records found</div>
+                        </div>`;
+                } else {
+                    let html = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.2);">
+                            <span style="color: #1de9b6; font-weight: bold; font-size: 13px;">Found ${results.length} record(s)</span>
+                            <button id="cp-ptn-close-results" style="background: transparent; border: none; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 16px; padding: 0 5px;" title="Close">✕</button>
+                        </div>
+                        <div style="display: grid; gap: 8px;">
+                    `;
+                    
+                    results.slice(0, 15).forEach((item, index) => {
+                        const isActive = item.active === 'TRUE';
+                        const activeColor = isActive ? '#1de9b6' : '#f44336';
+                        const activeBg = isActive ? 'rgba(29, 233, 182, 0.1)' : 'rgba(244, 67, 54, 0.1)';
+                        const activeText = isActive ? 'Active' : 'Inactive';
+                        
+                        let stockColor = '#aaa';
+                        let stockBg = 'rgba(255,255,255,0.05)';
+                        if (item.stockMessage.includes('In Stock')) {
+                            stockColor = '#1de9b6';
+                            stockBg = 'rgba(29, 233, 182, 0.15)';
+                        } else if (item.stockMessage.includes('Out of Stock') || item.stockMessage.includes('No Longer')) {
+                            stockColor = '#f44336';
+                            stockBg = 'rgba(244, 67, 54, 0.15)';
+                        } else if (item.stockMessage.includes('Temporarily')) {
+                            stockColor = '#ff9800';
+                            stockBg = 'rgba(255, 152, 0, 0.15)';
+                        }
+                        
+                        html += `
+                            <div class="cp-ptn-result-row" data-ptn="${item.ptn}" data-caption="${item.caption.replace(/"/g, '&quot;')}" 
+                                 style="background: rgba(255,255,255,0.15); padding: 8px 12px; border-radius: 6px; border-left: 3px solid ${isActive ? '#1de9b6' : '#f44336'}; transition: all 0.2s; cursor: pointer;" 
+                                 onmouseover="this.style.background='rgba(255,255,255,0.25)'" 
+                                 onmouseout="this.style.background='rgba(255,255,255,0.15)'"
+                                 title="Double-click to copy Caption">
+                                <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                                    <div style="flex: 1; min-width: 0;">
+                                        <span style="color: #ffeb3b; font-weight: bold; font-size: 12px;">PTN: ${item.ptn}</span>
+                                        <span style="color: rgba(255,255,255,0.4); margin: 0 4px;">|</span>
+                                        <span style="color: #fff; font-size: 11px;">${item.caption}</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                                        <span style="background: ${stockBg}; color: ${stockColor}; padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: 500; white-space: nowrap;">${item.stockMessage}</span>
+                                        <span style="background: ${activeBg}; color: ${activeColor}; padding: 2px 6px; border-radius: 10px; font-size: 9px; font-weight: bold; white-space: nowrap;">${activeText}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    
+                    if (results.length > 15) {
+                        html += `<div style="color: rgba(255,255,255,0.5); text-align: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 11px;">... and ${results.length - 15} more results</div>`;
+                    }
+                    
+                    resultsContainer.innerHTML = html;
+                    
+                    // Add close button event
+                    const closeResultsBtn = document.getElementById('cp-ptn-close-results');
+                    if (closeResultsBtn) {
+                        closeResultsBtn.addEventListener('click', () => {
+                            resultsContainer.style.display = 'none';
+                        });
+                    }
+                    
+                    // Add double-click to copy event for each row
+                    const resultRows = resultsContainer.querySelectorAll('.cp-ptn-result-row');
+                    resultRows.forEach(row => {
+                        row.addEventListener('dblclick', function(e) {
+                            e.preventDefault();
+                            const caption = this.getAttribute('data-caption');
+                            const textToCopy = caption;
+                            
+                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                                navigator.clipboard.writeText(textToCopy).then(() => {
+                                    // Show feedback
+                                    const originalBg = this.style.background;
+                                    const originalBorderColor = this.style.borderLeftColor;
+                                    this.style.background = 'rgba(76, 175, 80, 0.3)';
+                                    this.style.borderLeftColor = '#4CAF50';
+                                    
+                                    // Show copied text
+                                    const copiedIndicator = document.createElement('span');
+                                    copiedIndicator.textContent = '✓ Copied!';
+                                    copiedIndicator.style.cssText = 'position: absolute; right: 50px; color: #4CAF50; font-size: 11px; font-weight: bold;';
+                                    this.style.position = 'relative';
+                                    this.appendChild(copiedIndicator);
+                                    
+                                    setTimeout(() => {
+                                        this.style.background = originalBg || 'rgba(255,255,255,0.08)';
+                                        this.style.borderLeftColor = originalBorderColor;
+                                        if (copiedIndicator.parentNode) {
+                                            copiedIndicator.parentNode.removeChild(copiedIndicator);
+                                        }
+                                    }, 1000);
+                                }).catch(err => {
+                                    console.error('Failed to copy:', err);
+                                });
+                            }
+                        });
+                    });
+                }
+                
+                resultsContainer.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error searching PTN:', error);
+                resultsContainer.innerHTML = '<span style="color: #f44336;">Search error</span>';
+                resultsContainer.style.display = 'block';
+            } finally {
+                searchBtn.textContent = 'Search';
+                searchBtn.disabled = false;
+            }
+        }
+        
+        // Bind events
+        searchBtn.addEventListener('click', performPTNSearch);
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performPTNSearch();
+            }
+        });
+        
+        // Clear results when input changes
+        searchInput.addEventListener('input', () => {
+            if (searchInput.value.trim() === '') {
+                resultsContainer.style.display = 'none';
+            }
+        });
+        
+        // Assemble the bar
+        ptnFloatingBar.appendChild(title);
+        ptnFloatingBar.appendChild(searchInput);
+        ptnFloatingBar.appendChild(searchBtn);
+        ptnFloatingBar.appendChild(closeBtn);
+        
+        document.body.appendChild(ptnFloatingBar);
+        // Results container is separate, appended to body for dropdown effect
+        document.body.appendChild(resultsContainer);
+        
+        // Add body padding to prevent content from being hidden
+        document.body.style.paddingTop = '28px';
+        
+        return ptnFloatingBar;
+    }
+    
+    // Show PTN Floating Bar
+    function showPTNFloatingBar() {
+        if (!ptnFloatingBar) {
+            createPTNFloatingBar();
+        }
+        ptnFloatingBar.style.display = 'flex';
+        document.body.style.paddingTop = '28px';
+    }
+    
+    // Hide PTN Floating Bar
+    function hidePTNFloatingBar() {
+        if (ptnFloatingBar) {
+            ptnFloatingBar.style.display = 'none';
+            document.body.style.paddingTop = '0';
+            // Also hide results dropdown
+            const resultsContainer = document.getElementById('cp-ptn-results');
+            if (resultsContainer) {
+                resultsContainer.style.display = 'none';
+            }
+        }
+    }
+    
+    // Toggle PTN Floating Bar
+    function togglePTNFloatingBar() {
+        if (ptnFloatingBar && ptnFloatingBar.style.display !== 'none') {
+            hidePTNFloatingBar();
+        } else {
+            showPTNFloatingBar();
+        }
+    }
+    
+    // Initialize PTN Floating Bar on page load
+    function initPTNFloatingBar() {
+        // Check if PTN bar should be shown (stored setting)
+        chrome.storage.local.get(['ptnBarVisible'], (result) => {
+            if (result.ptnBarVisible !== false) {
+                // Default to showing the bar
+                showPTNFloatingBar();
+            }
+        });
+    }
+    
+    // Initialize on DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPTNFloatingBar);
+    } else {
+        initPTNFloatingBar();
+    }
+    
     // Create floating window
     function createFloatingWindow() {
         if (floatingWindow) {
@@ -3898,6 +4333,71 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         designBadgeToggleContainer.appendChild(designBadgeToggle);
         designBadgeToggleContainer.appendChild(designBadgeToggleLabel);
         settingsPanel.appendChild(designBadgeToggleContainer);
+        
+        // PTN Search Bar display toggle
+        const ptnBarToggleContainer = document.createElement('div');
+        ptnBarToggleContainer.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        `;
+        
+        const ptnBarToggle = document.createElement('input');
+        ptnBarToggle.type = 'checkbox';
+        ptnBarToggle.id = 'cp-ptn-bar-toggle';
+        ptnBarToggle.style.cssText = `
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #ffeb3b;
+            flex-shrink: 0;
+        `;
+        
+        const ptnBarToggleLabel = document.createElement('label');
+        ptnBarToggleLabel.textContent = 'Show PTN Search Bar';
+        ptnBarToggleLabel.setAttribute('for', 'cp-ptn-bar-toggle');
+        ptnBarToggleLabel.style.cssText = `
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            user-select: none;
+        `;
+        
+        // Load PTN bar display setting
+        chrome.storage.local.get(['ptnBarVisible'], (result) => {
+            const enabled = result.ptnBarVisible !== false; // Default to true
+            ptnBarToggle.checked = enabled;
+        });
+        
+        ptnBarToggle.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            chrome.storage.local.set({ ptnBarVisible: enabled }, () => {
+                if (enabled) {
+                    showPTNFloatingBar();
+                } else {
+                    hidePTNFloatingBar();
+                }
+                console.log('PTN bar display setting saved:', enabled);
+            });
+        });
+        
+        // Listen for storage changes from other tabs/windows for PTN bar
+        chrome.storage.onChanged.addListener((changes, areaName) => {
+            if (areaName === 'local' && changes.ptnBarVisible) {
+                const enabled = changes.ptnBarVisible.newValue !== false;
+                ptnBarToggle.checked = enabled;
+                if (enabled) {
+                    showPTNFloatingBar();
+                } else {
+                    hidePTNFloatingBar();
+                }
+            }
+        });
+        
+        ptnBarToggleContainer.appendChild(ptnBarToggle);
+        ptnBarToggleContainer.appendChild(ptnBarToggleLabel);
+        settingsPanel.appendChild(ptnBarToggleContainer);
         
         settingButton.addEventListener('click', () => {
             settingsPanelVisible = !settingsPanelVisible;
