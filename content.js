@@ -3639,7 +3639,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             position: fixed;
             top: 28px;
             left: 20px;
-            width: 400px;
+            width: 420px;
             background: linear-gradient(180deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
             border-radius: 0 0 8px 8px;
             padding: 12px;
@@ -3684,8 +3684,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const searchTerm = searchInput.value.trim();
             
             if (!searchTerm) {
-                resultsContainer.innerHTML = '<span style="color: #ff9800;">Please enter PTN number or name</span>';
-                resultsContainer.style.display = 'block';
+                resultsContainer.style.display = 'none';
                 return;
             }
             
@@ -3843,6 +3842,19 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         searchInput.addEventListener('input', () => {
             if (searchInput.value.trim() === '') {
                 resultsContainer.style.display = 'none';
+            }
+        });
+        
+        // Click outside to hide results
+        document.addEventListener('click', (e) => {
+            // Check if click is outside the PTN bar and results container
+            if (ptnFloatingBar && resultsContainer) {
+                const isClickInsideBar = ptnFloatingBar.contains(e.target);
+                const isClickInsideResults = resultsContainer.contains(e.target);
+                
+                if (!isClickInsideBar && !isClickInsideResults) {
+                    resultsContainer.style.display = 'none';
+                }
             }
         });
         
