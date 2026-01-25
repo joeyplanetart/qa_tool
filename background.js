@@ -60,6 +60,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
     
+    if (request.type === 'GET_NO_TRACKING') {
+        console.log('🔍 Background: Getting NO_TRACKING cookie');
+        
+        const url = request.url || sender.url;
+        
+        chrome.cookies.getAll({ url: url }, (cookies) => {
+            const noTrackingCookie = cookies.find(cookie => cookie.name === 'NO_TRACKING');
+            
+            if (noTrackingCookie) {
+                console.log('✅ Background: NO_TRACKING found:', noTrackingCookie.value);
+                sendResponse({
+                    success: true,
+                    value: noTrackingCookie.value
+                });
+            } else {
+                console.log('ℹ️ Background: No NO_TRACKING cookie found');
+                sendResponse({
+                    success: false,
+                    value: null
+                });
+            }
+        });
+        
+        // Return true to indicate async response
+        return true;
+    }
+    
     if (request.type === 'FETCH_ORDER_FROM_ADMIN') {
         console.log('🔍 Background: Fetching order from Admin:', request.orderId);
         

@@ -3332,12 +3332,77 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         }
     }
     
+    // Function to display category filter IDs on product list page
+    function displayCategoryFilterIds() {
+        if (!isProductListPage()) {
+            return;
+        }
+        
+        // Find all category filter nodes with data-filter-id
+        const categoryNodes = document.querySelectorAll('.filter-group-container .category-filter-node[data-filter-id]');
+        
+        categoryNodes.forEach((node) => {
+            // Skip if already has a filter ID badge
+            if (node.querySelector('.cp-filter-id-badge')) {
+                return;
+            }
+            
+            const filterId = node.getAttribute('data-filter-id');
+            if (!filterId) return;
+            
+            // Find the category name element (the link inside)
+            const categoryLink = node.querySelector('.category-filter-name a, .row a');
+            if (!categoryLink) return;
+            
+            // Create the filter ID badge - append inside the <a> tag to preserve layout
+            const badge = document.createElement('span');
+            badge.className = 'cp-filter-id-badge';
+            badge.textContent = ` ${filterId}`;
+            badge.title = `Click to copy`;
+            badge.style.cssText = `
+                color: #888;
+                font-size: 11px;
+                font-weight: normal;
+                cursor: pointer;
+            `;
+            
+            // Hover effect
+            badge.addEventListener('mouseenter', () => {
+                badge.style.color = '#667eea';
+            });
+            badge.addEventListener('mouseleave', () => {
+                badge.style.color = '#888';
+            });
+            
+            // Click to copy
+            badge.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigator.clipboard.writeText(filterId).then(() => {
+                    const originalText = badge.textContent;
+                    badge.textContent = ' ✓';
+                    badge.style.color = '#4CAF50';
+                    setTimeout(() => {
+                        badge.textContent = originalText;
+                        badge.style.color = '#888';
+                    }, 1000);
+                }).catch(err => {
+                    console.error('Failed to copy filter ID:', err);
+                });
+            });
+            
+            // Append badge inside the category link to preserve layout
+            categoryLink.appendChild(badge);
+        });
+    }
+    
     // Initial call and observe for dynamic content
     function initProductListDisplay() {
         // Initial check
         if (isProductListPage()) {
             setTimeout(() => {
                 displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
+                displayCategoryFilterIds(); // Also display category filter IDs
             }, 1000);
             
             // Also try when window is fully loaded
@@ -3345,6 +3410,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 window.addEventListener('load', () => {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
+                        displayCategoryFilterIds();
                     }, 500);
                 }, { once: true });
             }
@@ -3372,6 +3438,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 if (shouldUpdate) {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
+                        displayCategoryFilterIds();
                     }, 300);
                 }
             }
@@ -3391,6 +3458,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 if (isProductListPage()) {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
+                        displayCategoryFilterIds();
                     }, 500);
                 }
             }
@@ -3547,6 +3615,110 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         }
     }
     
+    // Function to get logged in user info from dataLayer or API
+    function getLoggedInUserInfo() {
+        let customerId = null;
+        let email = null;
+        
+        try {
+            // Method 1: Check window.dataLayer array
+            if (window.dataLayer && Array.isArray(window.dataLayer)) {
+                for (const item of window.dataLayer) {
+                    if (item && typeof item === 'object') {
+                        if (item['gtm.pa_customer_id']) {
+                            customerId = item['gtm.pa_customer_id'];
+                        }
+                        if (item['gtm.pa_email']) {
+                            email = item['gtm.pa_email'];
+                        }
+                    }
+                }
+            }
+            
+            // Method 2: Search in script tags for dataLayer.push
+            if (!customerId || !email) {
+                const scripts = document.querySelectorAll('script');
+                for (const script of scripts) {
+                    const content = script.textContent || '';
+                    if (content.includes('dataLayer.push') && content.includes('gtm.pa_customer_id')) {
+                        // Extract customer_id
+                        const customerIdMatch = content.match(/['"]gtm\.pa_customer_id['"]:\s*['"](\d+)['"]/);
+                        if (customerIdMatch) {
+                            customerId = customerIdMatch[1];
+                        }
+                        
+                        // Extract email
+                        const emailMatch = content.match(/['"]gtm\.pa_email['"]:\s*['"]([^'"]+)['"]/);
+                        if (emailMatch) {
+                            email = emailMatch[1];
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Error getting user info:', e);
+        }
+        
+        return {
+            customerId: customerId,
+            email: email,
+            isLoggedIn: !!(customerId && email)
+        };
+    }
+    
+    // Async function to get user info from Member/detail API (for /sell pages)
+    async function fetchMemberDetailInfo() {
+        try {
+            const timestamp = Date.now();
+            const response = await fetch(`https://www.cafepress.com/rest/sell/WWWCOM/Member/detail?t=${timestamp}`, {
+                method: 'GET',
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data && data.memberNo && data.email) {
+                    return {
+                        customerId: data.memberNo,
+                        email: data.email,
+                        isLoggedIn: true
+                    };
+                }
+            }
+        } catch (e) {
+            console.log('Error fetching member detail:', e);
+        }
+        
+        return null;
+    }
+    
+    // Update user info display
+    async function updateUserInfoDisplay(userInfoContainer) {
+        // First try synchronous method
+        let userInfo = getLoggedInUserInfo();
+        
+        // If not logged in from dataLayer, try API (especially for /sell pages)
+        if (!userInfo.isLoggedIn && window.location.pathname.startsWith('/sell')) {
+            const apiUserInfo = await fetchMemberDetailInfo();
+            if (apiUserInfo) {
+                userInfo = apiUserInfo;
+            }
+        }
+        
+        if (userInfo.isLoggedIn) {
+            userInfoContainer.innerHTML = `
+                <span style="color: #1de9b6;">●</span>
+                <span title="Customer ID: ${userInfo.customerId}">${userInfo.email}</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 3px; font-size: 10px;">ID: ${userInfo.customerId}</span>
+            `;
+        } else {
+            userInfoContainer.innerHTML = `
+                <span style="color: #ff9800;">●</span>
+                <span style="color: rgba(255,255,255,0.7);">Guest</span>
+            `;
+        }
+    }
+    
     // Create PTN Search Floating Bar
     function createPTNFloatingBar() {
         if (ptnFloatingBar) {
@@ -3561,7 +3733,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             left: 0;
             right: 0;
             height: 28px;
-            background: rgba(102, 126, 234, 0.45);
+            background: rgba(102, 126, 234, 0.85);
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
             z-index: 99999;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -3653,6 +3825,119 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             border-top: none;
         `;
         
+        // User info display
+        const userInfoContainer = document.createElement('div');
+        userInfoContainer.id = 'cp-user-info';
+        userInfoContainer.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.9);
+            margin-left: 15px;
+            padding-left: 15px;
+            border-left: 1px solid rgba(255,255,255,0.3);
+        `;
+        
+        // Initial display (loading or quick sync check)
+        const userInfo = getLoggedInUserInfo();
+        if (userInfo.isLoggedIn) {
+            userInfoContainer.innerHTML = `
+                <span style="color: #1de9b6;">●</span>
+                <span title="Customer ID: ${userInfo.customerId}">${userInfo.email}</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 3px; font-size: 10px;">ID: ${userInfo.customerId}</span>
+            `;
+        } else {
+            // Show loading indicator, will update async
+            userInfoContainer.innerHTML = `
+                <span style="color: rgba(255,255,255,0.5);">●</span>
+                <span style="color: rgba(255,255,255,0.5);">Loading...</span>
+            `;
+            // Async update for /sell pages
+            updateUserInfoDisplay(userInfoContainer);
+        }
+        
+        // Cookie info display container (will be placed before userInfoContainer)
+        const cookieInfoContainer = document.createElement('div');
+        cookieInfoContainer.id = 'cp-cookie-info';
+        cookieInfoContainer.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.8);
+            margin-left: auto;
+        `;
+        
+        // Initial loading state
+        cookieInfoContainer.innerHTML = `
+            <span style="color: rgba(255,255,255,0.5);">Loading...</span>
+        `;
+        
+        // Async load cookies
+        function loadCookieInfo() {
+            let cartId = '-';
+            let phpSessionId = '-';
+            let noTracking = '-';
+            let loadedCount = 0;
+            
+            const updateDisplay = () => {
+                loadedCount++;
+                if (loadedCount >= 3) {
+                    cookieInfoContainer.innerHTML = `
+                        <span title="Click to copy" style="cursor: pointer;" onclick="navigator.clipboard.writeText('${cartId}')">
+                            <span style="color: rgba(255,255,255,0.6);">cart_id:</span>
+                            <span style="color: #ffeb3b;">${cartId}</span>
+                        </span>
+                        <span title="Click to copy" style="cursor: pointer;" onclick="navigator.clipboard.writeText('${phpSessionId}')">
+                            <span style="color: rgba(255,255,255,0.6);">PHPSESSID:</span>
+                            <span style="color: #1de9b6;">${phpSessionId}</span>
+                        </span>
+                        <span title="Click to copy" style="cursor: pointer;" onclick="navigator.clipboard.writeText('${noTracking}')">
+                            <span style="color: rgba(255,255,255,0.6);">NO_TRACKING:</span>
+                            <span style="color: ${noTracking === '1' ? '#f44336' : '#1de9b6'};">${noTracking}</span>
+                        </span>
+                    `;
+                }
+            };
+            
+            // Get cart_id
+            chrome.runtime.sendMessage({
+                type: 'GET_CART_ID',
+                url: window.location.href
+            }, (response) => {
+                if (response && response.success && response.value) {
+                    cartId = response.value;
+                }
+                updateDisplay();
+            });
+            
+            // Get PHPSESSID
+            chrome.runtime.sendMessage({
+                type: 'GET_PHPSESSID',
+                url: window.location.href
+            }, (response) => {
+                if (response && response.success && response.value) {
+                    phpSessionId = response.value;
+                }
+                updateDisplay();
+            });
+            
+            // Get NO_TRACKING
+            chrome.runtime.sendMessage({
+                type: 'GET_NO_TRACKING',
+                url: window.location.href
+            }, (response) => {
+                if (response && response.success && response.value) {
+                    noTracking = response.value;
+                }
+                updateDisplay();
+            });
+        }
+        
+        // Load cookies after a short delay
+        setTimeout(loadCookieInfo, 100);
+        
         // Close button
         const closeBtn = document.createElement('button');
         closeBtn.innerHTML = '✕';
@@ -3667,6 +3952,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             opacity: 0.7;
             transition: opacity 0.2s;
             line-height: 1;
+            margin-left: 10px;
         `;
         closeBtn.addEventListener('mouseenter', () => {
             closeBtn.style.opacity = '1';
@@ -3862,6 +4148,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         ptnFloatingBar.appendChild(title);
         ptnFloatingBar.appendChild(searchInput);
         ptnFloatingBar.appendChild(searchBtn);
+        ptnFloatingBar.appendChild(cookieInfoContainer);
+        ptnFloatingBar.appendChild(userInfoContainer);
         ptnFloatingBar.appendChild(closeBtn);
         
         document.body.appendChild(ptnFloatingBar);
