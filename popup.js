@@ -371,6 +371,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             skuIdDisplay.innerHTML = `<span class="label">SKU ID:</span><span class="value">${skuId}</span>`;
             
+            // Default Global sku - ONLY from default_sku path
+            let defaultGlobalSku = 'Not found';
+            
+            if (data.productsData && 
+                data.productsData.full_object && 
+                data.productsData.full_object.default_sku && 
+                data.productsData.full_object.default_sku.sku !== undefined) {
+                defaultGlobalSku = (data.productsData.full_object.default_sku.sku !== null) ? 
+                                  data.productsData.full_object.default_sku.sku : 'N/A';
+                console.log('POPUP: ✅ Found Default Global sku from default_sku:', defaultGlobalSku);
+            }
+            
+            let defaultGlobalSkuDisplay = document.getElementById('defaultGlobalSkuDisplay');
+            if (!defaultGlobalSkuDisplay) {
+                defaultGlobalSkuDisplay = document.createElement('div');
+                defaultGlobalSkuDisplay.id = 'defaultGlobalSkuDisplay';
+                defaultGlobalSkuDisplay.className = 'info-item';
+                skuIdDisplay.parentNode.insertBefore(defaultGlobalSkuDisplay, skuIdDisplay.nextSibling);
+            }
+            defaultGlobalSkuDisplay.innerHTML = `<span class="label">Default Global sku:</span><span class="value">${defaultGlobalSku}</span>`;
+            
             // Vendor ID - ONLY from default_sku path
             let vendorId = 'Not found';
             
@@ -388,7 +409,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 vendorIdDisplay = document.createElement('div');
                 vendorIdDisplay.id = 'vendorIdDisplay';
                 vendorIdDisplay.className = 'info-item';
-                skuIdDisplay.parentNode.insertBefore(vendorIdDisplay, skuIdDisplay.nextSibling);
+                defaultGlobalSkuDisplay.parentNode.insertBefore(vendorIdDisplay, defaultGlobalSkuDisplay.nextSibling);
             }
             vendorIdDisplay.innerHTML = `<span class="label">Vendor ID:</span><span class="value">${vendorId}</span>`;
             

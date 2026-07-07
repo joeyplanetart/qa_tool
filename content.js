@@ -5102,6 +5102,20 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 
                 productInfoHtml += createInfoItem('SKU ID:', skuId);
                 
+                // Default Global sku - ONLY from default_sku path
+                let defaultGlobalSku = 'Not found';
+                
+                if (result.productsData && 
+                    result.productsData.full_object && 
+                    result.productsData.full_object.default_sku && 
+                    result.productsData.full_object.default_sku.sku !== undefined) {
+                    defaultGlobalSku = (result.productsData.full_object.default_sku.sku !== null) ? 
+                                      result.productsData.full_object.default_sku.sku : 'N/A';
+                    console.log('✅ Found Default Global sku from default_sku:', defaultGlobalSku);
+                }
+                
+                productInfoHtml += createInfoItem('Default sku:', defaultGlobalSku);
+                
                 // Vendor ID - ONLY from default_sku path
                 let vendorId = 'Not found';
                 
