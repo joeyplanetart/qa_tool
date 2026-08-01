@@ -1922,9 +1922,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             childList: true,
             subtree: true
         });
+        
+        initProductOptionChangeWatcher();
     }
-    
-    executeExtraction();
     
     // Monitor URL changes (SPA applications) - only on detail pages
     let lastUrl = window.location.href;
@@ -1932,6 +1932,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         const newUrl = window.location.href;
         if (newUrl !== lastUrl && isProductDetailPage()) {
             lastUrl = newUrl;
+            lastDefaultSkuFingerprint = null;
             setTimeout(extractProductInfo, 100);
         }
     });
@@ -1945,6 +1946,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     // Also listen for popstate events
     window.addEventListener('popstate', function() {
         if (isProductDetailPage()) {
+            lastDefaultSkuFingerprint = null;
             setTimeout(extractProductInfo, 100);
         }
     });
@@ -1956,6 +1958,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     history.pushState = function() {
         originalPushState.apply(history, arguments);
         if (isProductDetailPage()) {
+            lastDefaultSkuFingerprint = null;
             setTimeout(extractProductInfo, 100);
         }
     };
@@ -1963,6 +1966,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     history.replaceState = function() {
         originalReplaceState.apply(history, arguments);
         if (isProductDetailPage()) {
+            lastDefaultSkuFingerprint = null;
             setTimeout(extractProductInfo, 100);
         }
     };
@@ -1997,6 +2001,286 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         return (isPlusPattern && !hasProductId) || isMakePattern;
     }
     
+    // CPB product list page (e.g. /business/bags/tote-bags)
+    function isCpbProductListPage() {
+        const currentUrl = window.location.href;
+        const isCpbSite = /\/business(\/|$|\?)/.test(currentUrl) ||
+            /cpbus-[^.]+\.(pre|stage)\.planetart\.com/.test(window.location.hostname);
+        if (!isCpbSite) return false;
+        // Exclude CPB product detail pages
+        return !/\/business\/product-\d+-design-\d+/.test(currentUrl);
+    }
+    
+    function findProductItemsArray() {
+        try {
+            const windowArrays = [
+                window.PRODUCT_ITEMS,
+                window.product_items,
+                window.productItems,
+                window.products
+            ].filter(arr => arr && Array.isArray(arr) && arr.length > 0);
+            
+            if (windowArrays.length > 0) {
+                return windowArrays[0];
+            }
+            
+            const script = document.createElement('script');
+            script.textContent = `
+                (function() {
+                    let items = null;
+                    if (typeof PRODUCT_ITEMS !== 'undefined' && Array.isArray(PRODUCT_ITEMS)) {
+                        items = PRODUCT_ITEMS;
+                    } else if (typeof window.PRODUCT_ITEMS !== 'undefined' && Array.isArray(window.PRODUCT_ITEMS)) {
+                        items = window.PRODUCT_ITEMS;
+                    }
+                    if (items) {
+                        document.documentElement.setAttribute('data-cp-product-items', JSON.stringify(items));
+                    }
+                })();
+            `;
+            document.documentElement.appendChild(script);
+            script.remove();
+            
+            const dataAttr = document.documentElement.getAttribute('data-cp-product-items');
+            if (dataAttr) {
+                document.documentElement.removeAttribute('data-cp-product-items');
+                const parsed = JSON.parse(dataAttr);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    return parsed;
+                }
+            }
+            
+            const scripts = document.querySelectorAll('script');
+            for (let scriptEl of scripts) {
+                const content = scriptEl.textContent || scriptEl.innerHTML;
+                if (content && content.includes('PRODUCT_ITEMS')) {
+                    try {
+                        const match = content.match(/(?:var\s+)?PRODUCT_ITEMS\s*=\s*(\[[\s\S]*?\]);/);
+                        if (match && match[1]) {
+                            const parsed = JSON.parse(match[1]);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                return parsed;
+                            }
+                        }
+                    } catch (e) {
+                        continue;
+                    }
+                }
+            }
+        } catch (e) {
+            console.log('Error finding PRODUCT_ITEMS:', e);
+        }
+        return null;
+    }
+    
+    function buildCpbBadgeContent(item) {
+        const categoryId = item.category_id !== undefined && item.category_id !== null ? item.category_id : 'N/A';
+        const designId = item.design_id !== undefined && item.design_id !== null ? item.design_id : 'N/A';
+        const overlayId = item.default_overlay_id !== undefined && item.default_overlay_id !== null ? item.default_overlay_id : 'N/A';
+        const optionId = item.option_id !== undefined && item.option_id !== null ? item.option_id : 'N/A';
+        return `CategoryID: ${categoryId}\nDesignID: ${designId}\nOverlayID: ${overlayId}\nOptionID: ${optionId}`;
+    }
+    
+    function findCpbProductItemForLink(link, productItems) {
+        const href = link.getAttribute('href') || '';
+        
+        const urlMatch = href.match(/\/business\/product-(\d+)-design-(\d+)/);
+        if (urlMatch) {
+            const productId = urlMatch[1];
+            const designId = urlMatch[2];
+            const byDesign = productItems.find(item => String(item.design_id) === designId);
+            if (byDesign) return byDesign;
+            const byProduct = productItems.find(item =>
+                String(item.product_id) === productId || String(item.option_id) === productId
+            );
+            if (byProduct) return byProduct;
+        }
+        
+        const byDetailUrl = productItems.find(item =>
+            item.detail_url && (href === item.detail_url || href.includes(item.detail_url))
+        );
+        if (byDetailUrl) return byDetailUrl;
+        
+        const container = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"], [class*="tile"]') || link;
+        const img = container.querySelector('img');
+        if (img) {
+            const urlText = [
+                img.src,
+                img.getAttribute('data-src'),
+                img.getAttribute('data-lazy-src'),
+                img.getAttribute('data-srcset')
+            ].filter(Boolean).join(' ');
+            const designMatch = urlText.match(/\/designs\/(\d+)/);
+            if (designMatch) {
+                return productItems.find(item => String(item.design_id) === designMatch[1]);
+            }
+        }
+        
+        return null;
+    }
+    
+    function createListPageProductBadge(badgeContent, badgeEnabled) {
+        const badge = document.createElement('div');
+        badge.className = 'cp-product-id-badge';
+        badge.textContent = badgeContent;
+        badge.style.cssText = `
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            background: rgba(119, 165, 233, 0.4);
+            color: #333;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            z-index: 1001;
+            pointer-events: auto;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.4;
+            white-space: pre-line;
+            text-align: left;
+            max-width: 150px;
+            word-wrap: break-word;
+            cursor: pointer;
+            user-select: text;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            display: ${badgeEnabled ? 'block' : 'none'};
+            visibility: ${badgeEnabled ? 'visible' : 'hidden'};
+        `;
+        
+        badge.addEventListener('mouseenter', function() {
+            badge.style.background = 'rgba(119, 165, 233, 0.6)';
+            badge.style.transform = 'scale(1.02)';
+        });
+        
+        badge.addEventListener('mouseleave', function() {
+            badge.style.background = 'rgba(119, 165, 233, 0.4)';
+            badge.style.transform = 'scale(1)';
+        });
+        
+        badge.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(badge.textContent).then(() => {
+                    const originalText = badge.textContent;
+                    const originalBackground = badge.style.background;
+                    badge.textContent = 'Copied!';
+                    badge.style.background = 'rgba(76, 175, 80, 0.8)';
+                    badge.style.transform = 'scale(1.05)';
+                    setTimeout(() => {
+                        badge.textContent = originalText;
+                        badge.style.background = originalBackground || 'rgba(119, 165, 233, 0.4)';
+                        badge.style.transform = 'scale(1)';
+                    }, 1000);
+                }).catch(err => console.error('Failed to copy:', err));
+            }
+        });
+        
+        badge.addEventListener('mousedown', function(e) {
+            e.stopPropagation();
+        });
+        
+        badge.addEventListener('mouseup', function(e) {
+            e.stopPropagation();
+        });
+        
+        return badge;
+    }
+    
+    function attachBadgeToProductContainer(productContainer, link, badge) {
+        let imageContainer = null;
+        const productImage = productContainer.querySelector('img');
+        
+        if (productImage) {
+            imageContainer = productImage.parentElement;
+            let ancestor = imageContainer;
+            let foundPositioned = false;
+            
+            while (ancestor && ancestor !== document.body) {
+                const ancestorStyle = window.getComputedStyle(ancestor);
+                if (ancestorStyle.position === 'relative' || ancestorStyle.position === 'absolute') {
+                    imageContainer = ancestor;
+                    foundPositioned = true;
+                    break;
+                }
+                ancestor = ancestor.parentElement;
+            }
+            
+            if (!foundPositioned) {
+                imageContainer = productImage.parentElement;
+                const containerStyle = window.getComputedStyle(imageContainer);
+                if (containerStyle.position === 'static') {
+                    imageContainer.style.position = 'relative';
+                }
+            }
+        } else {
+            imageContainer = productContainer;
+            const containerStyle = window.getComputedStyle(imageContainer);
+            if (containerStyle.position === 'static') {
+                imageContainer.style.position = 'relative';
+            }
+        }
+        
+        if (imageContainer && !imageContainer.querySelector('.cp-product-id-badge')) {
+            imageContainer.appendChild(badge);
+        } else if (link && link.parentElement && !link.parentElement.querySelector('.cp-product-id-badge')) {
+            const parent = link.parentElement;
+            if (window.getComputedStyle(parent).position === 'static') {
+                parent.style.position = 'relative';
+            }
+            parent.appendChild(badge);
+        }
+    }
+    
+    async function displayCpbProductIdsOnListPage() {
+        if (!isCpbProductListPage()) {
+            return;
+        }
+        
+        const badgeEnabled = await isBadgeDisplayEnabled();
+        if (!badgeEnabled) {
+            updateBadgeVisibility(false);
+            return;
+        }
+        
+        const productItems = findProductItemsArray();
+        if (!productItems || productItems.length === 0) {
+            console.log('CPB PLP: PRODUCT_ITEMS not found yet');
+            return;
+        }
+        
+        const processedProducts = new Set();
+        const productLinks = document.querySelectorAll('a[href*="/business/product-"]');
+        
+        productLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            if (!href) return;
+            
+            const productContainer = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"], [class*="tile"]') || link.parentElement;
+            if (!productContainer) return;
+            
+            const productKey = `${href}-${Math.round(productContainer.getBoundingClientRect().top)}`;
+            if (processedProducts.has(productKey)) return;
+            
+            if (productContainer.querySelector('.cp-product-id-badge')) {
+                processedProducts.add(productKey);
+                return;
+            }
+            
+            const item = findCpbProductItemForLink(link, productItems);
+            if (!item) return;
+            
+            processedProducts.add(productKey);
+            const badge = createListPageProductBadge(buildCpbBadgeContent(item), badgeEnabled);
+            attachBadgeToProductContainer(productContainer, link, badge);
+        });
+        
+        console.log(`CPB PLP: processed ${processedProducts.size} product badges`);
+    }
+    
     // Function to check if we're on a product detail page
     function isProductDetailPage() {
         const currentUrl = window.location.href;
@@ -2004,6 +2288,153 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         // Example: https://cafepress.com/+fal_mens_value_t_shirt,3001160587
         return /\/\+[^,]*,\d+/.test(currentUrl);
     }
+    
+    let lastDefaultSkuFingerprint = null;
+    let productOptionWatcherInitialized = false;
+    
+    function readProductOptionsFromPageContext() {
+        try {
+            const script = document.createElement('script');
+            script.textContent = `
+                (function() {
+                    let dataFound = null;
+                    if (typeof product_options !== 'undefined') {
+                        dataFound = product_options;
+                    } else if (typeof window.product_options !== 'undefined') {
+                        dataFound = window.product_options;
+                    } else if (typeof productDetail !== 'undefined' && productDetail.options) {
+                        dataFound = productDetail.options;
+                    }
+                    if (dataFound) {
+                        document.documentElement.setAttribute('data-cp-product-options-refresh', JSON.stringify(dataFound));
+                    }
+                })();
+            `;
+            document.documentElement.appendChild(script);
+            script.remove();
+            
+            const dataAttr = document.documentElement.getAttribute('data-cp-product-options-refresh');
+            if (dataAttr) {
+                document.documentElement.removeAttribute('data-cp-product-options-refresh');
+                return JSON.parse(dataAttr);
+            }
+        } catch (e) {
+            console.log('Error reading product_options from page context:', e);
+        }
+        return null;
+    }
+    
+    function getDefaultSkuFingerprint(options) {
+        if (!options || !options.default_sku) return null;
+        const ds = options.default_sku;
+        return [ds.sku, ds.sku_id, ds.option_id, ds.vendor_id].join('|');
+    }
+    
+    function buildProductsDataFromOptions(parsed, designId, existingProductsData) {
+        const extractedFields = {
+            category_id: parsed.category_id,
+            is_out_of_stock: parsed.is_out_of_stock,
+            cp_product_id: existingProductsData?.cp_product_id ?? null,
+            full_object: parsed
+        };
+        
+        try {
+            if (parsed.product_design_objects && typeof parsed.product_design_objects === 'object' && designId) {
+                const designObject = parsed.product_design_objects[designId];
+                if (designObject && designObject.cp_product_id !== undefined) {
+                    extractedFields.cp_product_id = designObject.cp_product_id;
+                }
+            }
+        } catch (e) {
+            console.log('Error building productsData from options:', e);
+        }
+        
+        return extractedFields;
+    }
+    
+    function refreshProductOptionsData(force = false) {
+        if (!isProductDetailPage()) return;
+        
+        const options = readProductOptionsFromPageContext();
+        if (!options) return;
+        
+        const fingerprint = getDefaultSkuFingerprint(options);
+        if (!force && fingerprint === lastDefaultSkuFingerprint) return;
+        lastDefaultSkuFingerprint = fingerprint;
+        
+        chrome.storage.local.get(
+            ['url', 'designerName', 'designerLink', 'designId', 'cpProductId', 'productImageId', 'productsData'],
+            function(existing) {
+                const productsData = buildProductsDataFromOptions(
+                    options,
+                    existing.designId,
+                    existing.productsData
+                );
+                
+                const updatedData = {
+                    ...existing,
+                    url: window.location.href,
+                    timestamp: new Date().toISOString(),
+                    productsData
+                };
+                
+                chrome.storage.local.set(updatedData, function() {
+                    console.log('✅ Product options refreshed, default_sku fingerprint:', fingerprint);
+                    chrome.runtime.sendMessage({
+                        type: 'PRODUCT_INFO_FOUND',
+                        data: updatedData
+                    }).catch(() => {});
+                    updateFloatingWindowContent();
+                });
+            }
+        );
+    }
+    
+    function initProductOptionChangeWatcher() {
+        if (productOptionWatcherInitialized || !isProductDetailPage()) return;
+        productOptionWatcherInitialized = true;
+        
+        const options = readProductOptionsFromPageContext();
+        if (options) {
+            lastDefaultSkuFingerprint = getDefaultSkuFingerprint(options);
+        }
+        
+        const scheduleRefresh = () => {
+            setTimeout(() => refreshProductOptionsData(), 300);
+            setTimeout(() => refreshProductOptionsData(), 800);
+        };
+        
+        document.addEventListener('click', function(e) {
+            const optionEl = e.target.closest(
+                '[data-option-id], [data-attr], [data-attribute], .product-option, .option-item, .option-value, .attr-item, .product-attr, .size-option, .variant-option, button[class*="option"], button[class*="attr"], li[class*="option"], li[class*="attr"]'
+            );
+            if (optionEl) {
+                scheduleRefresh();
+            }
+        }, true);
+        
+        document.addEventListener('change', function(e) {
+            if (e.target.matches('select, input[type="radio"], input[type="checkbox"]')) {
+                scheduleRefresh();
+            }
+        }, true);
+        
+        let lastOptionUrl = window.location.href;
+        setInterval(() => {
+            if (!isProductDetailPage()) return;
+            
+            if (window.location.href !== lastOptionUrl) {
+                lastOptionUrl = window.location.href;
+                setTimeout(() => refreshProductOptionsData(true), 300);
+            }
+            
+            refreshProductOptionsData();
+        }, 1500);
+        
+        console.log('✅ Product option change watcher initialized');
+    }
+    
+    executeExtraction();
     
     // Function to check if we're on a design library page
     function isDesignLibraryPage() {
@@ -2837,51 +3268,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             let matchedDesignId = null;
             
             try {
-                // Function to find PRODUCT_ITEMS in various locations
-                function findProductItemsArray() {
-                    // Try window objects first
-                    const windowArrays = [
-                        window.PRODUCT_ITEMS,
-                        window.product_items,
-                        window.productItems,
-                        window.products
-                    ].filter(arr => arr && Array.isArray(arr) && arr.length > 0);
-                    
-                    if (windowArrays.length > 0) {
-                        return windowArrays[0];
-                    }
-                    
-                    // Try to extract from script tags (for SSR)
-                    const scripts = document.querySelectorAll('script');
-                    for (let script of scripts) {
-                        const content = script.textContent || script.innerHTML;
-                        if (content && content.includes('PRODUCT_ITEMS')) {
-                            try {
-                                // Look for var PRODUCT_ITEMS = [...] pattern
-                                const match = content.match(/var\s+PRODUCT_ITEMS\s*=\s*(\[[\s\S]*?\]);/);
-                                if (match && match[1]) {
-                                    const parsed = JSON.parse(match[1]);
-                                    if (Array.isArray(parsed) && parsed.length > 0) {
-                                        return parsed;
-                                    }
-                                }
-                                // Try without var keyword
-                                const match2 = content.match(/PRODUCT_ITEMS\s*=\s*(\[[\s\S]*?\]);/);
-                                if (match2 && match2[1]) {
-                                    const parsed = JSON.parse(match2[1]);
-                                    if (Array.isArray(parsed) && parsed.length > 0) {
-                                        return parsed;
-                                    }
-                                }
-                            } catch (e) {
-                                continue;
-                            }
-                        }
-                    }
-                    
-                    return null;
-                }
-                
                 const productItems = findProductItemsArray();
                 if (productItems) {
                     const designIdsToTry = [];
@@ -3398,10 +3784,13 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     // Initial call and observe for dynamic content
     function initProductListDisplay() {
+        const shouldShowListBadges = isProductListPage() || isCpbProductListPage();
+        
         // Initial check
-        if (isProductListPage()) {
+        if (shouldShowListBadges) {
             setTimeout(() => {
                 displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
+                displayCpbProductIdsOnListPage().catch(err => console.error('Error displaying CPB product IDs:', err));
                 displayCategoryFilterIds(); // Also display category filter IDs
             }, 1000);
             
@@ -3410,26 +3799,40 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 window.addEventListener('load', () => {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
+                        displayCpbProductIdsOnListPage().catch(err => console.error('Error displaying CPB product IDs:', err));
                         displayCategoryFilterIds();
                     }, 500);
                 }, { once: true });
             }
+            
+            // Retry CPB badges while PRODUCT_ITEMS loads asynchronously
+            [2000, 4000, 6000].forEach(delay => {
+                setTimeout(() => {
+                    displayCpbProductIdsOnListPage().catch(err => console.error('Error displaying CPB product IDs:', err));
+                }, delay);
+            });
         }
         
         // Observe DOM changes for dynamically loaded products
         const observer = new MutationObserver((mutations) => {
-            if (isProductListPage()) {
+            if (isProductListPage() || isCpbProductListPage()) {
                 let shouldUpdate = false;
                 mutations.forEach((mutation) => {
                     mutation.addedNodes.forEach((node) => {
                         if (node.nodeType === 1) { // Element node
                             // Check if new product links were added
-                            if (node.querySelectorAll && node.querySelectorAll('a[href*="/+"]').length > 0) {
+                            if (node.querySelectorAll && (
+                                node.querySelectorAll('a[href*="/+"]').length > 0 ||
+                                node.querySelectorAll('a[href*="/business/product-"]').length > 0
+                            )) {
                                 shouldUpdate = true;
                             }
                             // Also check if the node itself is a product link
-                            if (node.tagName === 'A' && node.getAttribute('href') && node.getAttribute('href').includes('/+')) {
-                                shouldUpdate = true;
+                            if (node.tagName === 'A') {
+                                const href = node.getAttribute('href') || '';
+                                if (href.includes('/+') || href.includes('/business/product-')) {
+                                    shouldUpdate = true;
+                                }
                             }
                         }
                     });
@@ -3438,6 +3841,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 if (shouldUpdate) {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
+                        displayCpbProductIdsOnListPage().catch(err => console.error('Error displaying CPB product IDs:', err));
                         displayCategoryFilterIds();
                     }, 300);
                 }
@@ -3455,9 +3859,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const currentUrl = window.location.href;
             if (currentUrl !== lastUrl) {
                 lastUrl = currentUrl;
-                if (isProductListPage()) {
+                if (isProductListPage() || isCpbProductListPage()) {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
+                        displayCpbProductIdsOnListPage().catch(err => console.error('Error displaying CPB product IDs:', err));
                         displayCategoryFilterIds();
                     }, 500);
                 }
@@ -4547,9 +4952,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 updateBadgeVisibility(enabled);
                 console.log('Badge display setting saved:', enabled);
                 // Also trigger a refresh of product list display if on product list page
-                if (isProductListPage()) {
+                if (isProductListPage() || isCpbProductListPage()) {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error refreshing badges:', err));
+                        displayCpbProductIdsOnListPage().catch(err => console.error('Error refreshing CPB badges:', err));
                     }, 100);
                 }
             });
@@ -5114,7 +5520,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     console.log('✅ Found Default Global sku from default_sku:', defaultGlobalSku);
                 }
                 
-                productInfoHtml += createInfoItem('Default sku:', defaultGlobalSku);
+                productInfoHtml += createInfoItem('Default Global sku:', defaultGlobalSku);
                 
                 // Vendor ID - ONLY from default_sku path
                 let vendorId = 'Not found';

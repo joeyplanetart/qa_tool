@@ -23,7 +23,8 @@ const CONFIG = {
         US: 'cafus',
         CA: 'cafca',
         UK: 'cafuk',
-        AU: 'cafau'
+        AU: 'cafau',
+        CPB: 'cpbus'
     },
     
     // Frontend site domains by region and environment
@@ -54,6 +55,13 @@ const CONFIG = {
                 STAGE: `${this.REGION_PREFIX.AU}-${branch}.${this.BASE_DOMAIN.STAGE}`,
                 LIVE: 'www.cafepress.com.au',
                 LIVE_ALT: 'cafepress.com.au'
+            },
+            CPB: {
+                PRE: `${this.REGION_PREFIX.CPB}-${branch}.${this.BASE_DOMAIN.PRE}`,
+                STAGE: `${this.REGION_PREFIX.CPB}-${branch}.${this.BASE_DOMAIN.STAGE}`,
+                LIVE: 'www.cafepress.com',
+                LIVE_ALT: 'cafepress.com',
+                LIVE_PATH_PREFIX: '/business'
             }
         };
     },
@@ -91,7 +99,8 @@ const CONFIG = {
         US: '170',
         CA: '173',
         UK: '172',
-        AU: '171'
+        AU: '171',
+        CPB: '169'
     },
     
     // Admin API endpoints
@@ -126,6 +135,8 @@ const CONFIG = {
             /^cafuk-.*\.stage\.planetart\.com$/,
             /^cafau-.*\.pre\.planetart\.com$/,
             /^cafau-.*\.stage\.planetart\.com$/,
+            /^cpbus-.*\.pre\.planetart\.com$/,
+            /^cpbus-.*\.stage\.planetart\.com$/,
             /^(www\.)?cafepress\.com$/,
             /^(www\.)?cafepress\.ca$/,
             /^(www\.)?cafepress\.co\.uk$/,
@@ -152,11 +163,17 @@ const CONFIG = {
         // Pattern: {region}-{branch}.{environment}.planetart.com
         // Examples: cafus-cpsw-web.pre.planetart.com, cafca-master.stage.planetart.com
         const preStagePattern = /^caf(?:us|ca|uk|au)-([^.]+)\.(pre|stage)\.planetart\.com$/;
+        const cpbPattern = /^cpbus-([^.]+)\.(pre|stage)\.planetart\.com$/;
         const adminPattern = /^admin-([^.]+)\.(pre|stage)\.planetart\.com$/;
         
         let match = hostname.match(preStagePattern);
         if (match) {
             return match[1]; // 返回分支名称
+        }
+        
+        match = hostname.match(cpbPattern);
+        if (match) {
+            return match[1];
         }
         
         match = hostname.match(adminPattern);
@@ -236,10 +253,10 @@ const CONFIG = {
         }
         
         const env = environment.toLowerCase();
+        const siteConfig = this.SITES[region];
         
         if (env === 'live') {
-            // Live environment uses production domains
-            return this.SITES[region].LIVE;
+            return siteConfig ? siteConfig.LIVE : null;
         } else if (env === 'pre') {
             return `${regionPrefix}-${branch}.${this.BASE_DOMAIN.PRE}`;
         } else if (env === 'stage') {
@@ -248,6 +265,14 @@ const CONFIG = {
         
         console.error(`Invalid environment: ${environment}`);
         return null;
+    },
+    
+    /**
+     * Build live URL path prefix for a region (e.g. CPB uses /business)
+     */
+    getLivePathPrefix(region) {
+        const siteConfig = this.SITES[region];
+        return siteConfig?.LIVE_PATH_PREFIX || '';
     },
     
     /**
@@ -376,10 +401,17 @@ const CONFIG = {
     detectRegion(url) {
         if (!url) return null;
         
+        // CPB (CafePress Business)
+        if (/cpbus-[^.]+\.(pre|stage)\.planetart\.com/.test(url) ||
+            /cafepress\.com\/business(\/|$|\?)/.test(url)) {
+            return 'CPB';
+        }
+        
         // Check for pre/stage environment domains with any branch name
         if (/cafus-[^.]+\.(pre|stage)\.planetart\.com/.test(url) || 
             (url.includes('cafepress.com') && !url.includes('cafepress.ca') && 
-             !url.includes('cafepress.co.uk') && !url.includes('cafepress.com.au'))) {
+             !url.includes('cafepress.co.uk') && !url.includes('cafepress.com.au') &&
+             !url.includes('cafepress.com/business'))) {
             return 'US';
         } else if (/cafca-[^.]+\.(pre|stage)\.planetart\.com/.test(url) || url.includes('cafepress.ca')) {
             return 'CA';
@@ -407,6 +439,7 @@ const CONFIG = {
      */
     getSiteName(region) {
         if (!region) return 'ENV';
+        if (region === 'CPB') return 'CPBUS';
         return 'CAF' + region;
     },
     
@@ -706,7 +739,7 @@ const CONFIG = {
                     {
                         title: 'cpbus',
                         urls: {
-                            live: 'https://www.cafepress.com/',
+                            live: 'https://www.cafepress.com/business/',
                             pre: 'https://cpbus-master.pre.planetart.com/',
                             stage: 'https://cpbus-master.stage.planetart.com/'
                         }
