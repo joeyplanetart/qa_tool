@@ -2011,6 +2011,256 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         return (isPlusPattern && !hasProductId) || isMakePattern;
     }
     
+    // CP homepage (e.g. https://www.cafepress.com/)
+    function isCpHomePage() {
+        const path = window.location.pathname;
+        const isRootPath = path === '/' || path === '';
+        if (!isRootPath) return false;
+        
+        const hostname = window.location.hostname;
+        if (/^(www\.)?cafepress\.(com|ca|co\.uk|com\.au)$/.test(hostname)) {
+            return true;
+        }
+        
+        return /caf(?:us|ca|uk|au)-[^.]+\.(pre|stage)\.planetart\.com/.test(hostname);
+    }
+    
+    function isCpProductBadgePage() {
+        return isProductListPage() || isCpHomePage() || isCpProductDetailPage();
+    }
+
+    function isCpProductDetailPage() {
+        if (isCpbProductDetailPage()) return false;
+        return /\/\+[^,]*,\d+/.test(window.location.href);
+    }
+    
+    function getBestsellersSection() {
+        const directSection = document.querySelector(
+            '.bestsellers-products, .bestseller-products, [class*="bestsellers-products"]'
+        );
+        if (directSection) return directSection;
+
+        const header = document.querySelector('.bestsellers-products-header, [class*="bestsellers-products-header"]');
+        if (header) {
+            const fromHeader = header.closest(
+                '.bestsellers-products, .bestseller-products, [class*="bestsellers-products"], [class*="bestseller"]'
+            );
+            if (fromHeader) return fromHeader;
+            if (header.parentElement) return header.parentElement;
+        }
+
+        const titleCandidates = document.querySelectorAll('h1, h2, h3, h4, h5, h6, [class*="title"], [class*="heading"]');
+        for (const el of titleCandidates) {
+            const text = (el.textContent || '').trim();
+            if (!/bestsellers/i.test(text)) continue;
+            
+            const section = el.closest('section, [class*="bestseller"], [class*="carousel"], [class*="slider"], [class*="product-list"], [class*="product-grid"]');
+            if (section) return section;
+            
+            let node = el.parentElement;
+            for (let i = 0; i < 6 && node; i++) {
+                if (node.querySelector('a[href*="/+"], a[href*="/designer/"], a[href*="/make/"]')) {
+                    return node;
+                }
+                node = node.parentElement;
+            }
+        }
+        return null;
+    }
+
+    let cpHomeBestsellerProductItemsCache = null;
+    let cpHomeBestsellerProductItemsPromise = null;
+    let cpPdpRecommendationProductItemsCache = null;
+    let lastCpBadgePageUrl = '';
+
+    function resetCpBadgeCachesIfUrlChanged() {
+        const currentUrl = window.location.href;
+        if (currentUrl !== lastCpBadgePageUrl) {
+            lastCpBadgePageUrl = currentUrl;
+            cpHomeBestsellerProductItemsCache = null;
+            cpPdpRecommendationProductItemsCache = null;
+        }
+    }
+
+    function parseJsArrayAssignment(content, variableName) {
+        if (!content || !variableName) return null;
+
+        const markerIndex = content.indexOf(variableName);
+        if (markerIndex === -1) return null;
+
+        const assignIndex = content.indexOf('=', markerIndex);
+        if (assignIndex === -1) return null;
+
+        const arrayStart = content.indexOf('[', assignIndex);
+        if (arrayStart === -1) return null;
+
+        let depth = 0;
+        for (let i = arrayStart; i < content.length; i++) {
+            const ch = content[i];
+            if (ch === '[') depth++;
+            else if (ch === ']') {
+                depth--;
+                if (depth === 0) {
+                    try {
+                        const parsed = JSON.parse(content.slice(arrayStart, i + 1));
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            return parsed;
+                        }
+                    } catch (e) {
+                        return null;
+                    }
+                    return null;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    function parseProductItemsFromHtml(html) {
+        return parseJsArrayAssignment(html, 'PRODUCT_ITEMS');
+    }
+
+    function getHomeBestsellerDesignIds(section) {
+        const designIds = new Set();
+        if (!section) return designIds;
+
+        section.querySelectorAll('.design-item-wrapper[data-id], .design-item-wrapper.product-item-card').forEach(card => {
+            const dataId = card.getAttribute('data-id');
+            if (dataId) designIds.add(String(dataId));
+        });
+
+        return designIds;
+    }
+
+    function getHomeBestsellerSourceUrl(section) {
+        const shopAllLink = section?.querySelector('.bestsellers-products-action a[href*="/+"]');
+        if (shopAllLink) {
+            const href = shopAllLink.getAttribute('href');
+            if (href) return href;
+        }
+        return '/+gifts';
+    }
+
+    async function ensureCpHomeBestsellerProductItems(section) {
+        if (cpHomeBestsellerProductItemsCache) {
+            return cpHomeBestsellerProductItemsCache;
+        }
+
+        if (!section) return null;
+
+        if (!cpHomeBestsellerProductItemsPromise) {
+            cpHomeBestsellerProductItemsPromise = (async () => {
+                try {
+                    const designIds = getHomeBestsellerDesignIds(section);
+                    if (designIds.size === 0) return null;
+
+                    const sourceUrl = new URL(getHomeBestsellerSourceUrl(section), window.location.origin).href;
+                    const response = await fetch(sourceUrl, { credentials: 'include' });
+                    if (!response.ok) {
+                        console.log('CP Homepage: failed to fetch PRODUCT_ITEMS source', response.status);
+                        return null;
+                    }
+
+                    const html = await response.text();
+                    const allItems = parseProductItemsFromHtml(html);
+                    if (!allItems) {
+                        console.log('CP Homepage: PRODUCT_ITEMS not found in Bestsellers source page');
+                        return null;
+                    }
+
+                    const filtered = allItems.filter(item => item && designIds.has(String(item.design_id)));
+                    if (filtered.length > 0) {
+                        cpHomeBestsellerProductItemsCache = filtered;
+                        window.PRODUCT_ITEMS = filtered;
+                        console.log(`CP Homepage: loaded ${filtered.length} PRODUCT_ITEMS for Bestsellers`);
+                        return filtered;
+                    }
+                } catch (e) {
+                    console.log('CP Homepage: error loading Bestsellers PRODUCT_ITEMS:', e);
+                }
+                return null;
+            })().finally(() => {
+                cpHomeBestsellerProductItemsPromise = null;
+            });
+        }
+
+        return cpHomeBestsellerProductItemsPromise;
+    }
+
+    function getCpPdpBadgeSectionByTitle(titlePattern) {
+        const titleCandidates = document.querySelectorAll('.container-draggable-list .list-title, .container-draggable-list h3.list-title');
+        for (const el of titleCandidates) {
+            const text = (el.textContent || '').trim();
+            if (!titlePattern.test(text)) continue;
+
+            const section = el.closest('.container-draggable-list');
+            if (section) return section;
+        }
+        return null;
+    }
+
+    function getCpPdpBadgeSections() {
+        const sections = [];
+        const alsoAvailable = getCpPdpBadgeSectionByTitle(/also available on/i);
+        const exploreMore = getCpPdpBadgeSectionByTitle(/explore more designs/i);
+        if (alsoAvailable) sections.push(alsoAvailable);
+        if (exploreMore) sections.push(exploreMore);
+        return sections;
+    }
+
+    function getCpPdpSectionListKey(section) {
+        const sectionId = section?.id || '';
+        const match = sectionId.match(/^draggable-list-(.+)$/);
+        return match ? match[1] : null;
+    }
+
+    function findCpPdpSectionProductItems(section) {
+        const listKey = getCpPdpSectionListKey(section);
+        if (!listKey) return null;
+
+        const varName = `products_${listKey}`;
+
+        try {
+            const script = document.createElement('script');
+            script.textContent = `
+                (function() {
+                    try {
+                        const items = (typeof window['${varName}'] !== 'undefined') ? window['${varName}'] :
+                            (typeof ${varName} !== 'undefined' ? ${varName} : null);
+                        if (Array.isArray(items) && items.length > 0) {
+                            document.documentElement.setAttribute('data-cp-pdp-section-items', JSON.stringify(items));
+                        }
+                    } catch (e) {}
+                })();
+            `;
+            document.documentElement.appendChild(script);
+            script.remove();
+
+            const dataAttr = document.documentElement.getAttribute('data-cp-pdp-section-items');
+            if (dataAttr) {
+                document.documentElement.removeAttribute('data-cp-pdp-section-items');
+                const parsed = JSON.parse(dataAttr);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    return parsed;
+                }
+            }
+        } catch (e) {
+            console.log('Error reading CP PDP section product items from page context:', e);
+        }
+
+        const scripts = document.querySelectorAll('script');
+        for (let scriptEl of scripts) {
+            const content = scriptEl.textContent || scriptEl.innerHTML;
+            if (content && content.includes(varName)) {
+                const parsed = parseJsArrayAssignment(content, varName);
+                if (parsed) return parsed;
+            }
+        }
+
+        return null;
+    }
+    
     // CPB product list page (e.g. /business/bags/tote-bags)
     function isCpbProductListPage() {
         const currentUrl = window.location.href;
@@ -2023,6 +2273,14 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     function findProductItemsArray() {
         try {
+            if (isCpHomePage() && cpHomeBestsellerProductItemsCache) {
+                return cpHomeBestsellerProductItemsCache;
+            }
+
+            if (isCpProductDetailPage() && cpPdpRecommendationProductItemsCache) {
+                return cpPdpRecommendationProductItemsCache;
+            }
+
             const windowArrays = [
                 window.PRODUCT_ITEMS,
                 window.product_items,
@@ -2927,9 +3185,11 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     // Function to display product IDs on product list page
     async function displayProductIdsOnListPage() {
-        if (!isProductListPage()) {
+        if (!isCpProductBadgePage()) {
             return;
         }
+
+        resetCpBadgeCachesIfUrlChanged();
         
         // Check if badge display is enabled
         const badgeEnabled = await isBadgeDisplayEnabled();
@@ -2939,12 +3199,55 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             return;
         }
         
+        const onHomePage = isCpHomePage();
+        const onCpPdp = isCpProductDetailPage();
+        let searchRoots = [document];
+        
+        if (onHomePage) {
+            const bestsellersSection = getBestsellersSection();
+            if (!bestsellersSection) {
+                console.log('CP Homepage: Bestsellers section not found yet');
+                return;
+            }
+            const homeProductItems = await ensureCpHomeBestsellerProductItems(bestsellersSection);
+            if (!homeProductItems) {
+                console.log('CP Homepage: PRODUCT_ITEMS not ready yet for Bestsellers');
+                return;
+            }
+            searchRoots = [bestsellersSection];
+        } else if (onCpPdp) {
+            const pdpSections = getCpPdpBadgeSections();
+            if (pdpSections.length === 0) {
+                console.log('CP PDP: recommendation sections not found yet');
+                return;
+            }
+
+            let combinedItems = [];
+            for (const section of pdpSections) {
+                const items = findCpPdpSectionProductItems(section);
+                if (items && items.length > 0) {
+                    combinedItems = combinedItems.concat(items);
+                }
+            }
+            if (combinedItems.length === 0) {
+                console.log('CP PDP: section PRODUCT_ITEMS not ready yet');
+                return;
+            }
+            cpPdpRecommendationProductItemsCache = combinedItems;
+            searchRoots = pdpSections;
+        }
+        
+        // Track processed products to avoid duplicates
+        const processedProducts = new Set();
+
+        for (const searchRoot of searchRoots) {
+        
         // Find all product links - support multiple patterns:
         // 1. /+ pattern (regular products)
         // 2. /designer/ pattern (CYO products)
         // 3. /make/ pattern (CYO product category pages - may link to /designer/ or /+)
         // Exclude non-product pages like /make/design-your-own
-        const productLinks = document.querySelectorAll('a[href*="/+"], a[href*="/designer/"], a[href*="/make/"]');
+        const productLinks = searchRoot.querySelectorAll('a[href*="/+"], a[href*="/designer/"], a[href*="/make/"]');
         
         // Filter out non-product links from productLinks
         const filteredProductLinks = Array.from(productLinks).filter(link => {
@@ -2959,7 +3262,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         
         // Also find product cards/items that might contain product links
         // For /make/ pages, products might be in different containers
-        const makePageLinks = document.querySelectorAll('.product-item a, .product-card a, [class*="product"] a, [class*="item"] a');
+        const makePageLinks = searchRoot.querySelectorAll('.product-item a, .product-card a, [class*="product"] a, [class*="item"] a');
         const allLinks = new Set([...filteredProductLinks]);
         makePageLinks.forEach(link => {
             const href = link.getAttribute('href');
@@ -2978,9 +3281,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         // But exclude /make/design-your-own page
         const isMakePage = /\/make\/[^/]+/.test(window.location.href);
         const isDesignYourOwnPage = window.location.href.includes('/make/design-your-own');
-        if (isMakePage && !isDesignYourOwnPage && finalProductLinks.length === 0) {
+        if (isMakePage && !isDesignYourOwnPage && !onHomePage && !onCpPdp && finalProductLinks.length === 0) {
             // Look for product containers that might contain product images
-            const productContainers = document.querySelectorAll('.product-item, .product, [class*="product"], [class*="item"], [class*="card"], [class*="design-item"]');
+            const productContainers = searchRoot.querySelectorAll('.product-item, .product, [class*="product"], [class*="item"], [class*="card"], [class*="design-item"]');
             productContainers.forEach(container => {
                 // Check if container has product image or preview-image (but not logo)
                 const images = container.querySelectorAll('img');
@@ -3009,9 +3312,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             finalProductLinks.length = 0;
             finalProductLinks.push(...Array.from(allLinks));
         }
-        
-        // Track processed products to avoid duplicates
-        const processedProducts = new Set();
         
         finalProductLinks.forEach((link, index) => {
             const href = link.getAttribute('href');
@@ -3156,6 +3456,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 }
             }
         });
+        }
     }
     
     // Helper function to process a single product link
@@ -3989,7 +4290,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     // Initial call and observe for dynamic content
     function initProductListDisplay() {
-        const shouldShowListBadges = isProductListPage() || isCpbBadgePage();
+        const shouldShowListBadges = isCpProductBadgePage() || isCpbBadgePage();
         
         // Initial check
         if (shouldShowListBadges) {
@@ -4010,6 +4311,24 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 }, { once: true });
             }
             
+            // Retry homepage Bestsellers badges while section loads asynchronously
+            if (isCpHomePage()) {
+                [2000, 4000, 6000, 8000, 10000, 15000].forEach(delay => {
+                    setTimeout(() => {
+                        displayProductIdsOnListPage().catch(err => console.error('Error displaying homepage Bestsellers badges:', err));
+                    }, delay);
+                });
+            }
+
+            // Retry CP PDP recommendation badges while sections load asynchronously
+            if (isCpProductDetailPage()) {
+                [2000, 4000, 6000, 8000, 10000, 15000].forEach(delay => {
+                    setTimeout(() => {
+                        displayProductIdsOnListPage().catch(err => console.error('Error displaying CP PDP recommendation badges:', err));
+                    }, delay);
+                });
+            }
+            
             // Retry CPB badges while PRODUCT_ITEMS / recommendations load asynchronously
             const cpbRetryDelays = isCpbProductDetailPage() ? [2000, 4000, 6000, 8000, 10000, 15000] : [2000, 4000, 6000];
             cpbRetryDelays.forEach(delay => {
@@ -4021,7 +4340,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         
         // Observe DOM changes for dynamically loaded products
         const observer = new MutationObserver((mutations) => {
-            if (isProductListPage() || isCpbBadgePage()) {
+            if (isCpProductBadgePage() || isCpbBadgePage()) {
                 let shouldUpdate = false;
                 mutations.forEach((mutation) => {
                     mutation.addedNodes.forEach((node) => {
@@ -4029,11 +4348,29 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             // Check if new product links were added
                             if (node.querySelectorAll && (
                                 node.querySelectorAll('a[href*="/+"]').length > 0 ||
-                                node.querySelectorAll('a[href*="/business/product-"]').length > 0
+                                node.querySelectorAll('a[href*="/business/product-"]').length > 0 ||
+                                node.querySelectorAll('.design-item-wrapper[data-id]').length > 0
+                            )) {
+                                shouldUpdate = true;
+                            }
+                            if (node.classList && (
+                                node.classList.contains('bestsellers-products') ||
+                                node.classList.contains('container-draggable-list') ||
+                                node.classList.contains('design-item-wrapper') ||
+                                node.classList.contains('product-item-card')
                             )) {
                                 shouldUpdate = true;
                             }
                             if (node.textContent && /you may also like/i.test(node.textContent)) {
+                                shouldUpdate = true;
+                            }
+                            if (node.textContent && /bestsellers/i.test(node.textContent)) {
+                                shouldUpdate = true;
+                            }
+                            if (node.textContent && /also available on/i.test(node.textContent)) {
+                                shouldUpdate = true;
+                            }
+                            if (node.textContent && /explore more designs/i.test(node.textContent)) {
                                 shouldUpdate = true;
                             }
                             // Also check if the node itself is a product link
@@ -4068,7 +4405,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const currentUrl = window.location.href;
             if (currentUrl !== lastUrl) {
                 lastUrl = currentUrl;
-                if (isProductListPage() || isCpbBadgePage()) {
+                if (isCpProductBadgePage() || isCpbBadgePage()) {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
                         displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
@@ -5161,7 +5498,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 updateBadgeVisibility(enabled);
                 console.log('Badge display setting saved:', enabled);
                 // Also trigger a refresh of product list display if on product list page
-                if (isProductListPage() || isCpbBadgePage()) {
+                if (isCpProductBadgePage() || isCpbBadgePage()) {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error refreshing badges:', err));
                         displayCpbProductBadges().catch(err => console.error('Error refreshing CPB badges:', err));
