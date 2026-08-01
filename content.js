@@ -225,6 +225,15 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             console.log('CP Product ID not found in URL');
         }
         
+        // Extract CPB product ID and design ID from URL
+        const cpbUrlMatch = currentUrl.match(/\/business\/product-(\d+)-design-(\d+)/);
+        if (cpbUrlMatch) {
+            extractedData.cpProductId = cpbUrlMatch[1];
+            extractedData.designId = cpbUrlMatch[2];
+            console.log('Extracted CPB Product ID from URL:', extractedData.cpProductId);
+            console.log('Extracted CPB Design ID from URL:', extractedData.designId);
+        }
+        
         // Extract Product Image Id from page HTML (/dd/number pattern)
         // Try immediately and also with a delay for dynamic content
         function tryExtractProductImageId(isRetry = false) {
@@ -1864,6 +1873,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         if (extractedData.designerName || extractedData.designId || extractedData.cpProductId || extractedData.productsData) {
             chrome.storage.local.set(extractedData, function() {
                 console.log('Product info saved to storage:', extractedData);
+                updateFloatingWindowContent();
             });
             
             // Send message to popup (if popup is open)
@@ -2073,12 +2083,123 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         return null;
     }
     
-    function buildCpbBadgeContent(item) {
+    function findCpbBadgeProductItems() {
+        const primaryItems = findProductItemsArray();
+        if (primaryItems && primaryItems.length > 0) {
+            return primaryItems;
+        }
+        
+        try {
+            const script = document.createElement('script');
+            script.textContent = `
+                (function() {
+                    const sources = [
+                        typeof PRODUCT_ITEMS !== 'undefined' ? PRODUCT_ITEMS : null,
+                        typeof window.PRODUCT_ITEMS !== 'undefined' ? window.PRODUCT_ITEMS : null,
+                        typeof RELATED_PRODUCT_ITEMS !== 'undefined' ? RELATED_PRODUCT_ITEMS : null,
+                        typeof window.RELATED_PRODUCT_ITEMS !== 'undefined' ? window.RELATED_PRODUCT_ITEMS : null,
+                        typeof ALSO_LIKE_ITEMS !== 'undefined' ? ALSO_LIKE_ITEMS : null,
+                        typeof window.ALSO_LIKE_ITEMS !== 'undefined' ? window.ALSO_LIKE_ITEMS : null
+                    ];
+                    const items = sources.find(arr => Array.isArray(arr) && arr.length > 0);
+                    if (items) {
+                        document.documentElement.setAttribute('data-cp-cpb-badge-items', JSON.stringify(items));
+                    }
+                })();
+            `;
+            document.documentElement.appendChild(script);
+            script.remove();
+            
+            const dataAttr = document.documentElement.getAttribute('data-cp-cpb-badge-items');
+            if (dataAttr) {
+                document.documentElement.removeAttribute('data-cp-cpb-badge-items');
+                const parsed = JSON.parse(dataAttr);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    return parsed;
+                }
+            }
+        } catch (e) {
+            console.log('Error finding CPB badge product items:', e);
+        }
+        
+        return null;
+    }
+    
+    function getCpbRecommendationSection() {
+        const titleCandidates = document.querySelectorAll('h1, h2, h3, h4, h5, h6, [class*="title"], [class*="heading"]');
+        for (const el of titleCandidates) {
+            const text = (el.textContent || '').trim();
+            if (!/you may also like/i.test(text)) continue;
+            
+            const section = el.closest('section, [class*="recommend"], [class*="also-like"], [class*="related"], [class*="carousel"], [class*="slider"], [class*="ymal"]');
+            if (section) return section;
+            
+            let node = el.parentElement;
+            for (let i = 0; i < 6 && node; i++) {
+                if (node.querySelector('a[href*="/business/product-"]')) {
+                    return node;
+                }
+                node = node.parentElement;
+            }
+        }
+        return null;
+    }
+    
+    function isCurrentCpbProductLink(href) {
+        if (!href) return false;
+        try {
+            const linkPath = new URL(href, window.location.origin).pathname;
+            return linkPath === window.location.pathname;
+        } catch (e) {
+            return href.includes(window.location.pathname);
+        }
+    }
+    
+    function buildCpbItemFromLink(link) {
+        const href = link.getAttribute('href') || '';
+        const urlMatch = href.match(/\/business\/product-(\d+)-design-(\d+)/);
+        if (!urlMatch) return null;
+        
+        return {
+            product_id: urlMatch[1],
+            design_id: urlMatch[2],
+            option_id: urlMatch[1],
+            category_id: undefined,
+            default_overlay_id: undefined
+        };
+    }
+    
+    function isCpbBadgePage() {
+        return isCpbProductListPage() || isCpbProductDetailPage();
+    }
+    
+    function getCpbBadgeProductLinks() {
+        if (isCpbProductDetailPage()) {
+            const recommendSection = getCpbRecommendationSection();
+            const root = recommendSection || document;
+            return Array.from(root.querySelectorAll('a[href*="/business/product-"]'))
+                .filter(link => !isCurrentCpbProductLink(link.getAttribute('href')));
+        }
+        
+        return Array.from(document.querySelectorAll('a[href*="/business/product-"]'));
+    }
+    
+    function buildCpbBadgeContent(item, options = {}) {
         const categoryId = item.category_id !== undefined && item.category_id !== null ? item.category_id : 'N/A';
         const designId = item.design_id !== undefined && item.design_id !== null ? item.design_id : 'N/A';
         const overlayId = item.default_overlay_id !== undefined && item.default_overlay_id !== null ? item.default_overlay_id : 'N/A';
         const optionId = item.option_id !== undefined && item.option_id !== null ? item.option_id : 'N/A';
-        return `CategoryID: ${categoryId}\nDesignID: ${designId}\nOverlayID: ${overlayId}\nOptionID: ${optionId}`;
+        
+        const lines = [];
+        if (!options.isRecommendation) {
+            lines.push(`CategoryID: ${categoryId}`);
+        }
+        lines.push(`DesignID: ${designId}`);
+        if (!options.isRecommendation) {
+            lines.push(`OverlayID: ${overlayId}`);
+        }
+        lines.push(`OptionID: ${optionId}`);
+        return lines.join('\n');
     }
     
     function findCpbProductItemForLink(link, productItems) {
@@ -2235,8 +2356,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         }
     }
     
-    async function displayCpbProductIdsOnListPage() {
-        if (!isCpbProductListPage()) {
+    function resolveCpbBadgeItem(link, productItems) {
+        if (productItems && productItems.length > 0) {
+            const matched = findCpbProductItemForLink(link, productItems);
+            if (matched) return matched;
+        }
+        return buildCpbItemFromLink(link);
+    }
+    
+    async function displayCpbProductBadges() {
+        if (!isCpbBadgePage()) {
             return;
         }
         
@@ -2246,14 +2375,20 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             return;
         }
         
-        const productItems = findProductItemsArray();
-        if (!productItems || productItems.length === 0) {
-            console.log('CPB PLP: PRODUCT_ITEMS not found yet');
+        const productItems = findCpbBadgeProductItems();
+        const productLinks = getCpbBadgeProductLinks();
+        
+        if (productLinks.length === 0) {
+            console.log('CPB badges: no product links found');
             return;
         }
         
+        if (!productItems || productItems.length === 0) {
+            console.log('CPB badges: PRODUCT_ITEMS not found, using URL fallback where possible');
+        }
+        
+        const isRecommendationBadge = isCpbProductDetailPage();
         const processedProducts = new Set();
-        const productLinks = document.querySelectorAll('a[href*="/business/product-"]');
         
         productLinks.forEach(link => {
             const href = link.getAttribute('href');
@@ -2270,23 +2405,93 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 return;
             }
             
-            const item = findCpbProductItemForLink(link, productItems);
+            const item = resolveCpbBadgeItem(link, productItems);
             if (!item) return;
             
             processedProducts.add(productKey);
-            const badge = createListPageProductBadge(buildCpbBadgeContent(item), badgeEnabled);
+            const badge = createListPageProductBadge(
+                buildCpbBadgeContent(item, { isRecommendation: isRecommendationBadge }),
+                badgeEnabled
+            );
             attachBadgeToProductContainer(productContainer, link, badge);
         });
         
-        console.log(`CPB PLP: processed ${processedProducts.size} product badges`);
+        const pageType = isCpbProductDetailPage() ? 'PDP recommendations' : 'PLP';
+        console.log(`CPB ${pageType}: processed ${processedProducts.size} product badges`);
+    }
+    
+    async function displayCpbProductIdsOnListPage() {
+        return displayCpbProductBadges();
+    }
+    
+    // CPB product detail page (e.g. /business/product-12001-design-548950)
+    function isCpbProductDetailPage() {
+        return /\/business\/product-\d+-design-\d+/.test(window.location.href);
+    }
+    
+    function formatProductInfoField(value) {
+        if (value === undefined || value === null) return 'Not found';
+        return value === '' ? 'N/A' : String(value);
+    }
+    
+    function extractCpbProductInfoFromOptions(fullObject) {
+        if (!fullObject) return null;
+        
+        const defaultDesign = fullObject.default_design || {};
+        const defaultSku = fullObject.default_sku || {};
+        
+        return {
+            category_id: fullObject.category_id,
+            design_id: defaultDesign.id ?? fullObject.design_id,
+            product_id: fullObject.product_id,
+            option_id: fullObject.option_id ?? fullObject.default_option_id ?? defaultSku.option_id,
+            product_type_id: fullObject.product_type_id,
+            design_sku: defaultDesign.design_sku,
+            design_group_id: defaultDesign.design_group_id
+        };
+    }
+    
+    function buildCpbProductInfoHtml(result) {
+        let html = `
+            <div id="floating-product-info-card" style="
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                overflow: hidden;
+                margin-bottom: 10px;
+                padding: 10px 15px;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            ">
+                <div style="
+                    font-size: 14px;
+                    font-weight: bold;
+                    margin-bottom: 8px;
+                    color: #ffeb3b;
+                    text-align: left;
+                ">Product Info</div>
+        `;
+        
+        const cpbInfo = extractCpbProductInfoFromOptions(result.productsData?.full_object);
+        
+        html += createInfoItem('Category ID:', formatProductInfoField(cpbInfo?.category_id ?? result.productsData?.category_id));
+        html += createInfoItem('Design ID:', formatProductInfoField(cpbInfo?.design_id ?? result.designId));
+        html += createInfoItem('Product ID:', formatProductInfoField(cpbInfo?.product_id ?? result.cpProductId));
+        html += createInfoItem('Option ID:', formatProductInfoField(cpbInfo?.option_id));
+        html += createInfoItem('Product Type ID:', formatProductInfoField(cpbInfo?.product_type_id));
+        html += createInfoItem('Design SKU:', formatProductInfoField(cpbInfo?.design_sku));
+        html += createInfoItem('Design Group ID:', formatProductInfoField(cpbInfo?.design_group_id));
+        html += createInfoItem('Site ID:', CONFIG.getSiteId('CPB'));
+        
+        html += `</div>`;
+        return html;
     }
     
     // Function to check if we're on a product detail page
     function isProductDetailPage() {
         const currentUrl = window.location.href;
-        // Product detail page: URL contains /+xxx,yyy where yyy is a number (productId)
-        // Example: https://cafepress.com/+fal_mens_value_t_shirt,3001160587
-        return /\/\+[^,]*,\d+/.test(currentUrl);
+        // CP product detail: /+xxx,yyy
+        // CPB product detail: /business/product-{productId}-design-{designId}
+        return /\/\+[^,]*,\d+/.test(currentUrl) || isCpbProductDetailPage();
     }
     
     let lastDefaultSkuFingerprint = null;
@@ -3784,13 +3989,13 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     // Initial call and observe for dynamic content
     function initProductListDisplay() {
-        const shouldShowListBadges = isProductListPage() || isCpbProductListPage();
+        const shouldShowListBadges = isProductListPage() || isCpbBadgePage();
         
         // Initial check
         if (shouldShowListBadges) {
             setTimeout(() => {
                 displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
-                displayCpbProductIdsOnListPage().catch(err => console.error('Error displaying CPB product IDs:', err));
+                displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
                 displayCategoryFilterIds(); // Also display category filter IDs
             }, 1000);
             
@@ -3799,23 +4004,24 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 window.addEventListener('load', () => {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
-                        displayCpbProductIdsOnListPage().catch(err => console.error('Error displaying CPB product IDs:', err));
+                        displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
                         displayCategoryFilterIds();
                     }, 500);
                 }, { once: true });
             }
             
-            // Retry CPB badges while PRODUCT_ITEMS loads asynchronously
-            [2000, 4000, 6000].forEach(delay => {
+            // Retry CPB badges while PRODUCT_ITEMS / recommendations load asynchronously
+            const cpbRetryDelays = isCpbProductDetailPage() ? [2000, 4000, 6000, 8000, 10000, 15000] : [2000, 4000, 6000];
+            cpbRetryDelays.forEach(delay => {
                 setTimeout(() => {
-                    displayCpbProductIdsOnListPage().catch(err => console.error('Error displaying CPB product IDs:', err));
+                    displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
                 }, delay);
             });
         }
         
         // Observe DOM changes for dynamically loaded products
         const observer = new MutationObserver((mutations) => {
-            if (isProductListPage() || isCpbProductListPage()) {
+            if (isProductListPage() || isCpbBadgePage()) {
                 let shouldUpdate = false;
                 mutations.forEach((mutation) => {
                     mutation.addedNodes.forEach((node) => {
@@ -3825,6 +4031,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 node.querySelectorAll('a[href*="/+"]').length > 0 ||
                                 node.querySelectorAll('a[href*="/business/product-"]').length > 0
                             )) {
+                                shouldUpdate = true;
+                            }
+                            if (node.textContent && /you may also like/i.test(node.textContent)) {
                                 shouldUpdate = true;
                             }
                             // Also check if the node itself is a product link
@@ -3841,7 +4050,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 if (shouldUpdate) {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
-                        displayCpbProductIdsOnListPage().catch(err => console.error('Error displaying CPB product IDs:', err));
+                        displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
                         displayCategoryFilterIds();
                     }, 300);
                 }
@@ -3859,10 +4068,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const currentUrl = window.location.href;
             if (currentUrl !== lastUrl) {
                 lastUrl = currentUrl;
-                if (isProductListPage() || isCpbProductListPage()) {
+                if (isProductListPage() || isCpbBadgePage()) {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
-                        displayCpbProductIdsOnListPage().catch(err => console.error('Error displaying CPB product IDs:', err));
+                        displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
                         displayCategoryFilterIds();
                     }, 500);
                 }
@@ -4952,10 +5161,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 updateBadgeVisibility(enabled);
                 console.log('Badge display setting saved:', enabled);
                 // Also trigger a refresh of product list display if on product list page
-                if (isProductListPage() || isCpbProductListPage()) {
+                if (isProductListPage() || isCpbBadgePage()) {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error refreshing badges:', err));
-                        displayCpbProductIdsOnListPage().catch(err => console.error('Error refreshing CPB badges:', err));
+                        displayCpbProductBadges().catch(err => console.error('Error refreshing CPB badges:', err));
                     }, 100);
                 }
             });
@@ -5348,18 +5557,27 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             // 3. /mf/{designId}/xxx?fromProductId={productId} - e.g. /mf/80826596/large-puzzle?fromProductId=538485120
             // 4. /designer/xxx - e.g. /designer/custom-mens-classic-t-shirts?attr2=8915 (CYO - Create Your Own)
             // 5. /shopdetail/{storeName}.{productId} - e.g. /shopdetail/521shop.103000002960?attr2=8915 (Seller Store Product)
+            // 6. /business/product-{productId}-design-{designId} - CPB product detail page
+            const isCpbPdp = isCpbProductDetailPage();
             const isProductPage = currentUrl.match(/\/\+[^/]*,\d+/) !== null || 
                                   currentUrl.match(/\/mf\/\d+\/[^?]*\?productId=\d+/) !== null ||
                                   currentUrl.match(/\/mf\/\d+\/[^?]*\?fromProductId=\d+/) !== null ||
                                   currentUrl.match(/\/designer\/[^/]+/) !== null ||
-                                  currentUrl.match(/\/shopdetail\/[^/]+\.\d+/) !== null;
+                                  currentUrl.match(/\/shopdetail\/[^/]+\.\d+/) !== null ||
+                                  isCpbPdp;
             
             // Check if we have valid product data (not just "Not found")
             const hasValidProductData = isProductPage && result && (
-                (result.designerName && result.designerName !== 'Not found') ||
-                (result.designId && result.designId !== 'Not found') ||
-                (result.cpProductId && result.cpProductId !== 'Not found') ||
-                (result.productsData && Object.keys(result.productsData).length > 0)
+                isCpbPdp ? (
+                    (result.productsData && result.productsData.full_object) ||
+                    result.designId ||
+                    result.cpProductId
+                ) : (
+                    (result.designerName && result.designerName !== 'Not found') ||
+                    (result.designId && result.designId !== 'Not found') ||
+                    (result.cpProductId && result.cpProductId !== 'Not found') ||
+                    (result.productsData && Object.keys(result.productsData).length > 0)
+                )
             );
             
             console.log('🔍 Checking if should display Product Info card:');
@@ -5381,6 +5599,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             html += createSearchPanel();
             
             if (hasValidProductData) {
+                if (isCpbPdp) {
+                    productInfoHtml += buildCpbProductInfoHtml(result);
+                } else {
                 // Start product info card
                 productInfoHtml += `
                     <div id="floating-product-info-card" style="
@@ -5626,6 +5847,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 
                 // Close product info card
                 productInfoHtml += `</div>`;
+                }
                 
             } else {
                 // No valid product data - don't show Product Info card or environment switcher
