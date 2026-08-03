@@ -2033,6 +2033,28 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         if (isCpbProductDetailPage()) return false;
         return /\/\+[^,]*,\d+/.test(window.location.href);
     }
+
+    function isExcludedProductBadgeLink(link) {
+        if (!link) return true;
+        if (link.closest('.thumbs-search-banner-wrapper')) return true;
+        if (link.classList.contains('thumbs-search-banner-link')) return true;
+        if (link.closest('.cpb-search-carousel')) return true;
+
+        const href = link.getAttribute('href') || '';
+        if (link.closest('.container-designs') && /\/business\/product-\d+-design-\d+/.test(href)) {
+            return true;
+        }
+        return false;
+    }
+
+    function removeExcludedProductBadges() {
+        document.querySelectorAll('.thumbs-search-banner-wrapper .cp-product-id-badge').forEach(badge => badge.remove());
+        document.querySelectorAll('.cpb-search-carousel .cp-product-id-badge').forEach(badge => badge.remove());
+        document.querySelectorAll('.container-designs a[href*="/business/product-"]').forEach(link => {
+            const container = link.closest('.design-item-wrapper, .product-item-card, [class*="product"], [class*="item"], [class*="card"]');
+            container?.querySelectorAll('.cp-product-id-badge').forEach(badge => badge.remove());
+        });
+    }
     
     function getBestsellersSection() {
         const directSection = document.querySelector(
@@ -2443,20 +2465,21 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     }
     
     function buildCpbBadgeContent(item, options = {}) {
-        const categoryId = item.category_id !== undefined && item.category_id !== null ? item.category_id : 'N/A';
-        const designId = item.design_id !== undefined && item.design_id !== null ? item.design_id : 'N/A';
-        const overlayId = item.default_overlay_id !== undefined && item.default_overlay_id !== null ? item.default_overlay_id : 'N/A';
-        const optionId = item.option_id !== undefined && item.option_id !== null ? item.option_id : 'N/A';
-        
         const lines = [];
+        const addLine = (label, value) => {
+            if (value !== undefined && value !== null && value !== '') {
+                lines.push(`${label}: ${value}`);
+            }
+        };
+
         if (!options.isRecommendation) {
-            lines.push(`CategoryID: ${categoryId}`);
+            addLine('CategoryID', item.category_id);
         }
-        lines.push(`DesignID: ${designId}`);
+        addLine('DesignID', item.design_id);
         if (!options.isRecommendation) {
-            lines.push(`OverlayID: ${overlayId}`);
+            addLine('OverlayID', item.default_overlay_id);
         }
-        lines.push(`OptionID: ${optionId}`);
+        addLine('OptionID', item.option_id);
         return lines.join('\n');
     }
     
@@ -2650,7 +2673,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         
         productLinks.forEach(link => {
             const href = link.getAttribute('href');
-            if (!href) return;
+            if (!href || isExcludedProductBadgeLink(link)) return;
             
             const productContainer = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"], [class*="tile"]') || link.parentElement;
             if (!productContainer) return;
@@ -2665,10 +2688,13 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             
             const item = resolveCpbBadgeItem(link, productItems);
             if (!item) return;
+
+            const badgeContent = buildCpbBadgeContent(item, { isRecommendation: isRecommendationBadge });
+            if (!badgeContent) return;
             
             processedProducts.add(productKey);
             const badge = createListPageProductBadge(
-                buildCpbBadgeContent(item, { isRecommendation: isRecommendationBadge }),
+                badgeContent,
                 badgeEnabled
             );
             attachBadgeToProductContainer(productContainer, link, badge);
@@ -3190,6 +3216,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         }
 
         resetCpBadgeCachesIfUrlChanged();
+        removeExcludedProductBadges();
         
         // Check if badge display is enabled
         const badgeEnabled = await isBadgeDisplayEnabled();
@@ -3253,6 +3280,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         const filteredProductLinks = Array.from(productLinks).filter(link => {
             const href = link.getAttribute('href');
             if (!href) return false;
+            if (isExcludedProductBadgeLink(link)) return false;
             // Exclude non-product pages
             if (href.includes('/make/design-your-own') || href.includes('/make/design-your-own/')) {
                 return false;
@@ -3265,6 +3293,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         const makePageLinks = searchRoot.querySelectorAll('.product-item a, .product-card a, [class*="product"] a, [class*="item"] a');
         const allLinks = new Set([...filteredProductLinks]);
         makePageLinks.forEach(link => {
+            if (isExcludedProductBadgeLink(link)) return;
             const href = link.getAttribute('href');
             if (href && (href.includes('/+') || href.includes('/designer/') || href.includes('/make/'))) {
                 // Exclude non-product pages
@@ -3315,7 +3344,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         
         finalProductLinks.forEach((link, index) => {
             const href = link.getAttribute('href');
-            if (!href) return;
+            if (!href || isExcludedProductBadgeLink(link)) return;
             
             // Create unique identifier for this product
             const productContainer = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"]');
@@ -3461,6 +3490,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     // Helper function to process a single product link
     async function processProductLink(link) {
+        if (isExcludedProductBadgeLink(link)) {
+            return;
+        }
+
         // Find product container first
         const productContainer = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"]');
         
