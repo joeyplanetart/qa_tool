@@ -2730,7 +2730,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             product_id: fullObject.product_id,
             option_id: fullObject.option_id ?? fullObject.default_option_id ?? defaultSku.option_id,
             product_type_id: fullObject.product_type_id,
-            design_sku: defaultDesign.design_sku,
+            sku_id: defaultSku.sku_id,
             design_group_id: defaultDesign.design_group_id
         };
     }
@@ -2762,7 +2762,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         html += createInfoItem('Product ID:', formatProductInfoField(cpbInfo?.product_id ?? result.cpProductId));
         html += createInfoItem('Option ID:', formatProductInfoField(cpbInfo?.option_id));
         html += createInfoItem('Product Type ID:', formatProductInfoField(cpbInfo?.product_type_id));
-        html += createInfoItem('Design SKU:', formatProductInfoField(cpbInfo?.design_sku));
+        html += createInfoItem('sku_id:', formatProductInfoField(cpbInfo?.sku_id));
         html += createInfoItem('Design Group ID:', formatProductInfoField(cpbInfo?.design_group_id));
         html += createInfoItem('Site ID:', CONFIG.getSiteId('CPB'));
         
