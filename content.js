@@ -226,10 +226,12 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         }
         
         // Extract CPB product ID and design ID from URL
-        const cpbUrlMatch = currentUrl.match(/\/business\/product-(\d+)-design-(\d+)/);
-        if (cpbUrlMatch) {
-            extractedData.cpProductId = cpbUrlMatch[1];
-            extractedData.designId = cpbUrlMatch[2];
+        const cpbParsed = parseCpbProductUrl(currentUrl);
+        if (cpbParsed) {
+            extractedData.cpProductId = cpbParsed.productId;
+            if (cpbParsed.designId) {
+                extractedData.designId = cpbParsed.designId;
+            }
             console.log('Extracted CPB Product ID from URL:', extractedData.cpProductId);
             console.log('Extracted CPB Design ID from URL:', extractedData.designId);
         }
@@ -2284,13 +2286,38 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     }
     
     // CPB product list page (e.g. /business/bags/tote-bags)
+    function parseCpbProductUrl(url) {
+        const urlToParse = url || window.location.href;
+        try {
+            const parsed = new URL(urlToParse, window.location.origin);
+            const pathname = parsed.pathname;
+            const search = parsed.search;
+            
+            const designInPath = pathname.match(/^\/business\/product-(\d+)-design-(\d+)\/?$/);
+            if (designInPath) {
+                return { productId: designInPath[1], designId: designInPath[2] };
+            }
+            
+            const productOnly = pathname.match(/^\/business\/product-(\d+)\/?$/);
+            if (productOnly) {
+                const didMatch = search.match(/[?&]did=(\d+)/);
+                return {
+                    productId: productOnly[1],
+                    designId: didMatch ? didMatch[1] : null
+                };
+            }
+        } catch (e) {
+            return null;
+        }
+        return null;
+    }
+    
     function isCpbProductListPage() {
         const currentUrl = window.location.href;
         const isCpbSite = /\/business(\/|$|\?)/.test(currentUrl) ||
             /cpbus-[^.]+\.(pre|stage)\.planetart\.com/.test(window.location.hostname);
         if (!isCpbSite) return false;
-        // Exclude CPB product detail pages
-        return !/\/business\/product-\d+-design-\d+/.test(currentUrl);
+        return !isCpbProductDetailPage();
     }
     
     function findProductItemsArray() {
@@ -2437,13 +2464,13 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     function buildCpbItemFromLink(link) {
         const href = link.getAttribute('href') || '';
-        const urlMatch = href.match(/\/business\/product-(\d+)-design-(\d+)/);
-        if (!urlMatch) return null;
+        const parsed = parseCpbProductUrl(href);
+        if (!parsed) return null;
         
         return {
-            product_id: urlMatch[1],
-            design_id: urlMatch[2],
-            option_id: urlMatch[1],
+            product_id: parsed.productId,
+            design_id: parsed.designId,
+            option_id: parsed.productId,
             category_id: undefined,
             default_overlay_id: undefined
         };
@@ -2486,12 +2513,14 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     function findCpbProductItemForLink(link, productItems) {
         const href = link.getAttribute('href') || '';
         
-        const urlMatch = href.match(/\/business\/product-(\d+)-design-(\d+)/);
-        if (urlMatch) {
-            const productId = urlMatch[1];
-            const designId = urlMatch[2];
-            const byDesign = productItems.find(item => String(item.design_id) === designId);
-            if (byDesign) return byDesign;
+        const parsed = parseCpbProductUrl(href);
+        if (parsed) {
+            const productId = parsed.productId;
+            const designId = parsed.designId;
+            if (designId) {
+                const byDesign = productItems.find(item => String(item.design_id) === designId);
+                if (byDesign) return byDesign;
+            }
             const byProduct = productItems.find(item =>
                 String(item.product_id) === productId || String(item.option_id) === productId
             );
@@ -2708,9 +2737,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         return displayCpbProductBadges();
     }
     
-    // CPB product detail page (e.g. /business/product-12001-design-548950)
+    // CPB product detail page (e.g. /business/product-12001-design-548950 or /business/product-3159?did=503620)
     function isCpbProductDetailPage() {
-        return /\/business\/product-\d+-design-\d+/.test(window.location.href);
+        return parseCpbProductUrl() !== null;
     }
     
     function formatProductInfoField(value) {
@@ -2774,7 +2803,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     function isProductDetailPage() {
         const currentUrl = window.location.href;
         // CP product detail: /+xxx,yyy
-        // CPB product detail: /business/product-{productId}-design-{designId}
+        // CPB product detail: /business/product-{productId}-design-{designId} or /business/product-{productId}?did={designId}
         return /\/\+[^,]*,\d+/.test(currentUrl) || isCpbProductDetailPage();
     }
     
@@ -5927,7 +5956,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             // 3. /mf/{designId}/xxx?fromProductId={productId} - e.g. /mf/80826596/large-puzzle?fromProductId=538485120
             // 4. /designer/xxx - e.g. /designer/custom-mens-classic-t-shirts?attr2=8915 (CYO - Create Your Own)
             // 5. /shopdetail/{storeName}.{productId} - e.g. /shopdetail/521shop.103000002960?attr2=8915 (Seller Store Product)
-            // 6. /business/product-{productId}-design-{designId} - CPB product detail page
+            // 6. /business/product-{productId}-design-{designId} or /business/product-{productId}?did={designId} - CPB product detail page
             const isCpbPdp = isCpbProductDetailPage();
             const isProductPage = currentUrl.match(/\/\+[^/]*,\d+/) !== null || 
                                   currentUrl.match(/\/mf\/\d+\/[^?]*\?productId=\d+/) !== null ||
