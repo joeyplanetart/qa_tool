@@ -2014,6 +2014,11 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     }
     
     // CP homepage (e.g. https://www.cafepress.com/)
+    function isCartPage() {
+        const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
+        return path === '/cart' || path === '/business/cart';
+    }
+    
     function isCpHomePage() {
         const path = window.location.pathname;
         const isRootPath = path === '/' || path === '';
@@ -2028,6 +2033,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     }
     
     function isCpProductBadgePage() {
+        if (isCartPage()) return false;
         return isProductListPage() || isCpHomePage() || isCpProductDetailPage();
     }
 
@@ -2056,6 +2062,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const container = link.closest('.design-item-wrapper, .product-item-card, [class*="product"], [class*="item"], [class*="card"]');
             container?.querySelectorAll('.cp-product-id-badge').forEach(badge => badge.remove());
         });
+    }
+    
+    function removeAllProductBadges() {
+        document.querySelectorAll('.cp-product-id-badge').forEach(badge => badge.remove());
     }
     
     function getBestsellersSection() {
@@ -2477,6 +2487,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     }
     
     function isCpbBadgePage() {
+        if (isCartPage()) return false;
         return isCpbProductListPage() || isCpbProductDetailPage();
     }
     
@@ -2675,6 +2686,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     }
     
     async function displayCpbProductBadges() {
+        if (isCartPage()) {
+            removeAllProductBadges();
+            return;
+        }
         if (!isCpbBadgePage()) {
             return;
         }
@@ -3240,6 +3255,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     // Function to display product IDs on product list page
     async function displayProductIdsOnListPage() {
+        if (isCartPage()) {
+            removeAllProductBadges();
+            return;
+        }
         if (!isCpProductBadgePage()) {
             return;
         }
@@ -4352,6 +4371,11 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     // Initial call and observe for dynamic content
     function initProductListDisplay() {
+        if (isCartPage()) {
+            removeAllProductBadges();
+            return;
+        }
+        
         const shouldShowListBadges = isCpProductBadgePage() || isCpbBadgePage();
         
         // Initial check
@@ -4402,6 +4426,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         
         // Observe DOM changes for dynamically loaded products
         const observer = new MutationObserver((mutations) => {
+            if (isCartPage()) {
+                removeAllProductBadges();
+                return;
+            }
             if (isCpProductBadgePage() || isCpbBadgePage()) {
                 let shouldUpdate = false;
                 mutations.forEach((mutation) => {
@@ -4467,6 +4495,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const currentUrl = window.location.href;
             if (currentUrl !== lastUrl) {
                 lastUrl = currentUrl;
+                if (isCartPage()) {
+                    removeAllProductBadges();
+                    return;
+                }
                 if (isCpProductBadgePage() || isCpbBadgePage()) {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
