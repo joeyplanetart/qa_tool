@@ -2042,6 +2042,15 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         return /\/\+[^,]*,\d+/.test(window.location.href);
     }
 
+    function isCpbYmalSection(element) {
+        if (!element) return false;
+        return !!element.closest('.js-product-details-ymal-area, .js-product-details-ymal, .product-details-ymal, .product-details-suggest-area');
+    }
+
+    function getCpbYmalBadgeSection() {
+        return getCpPdpBadgeSectionByTitle(/you may also like/i) || getCpbRecommendationSection();
+    }
+
     function isExcludedProductBadgeLink(link) {
         if (!link) return true;
         if (link.closest('.thumbs-search-banner-wrapper')) return true;
@@ -2049,7 +2058,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         if (link.closest('.cpb-search-carousel')) return true;
 
         const href = link.getAttribute('href') || '';
-        if (link.closest('.container-designs') && /\/business\/product-\d+-design-\d+/.test(href)) {
+        if (link.closest('.container-designs') &&
+            !isCpbYmalSection(link) &&
+            /\/business\/product-\d+-design-\d+/.test(href)) {
             return true;
         }
         return false;
@@ -2059,6 +2070,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         document.querySelectorAll('.thumbs-search-banner-wrapper .cp-product-id-badge').forEach(badge => badge.remove());
         document.querySelectorAll('.cpb-search-carousel .cp-product-id-badge').forEach(badge => badge.remove());
         document.querySelectorAll('.container-designs a[href*="/business/product-"]').forEach(link => {
+            if (isCpbYmalSection(link)) return;
             const container = link.closest('.design-item-wrapper, .product-item-card, [class*="product"], [class*="item"], [class*="card"]');
             container?.querySelectorAll('.cp-product-id-badge').forEach(badge => badge.remove());
         });
@@ -2401,6 +2413,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     }
     
     function findCpbBadgeProductItems() {
+        if (isCpbProductDetailPage()) {
+            const ymalSection = getCpbYmalBadgeSection();
+            if (ymalSection) {
+                const ymalItems = findCpPdpSectionProductItems(ymalSection);
+                if (ymalItems && ymalItems.length > 0) {
+                    return ymalItems;
+                }
+            }
+        }
+
         const primaryItems = findProductItemsArray();
         if (primaryItems && primaryItems.length > 0) {
             return primaryItems;
@@ -2493,13 +2515,15 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     function getCpbBadgeProductLinks() {
         if (isCpbProductDetailPage()) {
-            const recommendSection = getCpbRecommendationSection();
+            const recommendSection = getCpbYmalBadgeSection();
             const root = recommendSection || document;
             return Array.from(root.querySelectorAll('a[href*="/business/product-"]'))
+                .filter(link => !isExcludedProductBadgeLink(link))
                 .filter(link => !isCurrentCpbProductLink(link.getAttribute('href')));
         }
         
-        return Array.from(document.querySelectorAll('a[href*="/business/product-"]'));
+        return Array.from(document.querySelectorAll('a[href*="/business/product-"]'))
+            .filter(link => !isExcludedProductBadgeLink(link));
     }
     
     function buildCpbBadgeContent(item, options = {}) {
