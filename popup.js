@@ -413,19 +413,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             vendorIdDisplay.innerHTML = `<span class="label">Vendor ID:</span><span class="value">${vendorId}</span>`;
             
-            // Seller ID (Customer ID) - from product_design_objects[designId]
+            // Seller ID (Customer ID) - from default_design, fallback to product_design_objects[designId]
             let sellerId = 'Not found';
             
-            if (data.productsData && 
-                data.productsData.full_object && 
-                data.productsData.full_object.product_design_objects && 
-                data.designId) {
+            if (data.productsData && data.productsData.full_object) {
+                const fullObject = data.productsData.full_object;
                 
-                const designObjects = data.productsData.full_object.product_design_objects;
-                if (designObjects[data.designId] && designObjects[data.designId].seller_id !== undefined) {
-                    sellerId = (designObjects[data.designId].seller_id !== null) ? 
-                              designObjects[data.designId].seller_id : 'N/A';
-                    console.log('POPUP: ✅ Found Seller ID from product_design_objects[' + data.designId + ']:', sellerId);
+                if (fullObject.default_design && fullObject.default_design.seller_id !== undefined) {
+                    sellerId = (fullObject.default_design.seller_id !== null) ?
+                              fullObject.default_design.seller_id : 'N/A';
+                    console.log('POPUP: ✅ Found Seller ID from default_design:', sellerId);
+                } else if (fullObject.product_design_objects && data.designId) {
+                    const designObjects = fullObject.product_design_objects;
+                    if (designObjects[data.designId] && designObjects[data.designId].seller_id !== undefined) {
+                        sellerId = (designObjects[data.designId].seller_id !== null) ?
+                                  designObjects[data.designId].seller_id : 'N/A';
+                        console.log('POPUP: ✅ Found Seller ID from product_design_objects[' + data.designId + ']:', sellerId);
+                    }
                 }
             }
             
@@ -439,19 +443,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             sellerIdDisplay.innerHTML = `<span class="label">Seller ID (Customer ID):</span><span class="value">${sellerId}</span>`;
             
-            // Store ID - from product_design_objects[designId]
+            // Store ID - from default_design, fallback to product_design_objects[designId]
             let storeId = 'Not found';
             
-            if (data.productsData && 
-                data.productsData.full_object && 
-                data.productsData.full_object.product_design_objects && 
-                data.designId) {
+            if (data.productsData && data.productsData.full_object) {
+                const fullObject = data.productsData.full_object;
                 
-                const designObjects = data.productsData.full_object.product_design_objects;
-                if (designObjects[data.designId] && designObjects[data.designId].store_id !== undefined) {
-                    storeId = (designObjects[data.designId].store_id !== null) ? 
-                             designObjects[data.designId].store_id : 'N/A';
-                    console.log('POPUP: ✅ Found Store ID from product_design_objects[' + data.designId + ']:', storeId);
+                if (fullObject.default_design && fullObject.default_design.store_id !== undefined) {
+                    storeId = (fullObject.default_design.store_id !== null) ?
+                             fullObject.default_design.store_id : 'N/A';
+                    console.log('POPUP: ✅ Found Store ID from default_design:', storeId);
+                } else if (fullObject.product_design_objects && data.designId) {
+                    const designObjects = fullObject.product_design_objects;
+                    if (designObjects[data.designId] && designObjects[data.designId].store_id !== undefined) {
+                        storeId = (designObjects[data.designId].store_id !== null) ?
+                                 designObjects[data.designId].store_id : 'N/A';
+                        console.log('POPUP: ✅ Found Store ID from product_design_objects[' + data.designId + ']:', storeId);
+                    }
                 }
             }
             
