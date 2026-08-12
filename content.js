@@ -2078,6 +2078,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     function removeAllProductBadges() {
         document.querySelectorAll('.cp-product-id-badge').forEach(badge => badge.remove());
+        document.querySelectorAll('.cp-cpb-decoration-badge').forEach(badge => badge.remove());
     }
     
     function getBestsellersSection() {
@@ -2117,6 +2118,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     let cpHomeBestsellerProductItemsCache = null;
     let cpHomeBestsellerProductItemsPromise = null;
     let cpPdpRecommendationProductItemsCache = null;
+    let cpbDecorationLookupCache = null;
+    let cpbSimpleFilterItemsCache = null;
     let lastCpBadgePageUrl = '';
 
     function resetCpBadgeCachesIfUrlChanged() {
@@ -2125,6 +2128,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             lastCpBadgePageUrl = currentUrl;
             cpHomeBestsellerProductItemsCache = null;
             cpPdpRecommendationProductItemsCache = null;
+            cpbDecorationLookupCache = null;
+            cpbSimpleFilterItemsCache = null;
         }
     }
 
@@ -2341,6 +2346,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         if (!isCpbSite) return false;
         return !isCpbProductDetailPage();
     }
+
+    function isCpbSearchPage() {
+        return /\/business\/search(\/|\?|$)/.test(window.location.pathname + window.location.search);
+    }
     
     function findProductItemsArray() {
         try {
@@ -2411,6 +2420,247 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         }
         return null;
     }
+
+    function parseJsObjectAssignment(content, variableName) {
+        if (!content || !variableName) return null;
+
+        const markerIndex = content.indexOf(variableName);
+        if (markerIndex === -1) return null;
+
+        const assignIndex = content.indexOf('=', markerIndex);
+        if (assignIndex === -1) return null;
+
+        const objectStart = content.indexOf('{', assignIndex);
+        if (objectStart === -1) return null;
+
+        let depth = 0;
+        for (let i = objectStart; i < content.length; i++) {
+            const ch = content[i];
+            if (ch === '{') depth++;
+            else if (ch === '}') {
+                depth--;
+                if (depth === 0) {
+                    try {
+                        return JSON.parse(content.slice(objectStart, i + 1));
+                    } catch (e) {
+                        return null;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    function buildCpbSimpleFilterContextFromItems(items) {
+        const compactItems = [];
+        const decorationLookup = new Map();
+
+        if (!Array.isArray(items)) {
+            return { items: compactItems, lookup: decorationLookup };
+        }
+
+        items.forEach(item => {
+            if (!item || item.design_id === undefined || item.design_id === null) return;
+
+            const designId = String(item.design_id);
+            compactItems.push({
+                design_id: item.design_id,
+                product_id: item.product_id,
+                option_id: item.option_id,
+                category_id: item.category_id,
+                default_overlay_id: item.default_overlay_id,
+                detail_url: item.detail_url,
+                DECORATION: item.DECORATION
+            });
+
+            const dec = item.design_decoration;
+            const label = (dec && (dec.caption || dec.name || dec.group)) || item.DECORATION;
+            if (!label) return;
+
+            decorationLookup.set(designId, {
+                caption: dec?.caption || label,
+                name: dec?.name || label,
+                group: dec?.group || label,
+                icon_url_plp: dec?.icon_url_plp || '',
+                icon_url_pdp: dec?.icon_url_pdp || ''
+            });
+        });
+
+        return { items: compactItems, lookup: decorationLookup };
+    }
+
+    function loadCpbSimpleFilterContext() {
+        if (cpbSimpleFilterItemsCache && cpbDecorationLookupCache) {
+            return {
+                items: cpbSimpleFilterItemsCache,
+                lookup: cpbDecorationLookupCache
+            };
+        }
+
+        try {
+            const script = document.createElement('script');
+            script.textContent = `
+                (function() {
+                    try {
+                        const data = typeof SimpleFilterFullData !== 'undefined' ? SimpleFilterFullData :
+                            (typeof window.SimpleFilterFullData !== 'undefined' ? window.SimpleFilterFullData : null);
+                        if (!data || !Array.isArray(data.items) || data.items.length === 0) return;
+
+                        const decorationLookup = {};
+                        const compactItems = [];
+                        data.items.forEach(function(item) {
+                            if (!item || item.design_id === undefined || item.design_id === null) return;
+                            const designId = String(item.design_id);
+                            compactItems.push({
+                                design_id: item.design_id,
+                                product_id: item.product_id,
+                                option_id: item.option_id,
+                                category_id: item.category_id,
+                                default_overlay_id: item.default_overlay_id,
+                                detail_url: item.detail_url,
+                                DECORATION: item.DECORATION
+                            });
+
+                            const dec = item.design_decoration;
+                            const label = (dec && (dec.caption || dec.name || dec.group)) || item.DECORATION;
+                            if (!label) return;
+
+                            decorationLookup[designId] = {
+                                caption: (dec && dec.caption) || label,
+                                name: (dec && dec.name) || label,
+                                group: (dec && dec.group) || label,
+                                icon_url_plp: (dec && dec.icon_url_plp) || '',
+                                icon_url_pdp: (dec && dec.icon_url_pdp) || ''
+                            };
+                        });
+
+                        document.documentElement.setAttribute('data-cp-cpb-badge-items-compact', JSON.stringify(compactItems));
+                        document.documentElement.setAttribute('data-cp-cpb-decoration-lookup', JSON.stringify(decorationLookup));
+                    } catch (e) {}
+                })();
+            `;
+            document.documentElement.appendChild(script);
+            script.remove();
+
+            const compactItemsAttr = document.documentElement.getAttribute('data-cp-cpb-badge-items-compact');
+            const lookupAttr = document.documentElement.getAttribute('data-cp-cpb-decoration-lookup');
+            document.documentElement.removeAttribute('data-cp-cpb-badge-items-compact');
+            document.documentElement.removeAttribute('data-cp-cpb-decoration-lookup');
+
+            if (compactItemsAttr && lookupAttr) {
+                const items = JSON.parse(compactItemsAttr);
+                const lookupObject = JSON.parse(lookupAttr);
+                const lookup = new Map(Object.entries(lookupObject));
+                if (Array.isArray(items) && items.length > 0) {
+                    cpbSimpleFilterItemsCache = items;
+                    cpbDecorationLookupCache = lookup;
+                    return { items, lookup };
+                }
+            }
+        } catch (e) {
+            console.log('Error loading CPB SimpleFilterFullData via injection:', e);
+        }
+
+        try {
+            const scripts = document.querySelectorAll('script');
+            for (const scriptEl of scripts) {
+                const content = scriptEl.textContent || scriptEl.innerHTML;
+                if (!content || !content.includes('SimpleFilterFullData')) continue;
+
+                const parsed = parseJsObjectAssignment(content, 'SimpleFilterFullData');
+                if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+                    const built = buildCpbSimpleFilterContextFromItems(parsed.items);
+                    cpbSimpleFilterItemsCache = built.items;
+                    cpbDecorationLookupCache = built.lookup;
+                    return built;
+                }
+            }
+        } catch (e) {
+            console.log('Error parsing CPB SimpleFilterFullData from script tags:', e);
+        }
+
+        cpbSimpleFilterItemsCache = [];
+        cpbDecorationLookupCache = new Map();
+        return { items: cpbSimpleFilterItemsCache, lookup: cpbDecorationLookupCache };
+    }
+
+    function findCpbSimpleFilterItems() {
+        const context = loadCpbSimpleFilterContext();
+        return context.items.length > 0 ? context.items : null;
+    }
+
+    function findCpbDecorationLookup() {
+        const context = loadCpbSimpleFilterContext();
+        return context.lookup;
+    }
+
+    function enrichCpbBadgeItem(item) {
+        if (!item) return item;
+
+        const designId = item.design_id !== undefined && item.design_id !== null ? String(item.design_id) : '';
+        const decoration = designId ? findCpbDecorationLookup().get(designId) : null;
+
+        if (decoration) {
+            return { ...item, design_decoration: decoration };
+        }
+
+        if (item.design_decoration && typeof item.design_decoration === 'object') {
+            return item;
+        }
+
+        if (item.DECORATION) {
+            return {
+                ...item,
+                design_decoration: {
+                    caption: item.DECORATION,
+                    name: item.DECORATION,
+                    group: item.DECORATION
+                }
+            };
+        }
+
+        return item;
+    }
+
+    function resolveCpbDecorationIconUrl(decoration, label) {
+        const directUrl = decoration?.icon_url_plp || decoration?.icon_url_pdp;
+        if (directUrl) return directUrl;
+
+        const normalized = String(label || decoration?.name || decoration?.group || '').toLowerCase();
+        if (normalized.includes('embroid')) {
+            return 'https://d32u6scf3pzwp7.cloudfront.net/cpbus/images/icon/Icon-Embroider.png';
+        }
+        if (normalized.includes('print') || normalized.includes('dtf') || normalized.includes('dtg') ||
+            normalized.includes('full-color') || normalized.includes('digital')) {
+            return 'https://d32u6scf3pzwp7.cloudfront.net/cpbus/images/icon/CPB_Icon_Full_Color.png';
+        }
+
+        return null;
+    }
+
+    function getCpbDecorationInfo(item) {
+        const enriched = enrichCpbBadgeItem(item);
+        const decoration = enriched?.design_decoration;
+        if (decoration && typeof decoration === 'object') {
+            const label = decoration.caption || decoration.name || decoration.group || enriched.DECORATION;
+            if (label) {
+                return {
+                    label,
+                    iconUrl: resolveCpbDecorationIconUrl(decoration, label)
+                };
+            }
+        }
+
+        if (enriched?.DECORATION) {
+            return {
+                label: enriched.DECORATION,
+                iconUrl: resolveCpbDecorationIconUrl(null, enriched.DECORATION)
+            };
+        }
+
+        return null;
+    }
     
     function findCpbBadgeProductItems() {
         if (isCpbProductDetailPage()) {
@@ -2421,6 +2671,11 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     return ymalItems;
                 }
             }
+        }
+
+        const simpleFilterItems = findCpbSimpleFilterItems();
+        if (simpleFilterItems && simpleFilterItems.length > 0) {
+            return simpleFilterItems;
         }
 
         const primaryItems = findProductItemsArray();
@@ -2521,12 +2776,17 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 .filter(link => !isExcludedProductBadgeLink(link))
                 .filter(link => !isCurrentCpbProductLink(link.getAttribute('href')));
         }
+
+        const searchRoot = isCpbSearchPage()
+            ? (document.querySelector('.search-result-thumbs, .search-results') || document)
+            : document;
         
-        return Array.from(document.querySelectorAll('a[href*="/business/product-"]'))
+        return Array.from(searchRoot.querySelectorAll('a[href*="/business/product-"]'))
             .filter(link => !isExcludedProductBadgeLink(link));
     }
     
     function buildCpbBadgeContent(item, options = {}) {
+        const enrichedItem = enrichCpbBadgeItem(item);
         const lines = [];
         const addLine = (label, value) => {
             if (value !== undefined && value !== null && value !== '') {
@@ -2535,13 +2795,17 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         };
 
         if (!options.isRecommendation) {
-            addLine('CategoryID', item.category_id);
+            addLine('CategoryID', enrichedItem.category_id);
         }
-        addLine('DesignID', item.design_id);
+        addLine('DesignID', enrichedItem.design_id);
         if (!options.isRecommendation) {
-            addLine('OverlayID', item.default_overlay_id);
+            addLine('OverlayID', enrichedItem.default_overlay_id);
         }
-        addLine('OptionID', item.option_id);
+        addLine('OptionID', enrichedItem.option_id);
+        if (options.showDecoration) {
+            const decorationInfo = getCpbDecorationInfo(enrichedItem);
+            addLine('Decoration', decorationInfo?.label);
+        }
         return lines.join('\n');
     }
     
@@ -2566,9 +2830,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             item.detail_url && (href === item.detail_url || href.includes(item.detail_url))
         );
         if (byDetailUrl) return byDetailUrl;
+
+        const container = link.closest('.design-item-wrapper, .product-item, .product, [class*="product"], [class*="item"], [class*="card"], [class*="tile"]') || link;
+        const dataDesignId = container.getAttribute?.('data-id');
+        if (dataDesignId) {
+            const byDataId = productItems.find(item => String(item.design_id) === String(dataDesignId));
+            if (byDataId) return byDataId;
+        }
         
-        const container = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"], [class*="tile"]') || link;
-        const img = container.querySelector('img');
+        const containerForImg = container;
+        const img = containerForImg.querySelector('img');
         if (img) {
             const urlText = [
                 img.src,
@@ -2655,6 +2926,110 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         
         return badge;
     }
+
+    function createCpbDecorationBadge(decorationInfo, badgeEnabled) {
+        const badge = document.createElement('div');
+        badge.className = 'cp-cpb-decoration-badge';
+        badge.title = decorationInfo.label;
+
+        if (decorationInfo.iconUrl) {
+            const icon = document.createElement('img');
+            icon.className = 'cp-cpb-decoration-badge-icon';
+            icon.src = decorationInfo.iconUrl;
+            icon.alt = '';
+            icon.draggable = false;
+            icon.style.cssText = `
+                width: 16px;
+                height: 16px;
+                flex: 0 0 16px;
+                object-fit: contain;
+                display: block;
+            `;
+            badge.appendChild(icon);
+        }
+
+        const label = document.createElement('span');
+        label.className = 'cp-cpb-decoration-badge-label';
+        label.textContent = decorationInfo.label;
+        badge.appendChild(label);
+
+        badge.style.cssText = `
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            right: auto;
+            display: ${badgeEnabled ? 'inline-flex' : 'none'};
+            visibility: ${badgeEnabled ? 'visible' : 'hidden'};
+            align-items: center;
+            gap: 4px;
+            max-width: calc(100% - 10px);
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.92);
+            color: #333;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            font-size: 9px;
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            z-index: 1002;
+            pointer-events: none;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        `;
+        label.style.cssText = `
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        `;
+
+        return badge;
+    }
+
+    function attachCpbDecorationBadge(productContainer, link, badge) {
+        let imageContainer = null;
+        const productImage = productContainer.querySelector('img');
+
+        if (productImage) {
+            imageContainer = productImage.parentElement;
+            let ancestor = imageContainer;
+            while (ancestor && ancestor !== document.body) {
+                const ancestorStyle = window.getComputedStyle(ancestor);
+                if (ancestorStyle.position === 'relative' || ancestorStyle.position === 'absolute') {
+                    imageContainer = ancestor;
+                    break;
+                }
+                ancestor = ancestor.parentElement;
+            }
+
+            if (imageContainer) {
+                const containerStyle = window.getComputedStyle(imageContainer);
+                if (containerStyle.position === 'static') {
+                    imageContainer.style.position = 'relative';
+                }
+            }
+        } else {
+            imageContainer = productContainer;
+            const containerStyle = window.getComputedStyle(imageContainer);
+            if (containerStyle.position === 'static') {
+                imageContainer.style.position = 'relative';
+            }
+        }
+
+        if (imageContainer && !imageContainer.querySelector('.cp-cpb-decoration-badge')) {
+            imageContainer.appendChild(badge);
+        } else if (link && link.parentElement && !link.parentElement.querySelector('.cp-cpb-decoration-badge')) {
+            const parent = link.parentElement;
+            if (window.getComputedStyle(parent).position === 'static') {
+                parent.style.position = 'relative';
+            }
+            parent.appendChild(badge);
+        }
+    }
     
     function attachBadgeToProductContainer(productContainer, link, badge) {
         let imageContainer = null;
@@ -2702,11 +3077,14 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     }
     
     function resolveCpbBadgeItem(link, productItems) {
+        let item = null;
         if (productItems && productItems.length > 0) {
-            const matched = findCpbProductItemForLink(link, productItems);
-            if (matched) return matched;
+            item = findCpbProductItemForLink(link, productItems);
         }
-        return buildCpbItemFromLink(link);
+        if (!item) {
+            item = buildCpbItemFromLink(link);
+        }
+        return enrichCpbBadgeItem(item);
     }
     
     async function displayCpbProductBadges() {
@@ -2717,6 +3095,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         if (!isCpbBadgePage()) {
             return;
         }
+
+        resetCpBadgeCachesIfUrlChanged();
         
         const badgeEnabled = await isBadgeDisplayEnabled();
         if (!badgeEnabled) {
@@ -2737,35 +3117,45 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         }
         
         const isRecommendationBadge = isCpbProductDetailPage();
+        const showDecorationOnPlp = isCpbProductListPage();
         const processedProducts = new Set();
         
         productLinks.forEach(link => {
             const href = link.getAttribute('href');
             if (!href || isExcludedProductBadgeLink(link)) return;
             
-            const productContainer = link.closest('.product-item, .product, [class*="product"], [class*="item"], [class*="card"], [class*="tile"]') || link.parentElement;
+            const productContainer = link.closest('.design-item-wrapper, .product-item, .product, [class*="product"], [class*="item"], [class*="card"], [class*="tile"]') || link.parentElement;
             if (!productContainer) return;
             
             const productKey = `${href}-${Math.round(productContainer.getBoundingClientRect().top)}`;
             if (processedProducts.has(productKey)) return;
             
-            if (productContainer.querySelector('.cp-product-id-badge')) {
-                processedProducts.add(productKey);
-                return;
-            }
-            
             const item = resolveCpbBadgeItem(link, productItems);
             if (!item) return;
 
-            const badgeContent = buildCpbBadgeContent(item, { isRecommendation: isRecommendationBadge });
-            if (!badgeContent) return;
-            
+            const hasIdBadge = productContainer.querySelector('.cp-product-id-badge');
+            const hasDecorationBadge = productContainer.querySelector('.cp-cpb-decoration-badge');
+
+            if (!hasIdBadge) {
+                const badgeContent = buildCpbBadgeContent(item, {
+                    isRecommendation: isRecommendationBadge,
+                    showDecoration: showDecorationOnPlp
+                });
+                if (badgeContent) {
+                    const badge = createListPageProductBadge(badgeContent, badgeEnabled);
+                    attachBadgeToProductContainer(productContainer, link, badge);
+                }
+            }
+
+            if (showDecorationOnPlp && !hasDecorationBadge) {
+                const decorationInfo = getCpbDecorationInfo(item);
+                if (decorationInfo) {
+                    const decorationBadge = createCpbDecorationBadge(decorationInfo, badgeEnabled);
+                    attachCpbDecorationBadge(productContainer, link, decorationBadge);
+                }
+            }
+
             processedProducts.add(productKey);
-            const badge = createListPageProductBadge(
-                badgeContent,
-                badgeEnabled
-            );
-            attachBadgeToProductContainer(productContainer, link, badge);
         });
         
         const pageType = isCpbProductDetailPage() ? 'PDP recommendations' : 'PLP';
@@ -3050,10 +3440,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     // Function to update badge visibility based on settings
     function updateBadgeVisibility(enabled) {
-        const badges = document.querySelectorAll('.cp-product-id-badge');
+        const badges = document.querySelectorAll('.cp-product-id-badge, .cp-cpb-decoration-badge');
         badges.forEach(badge => {
             if (enabled) {
-                badge.style.display = 'block';
+                badge.style.display = badge.classList.contains('cp-cpb-decoration-badge') ? 'inline-flex' : 'block';
                 badge.style.visibility = 'visible';
             } else {
                 badge.style.display = 'none';
@@ -4440,7 +4830,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             }
             
             // Retry CPB badges while PRODUCT_ITEMS / recommendations load asynchronously
-            const cpbRetryDelays = isCpbProductDetailPage() ? [2000, 4000, 6000, 8000, 10000, 15000] : [2000, 4000, 6000];
+            const cpbRetryDelays = (isCpbProductDetailPage() || isCpbSearchPage())
+                ? [500, 1000, 2000, 4000, 6000, 8000, 10000, 15000]
+                : [2000, 4000, 6000];
             cpbRetryDelays.forEach(delay => {
                 setTimeout(() => {
                     displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
