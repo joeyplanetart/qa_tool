@@ -2802,10 +2802,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             addLine('OverlayID', enrichedItem.default_overlay_id);
         }
         addLine('OptionID', enrichedItem.option_id);
-        if (options.showDecoration) {
-            const decorationInfo = getCpbDecorationInfo(enrichedItem);
-            addLine('Decoration', decorationInfo?.label);
-        }
         return lines.join('\n');
     }
     
@@ -3138,8 +3134,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
 
             if (!hasIdBadge) {
                 const badgeContent = buildCpbBadgeContent(item, {
-                    isRecommendation: isRecommendationBadge,
-                    showDecoration: showDecorationOnPlp
+                    isRecommendation: isRecommendationBadge
                 });
                 if (badgeContent) {
                     const badge = createListPageProductBadge(badgeContent, badgeEnabled);
