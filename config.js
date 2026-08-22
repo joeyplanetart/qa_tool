@@ -763,6 +763,12 @@ const CONFIG = {
                 ]
             }
         ]
+    },
+
+    // Local knowledge base handbook path (override via chrome.storage.local.knowledgeBasePath)
+    KNOWLEDGE_BASE: {
+        DEFAULT_PATH: '/Users/joey/Joey_work/Knowledge base/planetart-pc-cpb-cp-handbook.html',
+        STORAGE_KEY: 'knowledgeBasePath'
     }
 };
 

@@ -8502,6 +8502,41 @@ ${address.cityStateZip}</div>
             const syncImageCard = content.querySelector('#sync-image-card');
             let isSyncImageToolOpen = false;
             let currentSyncSessionId = null;
+
+            function openKnowledgeBaseHandbook() {
+                const storageKey = CONFIG.KNOWLEDGE_BASE?.STORAGE_KEY || 'knowledgeBasePath';
+                const defaultPath = CONFIG.KNOWLEDGE_BASE?.DEFAULT_PATH || '';
+
+                chrome.storage.local.get([storageKey], (result) => {
+                    const filePath = result[storageKey] || defaultPath;
+                    if (!filePath) {
+                        alert('知识库路径未配置，请在 chrome.storage.local 中设置 knowledgeBasePath');
+                        return;
+                    }
+
+                    chrome.runtime.sendMessage({
+                        type: 'OPEN_KNOWLEDGE_BASE',
+                        filePath
+                    }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            alert('无法打开知识库：' + chrome.runtime.lastError.message);
+                            return;
+                        }
+                        if (!response?.success) {
+                            alert('无法打开知识库：' + (response?.error || '未知错误') + '\n\n请确认：\n1. 文件路径正确\n2. 在 chrome://extensions 中为该扩展开启「允许访问文件网址」');
+                        }
+                    });
+                });
+            }
+
+            const knowledgeBaseBtn = content.querySelector('#knowledge-base-btn');
+            if (knowledgeBaseBtn) {
+                knowledgeBaseBtn.addEventListener('click', () => {
+                    console.log('📚 Open Knowledge Base');
+                    openKnowledgeBaseHandbook();
+                });
+                console.log('✓ Knowledge Base button event listener added');
+            }
             
             // Generate unique session ID
             function generateSessionId() {
@@ -11493,6 +11528,33 @@ ${address.cityStateZip}</div>
                                 <polyline points="23 4 23 10 17 10"></polyline>
                                 <polyline points="1 20 1 14 7 14"></polyline>
                                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                        </div>
+
+                        <div 
+                            id="knowledge-base-btn"
+                            title="Knowledge Base"
+                            style="
+                                background: rgba(255, 235, 59, 0.2);
+                                color: #ffeb3b;
+                                border: 1px solid rgba(255, 235, 59, 0.4);
+                                padding: 8px;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                transition: all 0.2s ease;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                width: 32px;
+                                height: 32px;
+                            "
+                            onmouseover="this.style.background='rgba(255, 235, 59, 0.35)'; this.style.borderColor='rgba(255, 235, 59, 0.6)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)';"
+                            onmouseout="this.style.background='rgba(255, 235, 59, 0.2)'; this.style.borderColor='rgba(255, 235, 59, 0.4)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                             </svg>
                         </div>
                     </div>

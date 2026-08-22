@@ -909,6 +909,47 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return false;
         }
     }
+
+    if (request.type === 'OPEN_KNOWLEDGE_BASE') {
+        const filePath = request.filePath || CONFIG.KNOWLEDGE_BASE.DEFAULT_PATH;
+
+        function pathToFileUrl(localPath) {
+            if (!localPath) return '';
+            if (/^file:\/\//i.test(localPath)) return localPath;
+
+            const normalized = localPath.replace(/\\/g, '/');
+            const encoded = normalized.split('/').map((segment, index) => {
+                if (index === 0 && segment === '') return '';
+                return encodeURIComponent(segment);
+            }).join('/');
+
+            return normalized.startsWith('/')
+                ? `file://${encoded}`
+                : `file:///${encoded}`;
+        }
+
+        const fileUrl = pathToFileUrl(filePath);
+        console.log('📚 Opening knowledge base:', fileUrl);
+
+        chrome.tabs.create({ url: fileUrl }, (tab) => {
+            if (chrome.runtime.lastError) {
+                console.error('❌ Failed to open knowledge base:', chrome.runtime.lastError);
+                sendResponse({
+                    success: false,
+                    error: chrome.runtime.lastError.message
+                });
+                return;
+            }
+
+            sendResponse({
+                success: true,
+                tabId: tab?.id,
+                url: fileUrl
+            });
+        });
+
+        return true;
+    }
 });
 
 // Handle extension icon click

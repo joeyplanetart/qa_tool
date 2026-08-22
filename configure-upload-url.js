@@ -23,3 +23,10 @@ chrome.storage.local.set({
 //   console.log('✅ Supabase 配置成功！');
 // });
 
+// 配置本地知识库路径（覆盖 config.js 中的默认值）
+// chrome.storage.local.set({
+//   knowledgeBasePath: '/Users/joey/Joey_work/Knowledge base/planetart-pc-cpb-cp-handbook.html'
+// }, () => {
+//   console.log('✅ 知识库路径配置成功！');
+// });
+
