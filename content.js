@@ -2121,6 +2121,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     let cpPdpRecommendationProductItemsCache = null;
     let cpbDecorationLookupCache = null;
     let cpbSimpleFilterItemsCache = null;
+    let stiusQfItemsLookupCache = null;
     let lastCpBadgePageUrl = '';
 
     function resetCpBadgeCachesIfUrlChanged() {
@@ -2131,7 +2132,344 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             cpPdpRecommendationProductItemsCache = null;
             cpbDecorationLookupCache = null;
             cpbSimpleFilterItemsCache = null;
+            stiusQfItemsLookupCache = null;
         }
+    }
+
+    function isStiusSite() {
+        return CONFIG.detectRegion(window.location.href) === 'STIUS';
+    }
+
+    function isStiusProductListPage() {
+        if (!isStiusSite() || isCartPage()) return false;
+        return !!document.getElementById('category_thumb_wrapper');
+    }
+
+    function isStiusBadgePage() {
+        if (!isStiusSite() || isCartPage()) return false;
+        if (document.getElementById('category_thumb_wrapper')) return true;
+
+        const scripts = document.querySelectorAll('script');
+        for (const scriptEl of scripts) {
+            const content = scriptEl.textContent || scriptEl.innerHTML || '';
+            if (content.includes('QFDATAJSON') &&
+                (content.includes('category_thumb_wrapper') || content.includes('ornament-thumbs'))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function mapStiusQfRawItem(rawItem, idx) {
+        if (!rawItem || !idx) return null;
+
+        const designId = rawItem[idx.ID];
+        if (designId === undefined || designId === null) return null;
+
+        return {
+            design_id: designId,
+            design_group_id: rawItem[idx.DESIGN_GROUP_ID],
+            name: rawItem[idx.NAME],
+            product_id: rawItem[idx.PRODUCT_ID],
+            product_type_id: rawItem[idx.PRODUCT_TYPE_ID],
+            seo_url: rawItem[idx.SEO_URL] || ''
+        };
+    }
+
+    function buildStiusQfItemsFromData(data) {
+        const items = [];
+        const lookup = new Map();
+
+        if (!data || !Array.isArray(data.items) || !data.structure_indexes) {
+            return { items, lookup };
+        }
+
+        const idx = data.structure_indexes;
+        data.items.forEach(rawItem => {
+            const mapped = mapStiusQfRawItem(rawItem, idx);
+            if (!mapped) return;
+            items.push(mapped);
+            lookup.set(String(mapped.design_id), mapped);
+        });
+
+        return { items, lookup };
+    }
+
+    function mapStiusCompactEntry(entry) {
+        if (Array.isArray(entry)) {
+            return {
+                design_id: entry[0],
+                design_group_id: entry[1],
+                product_id: entry[2],
+                product_type_id: entry[3]
+            };
+        }
+        return entry;
+    }
+
+    function buildStiusLookupFromCompactEntries(compactEntries) {
+        const lookup = new Map();
+        if (!Array.isArray(compactEntries)) return lookup;
+
+        compactEntries.forEach(entry => {
+            const item = mapStiusCompactEntry(entry);
+            if (!item || item.design_id === undefined || item.design_id === null) return;
+            lookup.set(String(item.design_id), item);
+        });
+        return lookup;
+    }
+
+    function loadStiusQfDataLookup() {
+        if (stiusQfItemsLookupCache) {
+            return stiusQfItemsLookupCache;
+        }
+
+        try {
+            const script = document.createElement('script');
+            script.textContent = `
+                (function() {
+                    try {
+                        const data = typeof QFDATAJSON !== 'undefined' ? QFDATAJSON :
+                            (typeof window.QFDATAJSON !== 'undefined' ? window.QFDATAJSON : null);
+                        if (!data || !Array.isArray(data.items) || !data.structure_indexes) return;
+
+                        const idx = data.structure_indexes;
+                        const compactItems = [];
+                        data.items.forEach(function(item) {
+                            if (!item) return;
+                            const designId = item[idx.ID];
+                            if (designId === undefined || designId === null) return;
+                            compactItems.push([
+                                designId,
+                                item[idx.DESIGN_GROUP_ID],
+                                item[idx.PRODUCT_ID],
+                                item[idx.PRODUCT_TYPE_ID]
+                            ]);
+                        });
+
+                        document.documentElement.setAttribute('data-cp-stius-badge-items', JSON.stringify(compactItems));
+                    } catch (e) {}
+                })();
+            `;
+            document.documentElement.appendChild(script);
+            script.remove();
+
+            const compactItemsAttr = document.documentElement.getAttribute('data-cp-stius-badge-items');
+            document.documentElement.removeAttribute('data-cp-stius-badge-items');
+
+            if (compactItemsAttr) {
+                const compactItems = JSON.parse(compactItemsAttr);
+                const lookup = buildStiusLookupFromCompactEntries(compactItems);
+                if (lookup.size > 0) {
+                    stiusQfItemsLookupCache = lookup;
+                    return lookup;
+                }
+            }
+        } catch (e) {
+            console.log('Error loading STI QFDATAJSON via injection:', e);
+        }
+
+        try {
+            const scripts = document.querySelectorAll('script');
+            for (const scriptEl of scripts) {
+                const content = scriptEl.textContent || scriptEl.innerHTML;
+                if (!content || !content.includes('QFDATAJSON')) continue;
+
+                const parsed = parseJsObjectAssignment(content, 'QFDATAJSON');
+                if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+                    const built = buildStiusQfItemsFromData(parsed);
+                    if (built.lookup.size > 0) {
+                        stiusQfItemsLookupCache = built.lookup;
+                        return built.lookup;
+                    }
+                }
+            }
+        } catch (e) {
+            console.log('Error parsing STI QFDATAJSON from script tags:', e);
+        }
+
+        stiusQfItemsLookupCache = new Map();
+        return stiusQfItemsLookupCache;
+    }
+
+    function getStiusBadgeMountPoint(card) {
+        if (!card) return null;
+
+        const shadowOverlay = card.querySelector('.shadow-overlay-container.V-None-Thumb-Shadow') ||
+            card.querySelector('.shadow-overlay-container[class*="V-None-Thumb-Shadow"]') ||
+            card.querySelector('.shadow-overlay-container');
+        if (shadowOverlay) return shadowOverlay;
+
+        // Ornaments and other non-card products do not use shadow-overlay-container
+        return card.querySelector('.thumb_wrapper.ornament') ||
+            card.querySelector('.thumb_wrapper .horizontal') ||
+            card.querySelector('.thumb_wrapper .vertical') ||
+            card.querySelector('.thumb_wrapper .square') ||
+            card.querySelector('.thumb_wrapper');
+    }
+
+    function attachStiusBadgeToThumb(card, badge) {
+        const mountPoint = getStiusBadgeMountPoint(card);
+        if (!mountPoint) return false;
+
+        if (mountPoint.querySelector('.cp-product-id-badge')) {
+            return true;
+        }
+
+        const mountStyle = window.getComputedStyle(mountPoint);
+        if (mountStyle.position === 'static') {
+            mountPoint.style.position = 'relative';
+        }
+
+        mountPoint.appendChild(badge);
+        return true;
+    }
+
+    function getStiusBadgeProductCards() {
+        const root = document.getElementById('category_thumb_wrapper') || document;
+        return Array.from(root.querySelectorAll('.category_thumb[data-design-id]'));
+    }
+
+    function getStiusBadgeProductLinks() {
+        const root = document.getElementById('category_thumb_wrapper') || document;
+        const links = root.querySelectorAll('.category_thumb[data-design-id] a, .category_thumb .thumb_wrapper a');
+        return Array.from(links).filter(link => {
+            const href = link.getAttribute('href') || '';
+            return href && !href.startsWith('#') && !href.startsWith('javascript:');
+        });
+    }
+
+    function findStiusItemForLink(link, lookup) {
+        if (!link || !lookup || lookup.size === 0) return null;
+
+        const container = link.closest('.category_thumb[data-design-id]');
+        if (container) {
+            const designId = container.getAttribute('data-design-id');
+            if (designId && lookup.has(designId)) {
+                return lookup.get(designId);
+            }
+        }
+
+        const href = link.getAttribute('href') || '';
+        if (href) {
+            const normalizedHref = href.split('?')[0].replace(/\/+$/, '');
+            for (const item of lookup.values()) {
+                const seoUrl = item.seo_url || '';
+                if (!seoUrl) continue;
+                const normalizedSeo = seoUrl.split('?')[0].replace(/\/+$/, '');
+                if (normalizedHref === normalizedSeo || href === seoUrl || href.endsWith(normalizedSeo)) {
+                    return item;
+                }
+            }
+        }
+
+        const img = (container || link).querySelector('img');
+        if (img) {
+            const urlText = [
+                img.src,
+                img.getAttribute('data-src'),
+                img.getAttribute('data-lazy-src'),
+                img.getAttribute('data-srcset')
+            ].filter(Boolean).join(' ');
+            const designMatch = urlText.match(/(?:design[_-]?id|designs)[=/](\d+)/i) ||
+                urlText.match(/\/(\d{5,})(?:[/?_.-]|$)/);
+            if (designMatch && lookup.has(designMatch[1])) {
+                return lookup.get(designMatch[1]);
+            }
+        }
+
+        return null;
+    }
+
+    function buildStiusBadgeContent(item) {
+        if (!item) return '';
+
+        const lines = [];
+        const addLine = (label, value) => {
+            if (value !== undefined && value !== null && value !== '') {
+                lines.push(`${label}: ${value}`);
+            }
+        };
+
+        addLine('DesignID', item.design_id);
+        addLine('DesignGroupID', item.design_group_id);
+        addLine('ProductTypeID', item.product_type_id);
+        if (item.product_id !== undefined && item.product_id !== null) {
+            addLine('ProductID', item.product_id);
+        }
+        return lines.join('\n');
+    }
+
+    function cleanupStiusMisplacedBadges() {
+        document.querySelectorAll('#category_thumb_wrapper .category_thumb[data-design-id]').forEach(card => {
+            const mountPoint = getStiusBadgeMountPoint(card);
+            card.querySelectorAll('.cp-product-id-badge').forEach(badge => {
+                if (!mountPoint || !mountPoint.contains(badge)) {
+                    badge.remove();
+                }
+            });
+        });
+    }
+
+    async function displayStiusProductBadges() {
+        if (isCartPage()) {
+            removeAllProductBadges();
+            return;
+        }
+        if (!isStiusBadgePage()) {
+            return;
+        }
+
+        resetCpBadgeCachesIfUrlChanged();
+        cleanupStiusMisplacedBadges();
+
+        const badgeEnabled = await isBadgeDisplayEnabled();
+        if (!badgeEnabled) {
+            updateBadgeVisibility(false);
+            return;
+        }
+
+        const lookup = loadStiusQfDataLookup();
+        const productCards = getStiusBadgeProductCards();
+
+        if (productCards.length === 0) {
+            console.log('STI badges: no product cards found yet');
+            return;
+        }
+
+        if (!lookup || lookup.size === 0) {
+            console.log('STI badges: QFDATAJSON not ready yet');
+            return;
+        }
+
+        const processedProducts = new Set();
+
+        productCards.forEach(card => {
+            const designId = card.getAttribute('data-design-id');
+            if (!designId || processedProducts.has(designId)) return;
+
+            if (card.querySelector('.cp-product-id-badge')) {
+                processedProducts.add(designId);
+                return;
+            }
+
+            let item = lookup.get(String(designId));
+            if (!item) {
+                const link = card.querySelector('.thumb_wrapper a[href], a[href]');
+                item = link ? findStiusItemForLink(link, lookup) : null;
+            }
+            if (!item) return;
+
+            const badgeContent = buildStiusBadgeContent(item);
+            if (!badgeContent) return;
+
+            const badge = createListPageProductBadge(badgeContent, badgeEnabled);
+            if (attachStiusBadgeToThumb(card, badge)) {
+                processedProducts.add(designId);
+            }
+        });
+
+        console.log(`STI PLP: processed ${processedProducts.size} product badges`);
     }
 
     function parseJsArrayAssignment(content, variableName) {
@@ -4786,13 +5124,14 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             return;
         }
         
-        const shouldShowListBadges = isCpProductBadgePage() || isCpbBadgePage();
+        const shouldShowListBadges = isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage();
         
         // Initial check
         if (shouldShowListBadges) {
             setTimeout(() => {
                 displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
                 displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
+                displayStiusProductBadges().catch(err => console.error('Error displaying STI product IDs:', err));
                 displayCategoryFilterIds(); // Also display category filter IDs
             }, 1000);
             
@@ -4802,6 +5141,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
                         displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
+                        displayStiusProductBadges().catch(err => console.error('Error displaying STI product IDs:', err));
                         displayCategoryFilterIds();
                     }, 500);
                 }, { once: true });
@@ -4834,6 +5174,15 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
                 }, delay);
             });
+
+            // Retry STI badges while QuickFilter renders thumbnails asynchronously
+            if (isStiusBadgePage()) {
+                [500, 1000, 2000, 4000, 6000, 8000, 10000, 15000].forEach(delay => {
+                    setTimeout(() => {
+                        displayStiusProductBadges().catch(err => console.error('Error displaying STI product IDs:', err));
+                    }, delay);
+                });
+            }
         }
         
         // Observe DOM changes for dynamically loaded products
@@ -4842,7 +5191,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 removeAllProductBadges();
                 return;
             }
-            if (isCpProductBadgePage() || isCpbBadgePage()) {
+            if (isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage()) {
                 let shouldUpdate = false;
                 mutations.forEach((mutation) => {
                     mutation.addedNodes.forEach((node) => {
@@ -4851,7 +5200,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             if (node.querySelectorAll && (
                                 node.querySelectorAll('a[href*="/+"]').length > 0 ||
                                 node.querySelectorAll('a[href*="/business/product-"]').length > 0 ||
-                                node.querySelectorAll('.design-item-wrapper[data-id]').length > 0
+                                node.querySelectorAll('.design-item-wrapper[data-id]').length > 0 ||
+                                node.querySelectorAll('.category_thumb[data-design-id]').length > 0
                             )) {
                                 shouldUpdate = true;
                             }
@@ -4859,7 +5209,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 node.classList.contains('bestsellers-products') ||
                                 node.classList.contains('container-draggable-list') ||
                                 node.classList.contains('design-item-wrapper') ||
-                                node.classList.contains('product-item-card')
+                                node.classList.contains('product-item-card') ||
+                                node.classList.contains('category_thumb') ||
+                                node.classList.contains('ornament-thumbs')
                             )) {
                                 shouldUpdate = true;
                             }
@@ -4890,6 +5242,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
                         displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
+                        displayStiusProductBadges().catch(err => console.error('Error displaying STI product IDs:', err));
                         displayCategoryFilterIds();
                     }, 300);
                 }
@@ -4911,10 +5264,11 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     removeAllProductBadges();
                     return;
                 }
-                if (isCpProductBadgePage() || isCpbBadgePage()) {
+                if (isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage()) {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
                         displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
+                        displayStiusProductBadges().catch(err => console.error('Error displaying STI product IDs:', err));
                         displayCategoryFilterIds();
                     }, 500);
                 }
@@ -6042,6 +6396,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error refreshing badges:', err));
                         displayCpbProductBadges().catch(err => console.error('Error refreshing CPB badges:', err));
+                    }, 100);
+                } else if (isStiusBadgePage()) {
+                    setTimeout(() => {
+                        displayStiusProductBadges().catch(err => console.error('Error refreshing STI badges:', err));
                     }, 100);
                 }
             });
