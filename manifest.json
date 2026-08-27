@@ -21,6 +21,10 @@
     "*://cafepress.co.uk/*",
     "*://www.cafepress.com.au/*",
     "*://cafepress.com.au/*",
+    "*://www.personalcreations.com/*",
+    "*://personalcreations.com/*",
+    "*://www.simplytoimpress.com/*",
+    "*://simplytoimpress.com/*",
     "*://admin.planetart.com/*",
     "*://login.planetart.com/*",
     "*://api.mymemory.translated.net/*",
@@ -40,7 +44,11 @@
         "*://www.cafepress.co.uk/*",
         "*://cafepress.co.uk/*",
         "*://www.cafepress.com.au/*",
-        "*://cafepress.com.au/*"
+        "*://cafepress.com.au/*",
+        "*://www.personalcreations.com/*",
+        "*://personalcreations.com/*",
+        "*://www.simplytoimpress.com/*",
+        "*://simplytoimpress.com/*"
       ],
       "js": ["config.js", "content.js"],
       "run_at": "document_idle"

@@ -24,7 +24,9 @@ const CONFIG = {
         CA: 'cafca',
         UK: 'cafuk',
         AU: 'cafau',
-        CPB: 'cpbus'
+        CPB: 'cpbus',
+        PCRUS: 'pcrus',
+        STIUS: 'stius'
     },
     
     // Frontend site domains by region and environment
@@ -62,6 +64,18 @@ const CONFIG = {
                 LIVE: 'www.cafepress.com',
                 LIVE_ALT: 'cafepress.com',
                 LIVE_PATH_PREFIX: '/business'
+            },
+            PCRUS: {
+                PRE: `${this.REGION_PREFIX.PCRUS}-${branch}.${this.BASE_DOMAIN.PRE}`,
+                STAGE: `${this.REGION_PREFIX.PCRUS}-${branch}.${this.BASE_DOMAIN.STAGE}`,
+                LIVE: 'www.personalcreations.com',
+                LIVE_ALT: 'personalcreations.com'
+            },
+            STIUS: {
+                PRE: `${this.REGION_PREFIX.STIUS}-${branch}.${this.BASE_DOMAIN.PRE}`,
+                STAGE: `${this.REGION_PREFIX.STIUS}-${branch}.${this.BASE_DOMAIN.STAGE}`,
+                LIVE: 'www.simplytoimpress.com',
+                LIVE_ALT: 'simplytoimpress.com'
             }
         };
     },
@@ -100,7 +114,9 @@ const CONFIG = {
         CA: '173',
         UK: '172',
         AU: '171',
-        CPB: '169'
+        CPB: '169',
+        PCRUS: '163',
+        STIUS: '1'
     },
     
     // Admin API endpoints
@@ -137,10 +153,16 @@ const CONFIG = {
             /^cafau-.*\.stage\.planetart\.com$/,
             /^cpbus-.*\.pre\.planetart\.com$/,
             /^cpbus-.*\.stage\.planetart\.com$/,
+            /^pcrus-.*\.pre\.planetart\.com$/,
+            /^pcrus-.*\.stage\.planetart\.com$/,
+            /^stius-.*\.pre\.planetart\.com$/,
+            /^stius-.*\.stage\.planetart\.com$/,
             /^(www\.)?cafepress\.com$/,
             /^(www\.)?cafepress\.ca$/,
             /^(www\.)?cafepress\.co\.uk$/,
-            /^(www\.)?cafepress\.com\.au$/
+            /^(www\.)?cafepress\.com\.au$/,
+            /^(www\.)?personalcreations\.com$/,
+            /^(www\.)?simplytoimpress\.com$/
         ];
         
         return supportedPatterns.some(pattern => pattern.test(hostname));
@@ -164,6 +186,8 @@ const CONFIG = {
         // Examples: cafus-cpsw-web.pre.planetart.com, cafca-master.stage.planetart.com
         const preStagePattern = /^caf(?:us|ca|uk|au)-([^.]+)\.(pre|stage)\.planetart\.com$/;
         const cpbPattern = /^cpbus-([^.]+)\.(pre|stage)\.planetart\.com$/;
+        const pcrusPattern = /^pcrus-([^.]+)\.(pre|stage)\.planetart\.com$/;
+        const stiusPattern = /^stius-([^.]+)\.(pre|stage)\.planetart\.com$/;
         const adminPattern = /^admin-([^.]+)\.(pre|stage)\.planetart\.com$/;
         
         let match = hostname.match(preStagePattern);
@@ -172,6 +196,16 @@ const CONFIG = {
         }
         
         match = hostname.match(cpbPattern);
+        if (match) {
+            return match[1];
+        }
+        
+        match = hostname.match(pcrusPattern);
+        if (match) {
+            return match[1];
+        }
+        
+        match = hostname.match(stiusPattern);
         if (match) {
             return match[1];
         }
@@ -407,6 +441,18 @@ const CONFIG = {
             return 'CPB';
         }
         
+        // PCRUS (Personal Creations US)
+        if (/pcrus-[^.]+\.(pre|stage)\.planetart\.com/.test(url) ||
+            /personalcreations\.com/.test(url)) {
+            return 'PCRUS';
+        }
+        
+        // STIUS (Simply to Impress US)
+        if (/stius-[^.]+\.(pre|stage)\.planetart\.com/.test(url) ||
+            /simplytoimpress\.com/.test(url)) {
+            return 'STIUS';
+        }
+        
         // Check for pre/stage environment domains with any branch name
         if (/cafus-[^.]+\.(pre|stage)\.planetart\.com/.test(url) || 
             (url.includes('cafepress.com') && !url.includes('cafepress.ca') && 
@@ -440,6 +486,8 @@ const CONFIG = {
     getSiteName(region) {
         if (!region) return 'ENV';
         if (region === 'CPB') return 'CPBUS';
+        if (region === 'PCRUS') return 'PCRUS';
+        if (region === 'STIUS') return 'STIUS';
         return 'CAF' + region;
     },
     
@@ -627,7 +675,7 @@ const CONFIG = {
                     {
                         title: 'stius',
                         urls: {
-                            live: null,
+                            live: 'https://www.simplytoimpress.com/',
                             pre: 'https://stius-master.pre.planetart.com/',
                             stage: 'https://stius-master.stage.planetart.com/'
                         }

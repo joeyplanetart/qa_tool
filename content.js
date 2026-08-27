@@ -27,6 +27,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     'use strict';
     
     let floatingWindow = null;
+    let floatingWindowHost = null;
     let isWindowVisible = false;
     
     // Helper function to extract CP fields from design objects
@@ -5673,6 +5674,38 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             return floatingWindow;
         }
         
+        // Shadow DOM host: isolate QA panel from site-global CSS (e.g. STI button/input rules)
+        floatingWindowHost = document.createElement('div');
+        floatingWindowHost.id = 'cp-qa-tools-host';
+        floatingWindowHost.style.cssText = `
+            all: initial;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 0;
+            overflow: visible;
+            z-index: 2147483647;
+        `;
+        
+        const shadow = floatingWindowHost.attachShadow({ mode: 'open' });
+        const isolationStyle = document.createElement('style');
+        isolationStyle.textContent = `
+            *, *::before, *::after { box-sizing: border-box; }
+            button, input, textarea, select {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                letter-spacing: normal;
+                text-transform: none;
+                -webkit-appearance: none;
+                appearance: none;
+            }
+            input[type="checkbox"] {
+                -webkit-appearance: checkbox;
+                appearance: auto;
+            }
+        `;
+        shadow.appendChild(isolationStyle);
+        
         // Create main container
         floatingWindow = document.createElement('div');
         floatingWindow.id = 'cp-product-info-floating';
@@ -5687,6 +5720,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             box-shadow: 0 10px 30px rgba(255,255,255,0.1);
             z-index: 10000;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 12px;
+            line-height: normal;
             color: white;
             padding: 0;
             display: none;
@@ -6192,7 +6227,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         floatingWindow.appendChild(settingsPanel);
         floatingWindow.appendChild(content);
         floatingWindow.appendChild(pinButton);  // Add pin button to floating window container
-        document.body.appendChild(floatingWindow);
+        shadow.appendChild(floatingWindow);
+        document.documentElement.appendChild(floatingWindowHost);
         
         return floatingWindow;
     }
@@ -9741,7 +9777,6 @@ ${address.cityStateZip}</div>
         if (type === 'warning') bgColor = 'rgba(255, 152, 0, 0.95)'; // orange
         
         // Get floating window position and width
-        const floatingWindow = document.getElementById('cp-floating-window');
         let rightPosition = '20px';
         
         if (floatingWindow) {
