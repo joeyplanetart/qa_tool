@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Cafepress QA Tools",
-  "version": "1.0",
+  "version": "1.1",
   "description": "QA tools for Cafepress: product info extraction and order lookup",
   "permissions": [
     "activeTab",
     "storage",
     "scripting",
     "tabs",
-    "cookies"
+    "cookies",
+    "sidePanel"
   ],
   "host_permissions": [
     "*://*.pre.planetart.com/*",
@@ -30,8 +31,14 @@
     "*://api.mymemory.translated.net/*",
     "*://api.qrserver.com/*",
     "*://*.supabase.co/*",
-    "*://cdn.jsdelivr.net/*"
+    "*://cdn.jsdelivr.net/*",
+    "https://api.deepseek.com/*",
+    "https://api.openai.com/*",
+    "https://api.anthropic.com/*"
   ],
+  "side_panel": {
+    "default_path": "sidepanel/sidepanel.html"
+  },
   "content_scripts": [
     {
       "matches": [

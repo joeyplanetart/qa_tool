@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QA AI 助手</title>
+  <link rel="stylesheet" href="theme.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="header-left">
+        <span class="logo">🌿</span>
+        <span class="header-title">QA AI 助手</span>
+      </div>
+      <div class="header-actions">
+        <button id="btn-new-chat" class="icon-btn" title="新对话">＋</button>
+      </div>
+    </header>
+
+    <div class="main-layout">
+      <main class="content-area">
+        <!-- Chat Panel -->
+        <section id="panel-chat" class="panel active">
+          <div class="chat-search-bar">
+            <input type="search" id="chat-search" placeholder="搜索当前对话内容..." />
+          </div>
+          <div id="chat-welcome" class="chat-welcome">
+            <h2>你好，我今天能帮你什么？</h2>
+            <p class="subtitle">与 AI 对话，或基于知识库查询内容</p>
+            <div class="quick-actions">
+              <button class="quick-btn" data-action="kb-mode">📚 知识库问答</button>
+              <button class="quick-btn" data-action="translate">🌐 打开翻译</button>
+              <button class="quick-btn" data-action="settings">⚙️ 配置模型</button>
+            </div>
+          </div>
+          <div id="chat-messages" class="chat-messages"></div>
+          <div class="chat-input-area">
+            <div class="chat-toolbar">
+              <label class="kb-toggle">
+                <input type="checkbox" id="kb-mode-toggle" />
+                <span>基于知识库回答</span>
+              </label>
+              <select id="model-select" class="model-select"></select>
+            </div>
+            <div class="input-row">
+              <textarea id="chat-input" rows="3" placeholder="问任何问题，Enter 发送，Shift+Enter 换行"></textarea>
+              <button id="btn-send" class="btn-primary" title="发送">发送</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Translate Panel -->
+        <section id="panel-translate" class="panel">
+          <h2 class="panel-title">翻译</h2>
+          <div class="translate-lang-row">
+            <select id="translate-source-lang">
+              <option value="auto">自动检测</option>
+              <option value="zh">中文</option>
+              <option value="en">英文</option>
+            </select>
+            <button id="translate-swap" class="icon-btn" title="交换语言">⇄</button>
+            <select id="translate-target-lang">
+              <option value="en">英文</option>
+              <option value="zh">中文</option>
+            </select>
+          </div>
+          <div class="translate-columns">
+            <textarea id="translate-source" placeholder="输入要翻译的文本..."></textarea>
+            <textarea id="translate-target" placeholder="翻译结果..." readonly></textarea>
+          </div>
+          <div class="translate-actions">
+            <button id="btn-translate" class="btn-primary">翻译</button>
+            <span id="translate-usage" class="usage-text"></span>
+          </div>
+        </section>
+
+        <!-- Knowledge Panel -->
+        <section id="panel-knowledge" class="panel">
+          <h2 class="panel-title">知识库</h2>
+          <p class="panel-desc">导入 HTML / Markdown / TXT 文档，用于 AI 问答检索</p>
+          <p id="kb-default-path" class="hint-text"></p>
+          <div class="kb-actions">
+            <label class="btn-secondary file-label">
+              导入文档
+              <input type="file" id="kb-file-input" accept=".html,.htm,.md,.markdown,.txt" multiple hidden />
+            </label>
+            <button id="btn-reindex-all" class="btn-secondary">刷新列表</button>
+          </div>
+          <div id="kb-doc-list" class="kb-doc-list"></div>
+        </section>
+
+        <!-- QR Code Panel -->
+        <section id="panel-qrcode" class="panel">
+          <div class="panel-header-row">
+            <h2 class="panel-title">QR Code</h2>
+          </div>
+          <p class="panel-desc">输入文本或 URL 生成二维码，打开时自动填充当前页面地址</p>
+          <div class="qrcode-input-section">
+            <textarea id="qrcode-input" rows="3" placeholder="输入文本或 URL 生成二维码..."></textarea>
+            <div class="qrcode-btn-row">
+              <button id="btn-generate-qrcode" class="btn-primary">生成二维码</button>
+              <button id="btn-clear-qrcode" class="btn-secondary">清除</button>
+            </div>
+          </div>
+          <div id="qrcode-display" class="qrcode-display">
+            <div class="qrcode-placeholder">在此显示二维码</div>
+          </div>
+        </section>
+
+        <!-- Ship Address Panel -->
+        <section id="panel-shipaddress" class="panel">
+          <div class="panel-header-row">
+            <h2 class="panel-title">Ship Address</h2>
+            <button id="btn-refresh-addresses" class="btn-secondary btn-sm">刷新</button>
+          </div>
+          <p class="panel-desc">随机生成 US / CA / UK / AU 测试收货地址，点击卡片可复制</p>
+          <div id="address-list" class="address-list">
+            <div class="address-loading">正在生成地址...</div>
+          </div>
+        </section>
+
+        <!-- Tools Panel -->
+        <section id="panel-tools" class="panel">
+          <h2 class="panel-title">工具</h2>
+          <div class="tools-grid">
+            <button class="tool-card" id="tool-open-qa">
+              <span class="tool-icon">🛠️</span>
+              <span class="tool-name">打开 QA 浮动面板</span>
+            </button>
+            <button class="tool-card" id="tool-open-handbook">
+              <span class="tool-icon">📖</span>
+              <span class="tool-name">打开知识库手册</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Settings Panel -->
+        <section id="panel-settings" class="panel">
+          <h2 class="panel-title">设置</h2>
+          <p class="panel-desc">API Key 仅保存在本地浏览器，不会上传</p>
+          <div class="settings-form">
+            <div class="form-group">
+              <label>默认模型提供商</label>
+              <select id="settings-provider"></select>
+            </div>
+            <div class="form-group">
+              <label>默认模型</label>
+              <select id="settings-model"></select>
+            </div>
+            <div id="api-keys-container"></div>
+            <button id="btn-save-settings" class="btn-primary">保存设置</button>
+            <p id="settings-status" class="status-text"></p>
+          </div>
+        </section>
+      </main>
+
+      <nav class="nav-rail">
+        <button class="nav-item active" data-tab="chat" title="聊天">
+          <span class="nav-icon">💬</span>
+          <span class="nav-label">聊天</span>
+        </button>
+        <button class="nav-item" data-tab="translate" title="翻译">
+          <span class="nav-icon">🌐</span>
+          <span class="nav-label">翻译</span>
+        </button>
+        <button class="nav-item" data-tab="knowledge" title="知识库">
+          <span class="nav-icon">📚</span>
+          <span class="nav-label">知识库</span>
+        </button>
+        <button class="nav-item" data-tab="qrcode" title="QR Code">
+          <span class="nav-icon">📱</span>
+          <span class="nav-label">QR</span>
+        </button>
+        <button class="nav-item" data-tab="shipaddress" title="Ship Address">
+          <span class="nav-icon">📍</span>
+          <span class="nav-label">地址</span>
+        </button>
+        <button class="nav-item" data-tab="tools" title="工具">
+          <span class="nav-icon">🔧</span>
+          <span class="nav-label">工具</span>
+        </button>
+        <button class="nav-item" data-tab="settings" title="设置">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">设置</span>
+        </button>
+      </nav>
+    </div>
+  </div>
+
+  <script src="../config.js"></script>
+  <script src="../services/storage.js"></script>
+  <script src="../services/token-utils.js"></script>
+  <script src="../services/rag-indexer.js"></script>
+  <script src="app.js"></script>
+  <script src="settings.js"></script>
+  <script src="chat.js"></script>
+  <script src="translate.js"></script>
+  <script src="knowledge.js"></script>
+  <script src="qrcode.js"></script>
+  <script src="shipaddress.js"></script>
+  <script src="tools.js"></script>
+</body>
+</html>

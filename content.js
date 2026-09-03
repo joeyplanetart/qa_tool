@@ -8925,10 +8925,19 @@ ${address.cityStateZip}</div>
 
             const knowledgeBaseBtn = content.querySelector('#knowledge-base-btn');
             if (knowledgeBaseBtn) {
-                knowledgeBaseBtn.addEventListener('click', () => {
-                    console.log('📚 Open Knowledge Base');
-                    openKnowledgeBaseHandbook();
+                knowledgeBaseBtn.addEventListener('click', (e) => {
+                    if (e.shiftKey) {
+                        console.log('📚 Open Knowledge Base handbook (Shift+click)');
+                        openKnowledgeBaseHandbook();
+                        return;
+                    }
+                    console.log('📚 Open AI Side Panel - Knowledge tab');
+                    chrome.runtime.sendMessage({
+                        type: 'OPEN_SIDE_PANEL',
+                        tab: 'knowledge'
+                    });
                 });
+                knowledgeBaseBtn.title = '打开 AI 知识库（Shift+点击打开本地手册）';
                 console.log('✓ Knowledge Base button event listener added');
             }
             

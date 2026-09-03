@@ -1,8 +1,87 @@
 // Background script for Cafepress QA Tools
 // Import unified configuration
-importScripts('config.js');
+importScripts(
+    'config.js',
+    'services/storage.js',
+    'services/token-utils.js',
+    'services/rag-indexer.js',
+    'services/rag-retriever.js',
+    'services/llm-providers.js'
+);
 
 console.log('Cafepress QA Tools background script loaded');
+
+// Open side panel when extension icon is clicked
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+
+// LLM streaming via long-lived port
+chrome.runtime.onConnect.addListener((port) => {
+    if (port.name !== 'llm-stream') return;
+
+    port.onMessage.addListener(async (request) => {
+        if (request.type === 'LLM_CHAT_STREAM') {
+            handleChatStream(port, request);
+        } else if (request.type === 'LLM_TRANSLATE') {
+            handleTranslateStream(port, request);
+        }
+    });
+});
+
+async function handleChatStream(port, request) {
+    const { providerId, model, messages, kbMode, userQuestion } = request;
+    let chatMessages = [...messages];
+    let sources = null;
+
+    try {
+        if (kbMode) {
+            const chunks = await RAGRetriever.retrieve(userQuestion);
+            if (!chunks.length) {
+                port.postMessage({
+                    type: 'chunk',
+                    content: '知识库中未找到相关内容。请先在「知识库」Tab 导入文档。'
+                });
+                port.postMessage({ type: 'done', usage: null, sources: [] });
+                return;
+            }
+            sources = RAGRetriever.formatSources(chunks);
+            const rag = RAGRetriever.buildRAGPrompt(chunks, userQuestion);
+            chatMessages = [
+                { role: 'system', content: rag.system },
+                { role: 'user', content: rag.userMessage }
+            ];
+        }
+
+        await LLMProviders.streamChat({
+            providerId,
+            model,
+            messages: chatMessages,
+            onChunk: (content) => port.postMessage({ type: 'chunk', content }),
+            onDone: ({ usage }) => port.postMessage({ type: 'done', usage, sources }),
+            onError: (err) => port.postMessage({ type: 'error', error: err.message })
+        });
+    } catch (err) {
+        port.postMessage({ type: 'error', error: err.message });
+    }
+}
+
+async function handleTranslateStream(port, request) {
+    const { text, sourceLang, targetLang, providerId, model } = request;
+
+    try {
+        await LLMProviders.translate({
+            text,
+            sourceLang,
+            targetLang,
+            providerId,
+            model,
+            onChunk: (content) => port.postMessage({ type: 'chunk', content }),
+            onDone: ({ usage }) => port.postMessage({ type: 'done', usage }),
+            onError: (err) => port.postMessage({ type: 'error', error: err.message })
+        });
+    } catch (err) {
+        port.postMessage({ type: 'error', error: err.message });
+    }
+}
 
 // Handle order fetch requests from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -910,6 +989,61 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
     }
 
+    if (request.type === 'RAG_INDEX_DOC') {
+        (async () => {
+            try {
+                const doc = await RAGIndexer.indexDocument(
+                    request.name,
+                    request.content,
+                    request.fileType
+                );
+                sendResponse({ success: true, doc });
+            } catch (err) {
+                sendResponse({ success: false, error: err.message });
+            }
+        })();
+        return true;
+    }
+
+    if (request.type === 'RAG_DELETE_DOC') {
+        (async () => {
+            try {
+                await AIStorage.deleteDocument(request.docId);
+                sendResponse({ success: true });
+            } catch (err) {
+                sendResponse({ success: false, error: err.message });
+            }
+        })();
+        return true;
+    }
+
+    if (request.type === 'OPEN_SIDE_PANEL') {
+        const tabName = request.tab || 'chat';
+        const windowId = sender.tab?.windowId;
+        chrome.storage.local.set({ sidePanelTab: tabName }, () => {
+            if (windowId) {
+                chrome.sidePanel.open({ windowId });
+            }
+            sendResponse({ success: true });
+        });
+        return true;
+    }
+
+    if (request.type === 'OPEN_QA_PANEL') {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const activeTab = tabs[0];
+            if (activeTab?.id) {
+                chrome.tabs.sendMessage(activeTab.id, { type: 'TOGGLE_FLOATING_WINDOW' }).catch(() => {
+                    sendResponse({ success: false, error: '请在支持的 Cafepress 页面上使用' });
+                });
+                sendResponse({ success: true });
+            } else {
+                sendResponse({ success: false, error: '未找到活动标签页' });
+            }
+        });
+        return true;
+    }
+
     if (request.type === 'OPEN_KNOWLEDGE_BASE') {
         const filePath = request.filePath || CONFIG.KNOWLEDGE_BASE.DEFAULT_PATH;
 
@@ -949,37 +1083,5 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
 
         return true;
-    }
-});
-
-// Handle extension icon click
-chrome.action.onClicked.addListener((tab) => {
-    console.log('Extension icon clicked on tab:', tab.url);
-    
-    // Check if we're on a supported domain using unified config
-    function isSupportedUrl(url) {
-        if (!url) return false;
-        
-        try {
-            const hostname = new URL(url).hostname;
-            return CONFIG.isSupportedHostname(hostname);
-        } catch (e) {
-            console.error('Error parsing URL:', e);
-            return false;
-        }
-    }
-    
-    const isSupported = isSupportedUrl(tab.url);
-    
-    if (isSupported) {
-        console.log('Supported domain detected:', tab.url);
-        // Send message to content script to show floating window
-        chrome.tabs.sendMessage(tab.id, {
-            type: 'TOGGLE_FLOATING_WINDOW'
-        }).catch((error) => {
-            console.log('Error sending message to content script:', error);
-        });
-    } else {
-        console.log('Not on supported page:', tab.url);
     }
 });

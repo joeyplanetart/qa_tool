@@ -817,6 +817,39 @@ const CONFIG = {
     KNOWLEDGE_BASE: {
         DEFAULT_PATH: '/Users/joey/Joey_work/Knowledge base/planetart-pc-cpb-cp-handbook.html',
         STORAGE_KEY: 'knowledgeBasePath'
+    },
+
+    // LLM provider configuration for AI assistant side panel
+    LLM: {
+        DEFAULT_PROVIDER: 'deepseek',
+        SETTINGS_KEY: 'aiSettings',
+        PROVIDERS: {
+            deepseek: {
+                label: 'DeepSeek',
+                baseUrl: 'https://api.deepseek.com',
+                models: [
+                    'deepseek-v4-flash',
+                    'deepseek-v4-pro',
+                    'deepseek-v4-flash-vision-exp'
+                ]
+            },
+            openai: {
+                label: 'OpenAI',
+                baseUrl: 'https://api.openai.com/v1',
+                models: ['gpt-4o', 'gpt-4o-mini']
+            },
+            anthropic: {
+                label: 'Claude',
+                baseUrl: 'https://api.anthropic.com/v1',
+                models: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022']
+            }
+        }
+    },
+
+    RAG: {
+        CHUNK_SIZE: 600,
+        CHUNK_OVERLAP: 80,
+        TOP_K: 5
     }
 };
 
