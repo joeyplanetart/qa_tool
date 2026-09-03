@@ -31,10 +31,10 @@ const ChatModule = {
                 if (action === 'kb-mode') {
                     document.getElementById('kb-mode-toggle').checked = true;
                     document.getElementById('chat-input')?.focus();
-                } else if (action === 'translate') {
-                    App.switchTab('translate');
-                } else if (action === 'settings') {
-                    App.switchTab('settings');
+                } else if (action === 'qrcode') {
+                    App.switchTab('qrcode');
+                } else if (action === 'shipaddress') {
+                    App.switchTab('shipaddress');
                 }
             });
         });
