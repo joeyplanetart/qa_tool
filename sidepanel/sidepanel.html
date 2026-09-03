@@ -25,6 +25,16 @@
           <div class="chat-search-bar">
             <input type="search" id="chat-search" placeholder="搜索当前对话内容..." />
           </div>
+          <div id="product-context-card" class="product-context-card hidden">
+            <div class="product-context-header">
+              <span class="product-context-title">📦 当前产品信息</span>
+              <div class="product-context-actions">
+                <button id="btn-insert-product-context" class="btn-text" title="插入到输入框">插入</button>
+                <button id="btn-refresh-product-context" class="btn-text" title="刷新">↻</button>
+              </div>
+            </div>
+            <div id="product-context-body" class="product-context-body"></div>
+          </div>
           <div id="chat-welcome" class="chat-welcome">
             <h2>你好，我今天能帮你什么？</h2>
             <p class="subtitle">与 AI 对话，或基于知识库查询内容</p>
@@ -191,6 +201,9 @@
   <script src="../config.js"></script>
   <script src="../services/storage.js"></script>
   <script src="../services/token-utils.js"></script>
+  <script src="../services/llm-providers.js"></script>
+  <script src="markdown.js"></script>
+  <script src="product-context.js"></script>
   <script src="../services/rag-indexer.js"></script>
   <script src="app.js"></script>
   <script src="settings.js"></script>

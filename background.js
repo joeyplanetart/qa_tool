@@ -1094,6 +1094,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
     }
 
+    if (request.type === 'RAG_BUILD_MESSAGES') {
+        (async () => {
+            try {
+                const chunks = await RAGRetriever.retrieve(request.userQuestion);
+                if (!chunks.length) {
+                    sendResponse({ success: false, error: 'no_chunks' });
+                    return;
+                }
+                const rag = RAGRetriever.buildRAGPrompt(chunks, request.userQuestion);
+                sendResponse({
+                    success: true,
+                    messages: [
+                        { role: 'system', content: rag.system },
+                        { role: 'user', content: rag.userMessage }
+                    ],
+                    sources: RAGRetriever.formatSources(chunks)
+                });
+            } catch (err) {
+                sendResponse({ success: false, error: err.message });
+            }
+        })();
+        return true;
+    }
+
     if (request.type === 'RAG_INDEX_DOC') {
         (async () => {
             try {

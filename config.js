@@ -835,7 +835,7 @@ const CONFIG = {
         PROVIDERS: {
             deepseek: {
                 label: 'DeepSeek',
-                baseUrl: 'https://api.deepseek.com',
+                baseUrl: 'https://api.deepseek.com/v1',
                 models: [
                     'deepseek-v4-flash',
                     'deepseek-v4-pro',

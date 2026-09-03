@@ -3561,6 +3561,113 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         html += `</div>`;
         return html;
     }
+
+    function isProductPageUrl(currentUrl) {
+        const isCpbPdp = isCpbProductDetailPage();
+        return currentUrl.match(/\/\+[^/]*,\d+/) !== null ||
+            currentUrl.match(/\/mf\/\d+\/[^?]*\?productId=\d+/) !== null ||
+            currentUrl.match(/\/mf\/\d+\/[^?]*\?fromProductId=\d+/) !== null ||
+            currentUrl.match(/\/designer\/[^/]+/) !== null ||
+            currentUrl.match(/\/shopdetail\/[^/]+\.\d+/) !== null ||
+            isCpbPdp;
+    }
+
+    function buildProductInfoSnapshot(result, currentUrl) {
+        const url = currentUrl || window.location.href;
+        const isCpbPdp = isCpbProductDetailPage();
+        const isProductPage = isProductPageUrl(url);
+        const fields = [];
+
+        const hasValidProductData = isProductPage && result && (
+            isCpbPdp ? (
+                (result.productsData && result.productsData.full_object) ||
+                result.designId ||
+                result.cpProductId
+            ) : (
+                (result.designerName && result.designerName !== 'Not found') ||
+                (result.designId && result.designId !== 'Not found') ||
+                (result.cpProductId && result.cpProductId !== 'Not found') ||
+                (result.productsData && Object.keys(result.productsData).length > 0)
+            )
+        );
+
+        if (!hasValidProductData) {
+            return {
+                isProductPage: false,
+                url,
+                fields: [],
+                message: '当前页面不是产品页，或无可用产品数据'
+            };
+        }
+
+        const push = (label, value, link) => {
+            fields.push({ label, value: formatProductInfoField(value), link: link || null });
+        };
+
+        if (isCpbPdp) {
+            const cpbInfo = extractCpbProductInfoFromOptions(result.productsData?.full_object);
+            push('Category ID', cpbInfo?.category_id ?? result.productsData?.category_id);
+            push('Design ID', cpbInfo?.design_id ?? result.designId);
+            push('Product ID', cpbInfo?.product_id ?? result.cpProductId);
+            push('Option ID', cpbInfo?.option_id);
+            push('Product Type ID', cpbInfo?.product_type_id);
+            push('SKU ID', cpbInfo?.sku_id);
+            push('Design Group ID', cpbInfo?.design_group_id);
+            push('Site ID', CONFIG.getSiteId('CPB'));
+        } else {
+            push('Designer', result.designerName, result.designerLink);
+            push('Design ID', result.designId);
+
+            if (result.productsData) {
+                push('Category ID', result.productsData.category_id);
+                if (result.productsData.is_out_of_stock !== undefined) {
+                    push('Stock', result.productsData.is_out_of_stock ? 'Out of Stock' : 'In Stock');
+                }
+            }
+
+            const fullObject = result.productsData?.full_object;
+            const defaultDesign = fullObject?.default_design;
+            const defaultSku = fullObject?.default_sku;
+
+            push('CP Product Type', defaultDesign?.cp_product_type_no);
+            push('Default Overlay ID', defaultDesign?.default_overlay_id);
+            push('Option ID', defaultSku?.option_id);
+
+            const region = CONFIG.detectRegion(url);
+            push('Site ID', region ? CONFIG.getSiteId(region) : null);
+
+            push('SKU ID', defaultSku?.sku_id);
+            push('Default Global SKU', defaultSku?.sku);
+            push('Vendor ID', defaultSku?.vendor_id);
+
+            let sellerId = defaultDesign?.seller_id;
+            let storeId = defaultDesign?.store_id;
+            if (fullObject?.product_design_objects && result.designId) {
+                const designObj = fullObject.product_design_objects[result.designId];
+                if (sellerId === undefined) sellerId = designObj?.seller_id;
+                if (storeId === undefined) storeId = designObj?.store_id;
+            }
+            push('Seller ID', sellerId);
+            push('Store ID', storeId);
+            push('SW Product ID', fullObject?.product_id);
+
+            if (fullObject?.is_virtual !== undefined) {
+                const v = fullObject.is_virtual;
+                push('Is Virtual', v === 0 ? 'False' : v === 1 ? 'True' : v);
+            }
+
+            push('Product Image ID', result.productImageId);
+            push('CP Product ID', result.cpProductId || result.productsData?.cp_product_id);
+        }
+
+        return {
+            isProductPage: true,
+            isCpb: isCpbPdp,
+            url,
+            fields,
+            textSummary: fields.map((f) => `${f.label}: ${f.value}`).join('\n')
+        };
+    }
     
     // Function to check if we're on a product detail page
     function isProductDetailPage() {
@@ -13366,6 +13473,18 @@ ${address.cityStateZip}</div>
         if (message.type === 'SHOW_FLOATING_MINIMIZED') {
             showFloatingMinimized();
             sendResponse({ success: true });
+        }
+
+        if (message.type === 'GET_PRODUCT_INFO') {
+            extractProductInfo();
+            chrome.storage.local.get(
+                ['url', 'designerName', 'designerLink', 'designId', 'cpProductId', 'productImageId', 'productsData'],
+                (storageResult) => {
+                    const snapshot = buildProductInfoSnapshot(storageResult, window.location.href);
+                    sendResponse({ success: true, ...snapshot });
+                }
+            );
+            return true;
         }
         
         return true;

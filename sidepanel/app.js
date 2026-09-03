@@ -45,6 +45,9 @@ const App = {
         if (tabName === 'shipaddress' && typeof ShipAddressModule !== 'undefined') {
             ShipAddressModule.onShow();
         }
+        if (tabName === 'chat' && typeof ProductContextModule !== 'undefined') {
+            ProductContextModule.refresh({ immediate: true });
+        }
     },
 
     handleDeepLink() {
@@ -61,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     App.init();
     SettingsModule.init().then(() => {
         ChatModule.init();
+        ProductContextModule.init();
         TranslateModule.init();
         KnowledgeModule.init();
         QrcodeModule.init();

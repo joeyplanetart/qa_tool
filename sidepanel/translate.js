@@ -31,39 +31,32 @@ const TranslateModule = {
         const apiKey = await SettingsModule.getApiKey(providerId);
 
         if (apiKey) {
-            this.translateWithLLM(text, sourceLang, targetLang, providerId, model, targetEl, usageEl, btn);
+            let content = '';
+            try {
+                await LLMProviders.translate({
+                    text,
+                    sourceLang,
+                    targetLang,
+                    providerId,
+                    model,
+                    onChunk: (chunk) => {
+                        content += chunk;
+                        targetEl.value = content;
+                    },
+                    onDone: ({ usage }) => {
+                        usageEl.textContent = usage ? TokenUtils.formatUsage(usage) : '';
+                        btn.disabled = false;
+                    },
+                    onError: () => {
+                        this.translateWithMyMemory(text, sourceLang, targetLang, targetEl, usageEl, btn);
+                    }
+                });
+            } catch (err) {
+                this.translateWithMyMemory(text, sourceLang, targetLang, targetEl, usageEl, btn);
+            }
         } else {
             this.translateWithMyMemory(text, sourceLang, targetLang, targetEl, usageEl, btn);
         }
-    },
-
-    translateWithLLM(text, sourceLang, targetLang, providerId, model, targetEl, usageEl, btn) {
-        const port = chrome.runtime.connect({ name: 'llm-stream' });
-        let content = '';
-
-        port.onMessage.addListener((msg) => {
-            if (msg.type === 'chunk') {
-                content += msg.content;
-                targetEl.value = content;
-            }
-            if (msg.type === 'done') {
-                usageEl.textContent = msg.usage ? TokenUtils.formatUsage(msg.usage) : '';
-                btn.disabled = false;
-            }
-            if (msg.type === 'error') {
-                usageEl.textContent = '';
-                this.translateWithMyMemory(text, sourceLang, targetLang, targetEl, usageEl, btn);
-            }
-        });
-
-        port.postMessage({
-            type: 'LLM_TRANSLATE',
-            text,
-            sourceLang,
-            targetLang,
-            providerId,
-            model
-        });
     },
 
     async translateWithMyMemory(text, sourceLang, targetLang, targetEl, usageEl, btn) {
@@ -82,7 +75,6 @@ const TranslateModule = {
             } else {
                 targetEl.value = '';
                 usageEl.textContent = '翻译失败: ' + (data.responseDetails || '未知错误');
-                usageEl.classList.add('error');
             }
         } catch (err) {
             targetEl.value = '';

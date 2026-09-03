@@ -25,7 +25,22 @@ const LLMProviders = {
         return providerId === 'deepseek' || providerId === 'openai';
     },
 
-    async streamChat({ providerId, model, messages, onChunk, onDone, onError }) {
+    getChatCompletionsUrl(providerId) {
+        const config = this.getProviderConfig(providerId);
+        const base = (config?.baseUrl || '').replace(/\/$/, '');
+        return base.endsWith('/v1') ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
+    },
+
+    extractOpenAIDelta(parsed) {
+        const delta = parsed.choices?.[0]?.delta;
+        if (!delta) return { content: '', reasoning: '' };
+        return {
+            content: delta.content || '',
+            reasoning: delta.reasoning_content || ''
+        };
+    },
+
+    async streamChat({ providerId, model, messages, onChunk, onReasoningChunk, onDone, onError }) {
         const apiKey = await this.getApiKey(providerId);
         if (!apiKey) {
             onError(new Error(`请先在设置中配置 ${this.getProviderConfig(providerId)?.label || providerId} 的 API Key`));
@@ -42,8 +57,7 @@ const LLMProviders = {
     },
 
     async _streamOpenAI({ providerId, model, messages, apiKey, onChunk, onDone, onError }) {
-        const config = this.getProviderConfig(providerId);
-        const url = `${config.baseUrl}/chat/completions`;
+        const url = this.getChatCompletionsUrl(providerId);
 
         try {
             const response = await fetch(url, {
@@ -52,7 +66,13 @@ const LLMProviders = {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${apiKey}`
                 },
-                body: JSON.stringify({ model, messages, stream: true })
+                body: JSON.stringify({
+                    model,
+                    messages,
+                    stream: true,
+                    max_tokens: 4096,
+                    stream_options: { include_usage: true }
+                })
             });
 
             if (!response.ok) {
@@ -60,10 +80,15 @@ const LLMProviders = {
                 throw new Error(`API 错误 ${response.status}: ${errText}`);
             }
 
+            if (!response.body) {
+                throw new Error('API 未返回流式响应');
+            }
+
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
             let usage = null;
+            let hasContent = false;
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -82,13 +107,34 @@ const LLMProviders = {
                     try {
                         const parsed = JSON.parse(data);
                         if (parsed.usage) usage = TokenUtils.parseUsage(parsed, providerId);
-                        const delta = parsed.choices?.[0]?.delta?.content;
-                        if (delta) onChunk(delta);
+                        const { content, reasoning } = this.extractOpenAIDelta(parsed);
+                        if (reasoning && onReasoningChunk) {
+                            hasContent = true;
+                            onReasoningChunk(reasoning);
+                        }
+                        if (content) {
+                            hasContent = true;
+                            onChunk(content);
+                        }
                     } catch (e) {
                         // skip malformed chunks
                     }
                 }
             }
+
+            if (!hasContent && buffer.trim()) {
+                try {
+                    const parsed = JSON.parse(buffer.trim());
+                    const text = parsed.choices?.[0]?.message?.content;
+                    if (text) {
+                        hasContent = true;
+                        onChunk(text);
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }
+
             onDone({ usage });
         } catch (err) {
             onError(err);
@@ -200,4 +246,7 @@ const LLMProviders = {
 
 if (typeof self !== 'undefined') {
     self.LLMProviders = LLMProviders;
+}
+if (typeof window !== 'undefined') {
+    window.LLMProviders = LLMProviders;
 }
