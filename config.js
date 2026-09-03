@@ -143,6 +143,9 @@ const CONFIG = {
         if (!hostname) return false;
         
         const supportedPatterns = [
+            /^admin-.*\.pre\.planetart\.com$/,
+            /^admin-.*\.stage\.planetart\.com$/,
+            /^admin\.planetart\.com$/,
             /^cafus-.*\.pre\.planetart\.com$/,
             /^cafus-.*\.stage\.planetart\.com$/,
             /^cafca-.*\.pre\.planetart\.com$/,
@@ -817,6 +820,12 @@ const CONFIG = {
     KNOWLEDGE_BASE: {
         DEFAULT_PATH: '/Users/joey/Joey_work/Knowledge base/planetart-pc-cpb-cp-handbook.html',
         STORAGE_KEY: 'knowledgeBasePath'
+    },
+
+    // Side panel open behavior when clicking extension icon
+    SIDE_PANEL: {
+        STORAGE_KEY: 'sidePanelEnabled',
+        DEFAULT_ENABLED: true
     },
 
     // LLM provider configuration for AI assistant side panel

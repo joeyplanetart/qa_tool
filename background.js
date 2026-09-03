@@ -11,8 +11,113 @@ importScripts(
 
 console.log('Cafepress QA Tools background script loaded');
 
-// Open side panel when extension icon is clicked
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+function isSupportedTabUrl(url) {
+    if (!url) return false;
+    try {
+        return CONFIG.isSupportedHostname(new URL(url).hostname);
+    } catch (e) {
+        return false;
+    }
+}
+
+function getSidePanelStorageKey() {
+    return CONFIG.SIDE_PANEL?.STORAGE_KEY || 'sidePanelEnabled';
+}
+
+async function isSidePanelEnabled() {
+    const key = getSidePanelStorageKey();
+    const result = await chrome.storage.local.get([key]);
+    const defaultEnabled = CONFIG.SIDE_PANEL?.DEFAULT_ENABLED !== false;
+    if (result[key] === undefined) return defaultEnabled;
+    return result[key] !== false;
+}
+
+async function showMinimizedFloatingPanel(tabId) {
+    if (!tabId) return;
+
+    try {
+        await chrome.tabs.sendMessage(tabId, { type: 'SHOW_FLOATING_MINIMIZED' });
+        return;
+    } catch (error) {
+        const message = error?.message || '';
+        const needsInject = message.includes('Receiving end does not exist')
+            || message.includes('Could not establish connection');
+        if (!needsInject) {
+            console.log('SHOW_FLOATING_MINIMIZED failed:', message);
+            return;
+        }
+    }
+
+    try {
+        await chrome.scripting.executeScript({
+            target: { tabId },
+            files: ['config.js', 'content.js']
+        });
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await chrome.tabs.sendMessage(tabId, { type: 'SHOW_FLOATING_MINIMIZED' });
+    } catch (injectError) {
+        console.log('Could not inject content script for floating panel:', injectError);
+    }
+}
+
+function showFloatingPanelForWindow(windowId, tabId) {
+    if (tabId) {
+        chrome.tabs.get(tabId, (tab) => {
+            if (!chrome.runtime.lastError && tab?.id && isSupportedTabUrl(tab.url)) {
+                showMinimizedFloatingPanel(tab.id);
+            }
+        });
+        return;
+    }
+
+    chrome.tabs.query({ active: true, windowId }, (tabs) => {
+        const tab = tabs[0];
+        if (tab?.id && isSupportedTabUrl(tab.url)) {
+            showMinimizedFloatingPanel(tab.id);
+        }
+    });
+}
+
+async function applySidePanelBehavior() {
+    const enabled = await isSidePanelEnabled();
+    try {
+        await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: enabled });
+        console.log('Side panel openPanelOnActionClick:', enabled);
+    } catch (error) {
+        console.log('setPanelBehavior failed:', error);
+    }
+    return enabled;
+}
+
+applySidePanelBehavior();
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+    const key = getSidePanelStorageKey();
+    if (areaName === 'local' && changes[key]) {
+        applySidePanelBehavior();
+    }
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+    applySidePanelBehavior();
+});
+
+// When side panel auto-opens (setting enabled), show minimized floating ball
+if (chrome.sidePanel.onOpened) {
+    chrome.sidePanel.onOpened.addListener((info) => {
+        showFloatingPanelForWindow(info.windowId, info.tabId);
+    });
+}
+
+// When side panel disabled, icon click only shows minimized floating ball
+chrome.action.onClicked.addListener(async (tab) => {
+    const enabled = await isSidePanelEnabled();
+    if (enabled) return;
+
+    if (isSupportedTabUrl(tab.url) && tab.id) {
+        showMinimizedFloatingPanel(tab.id);
+    }
+});
 
 // LLM streaming via long-lived port
 chrome.runtime.onConnect.addListener((port) => {
@@ -1019,9 +1124,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     if (request.type === 'OPEN_SIDE_PANEL') {
         const tabName = request.tab || 'chat';
+        const tabId = sender.tab?.id;
         const windowId = sender.tab?.windowId;
         chrome.storage.local.set({ sidePanelTab: tabName }, () => {
-            if (windowId) {
+            if (tabId) {
+                chrome.sidePanel.open({ tabId }).catch(() => {
+                    if (windowId) chrome.sidePanel.open({ windowId });
+                });
+            } else if (windowId) {
                 chrome.sidePanel.open({ windowId });
             }
             sendResponse({ success: true });

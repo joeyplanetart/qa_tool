@@ -55,7 +55,8 @@
         "*://www.personalcreations.com/*",
         "*://personalcreations.com/*",
         "*://www.simplytoimpress.com/*",
-        "*://simplytoimpress.com/*"
+        "*://simplytoimpress.com/*",
+        "*://admin.planetart.com/*"
       ],
       "js": ["config.js", "content.js"],
       "run_at": "document_idle"

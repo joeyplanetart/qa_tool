@@ -6548,6 +6548,59 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         ptnBarToggleContainer.appendChild(ptnBarToggle);
         ptnBarToggleContainer.appendChild(ptnBarToggleLabel);
         settingsPanel.appendChild(ptnBarToggleContainer);
+
+        // Side Panel open toggle
+        const sidePanelStorageKey = CONFIG.SIDE_PANEL?.STORAGE_KEY || 'sidePanelEnabled';
+        const sidePanelToggleContainer = document.createElement('div');
+        sidePanelToggleContainer.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        `;
+
+        const sidePanelToggle = document.createElement('input');
+        sidePanelToggle.type = 'checkbox';
+        sidePanelToggle.id = 'cp-side-panel-toggle';
+        sidePanelToggle.style.cssText = `
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #ffeb3b;
+            flex-shrink: 0;
+        `;
+
+        const sidePanelToggleLabel = document.createElement('label');
+        sidePanelToggleLabel.textContent = 'Open AI Side Panel on Click';
+        sidePanelToggleLabel.setAttribute('for', 'cp-side-panel-toggle');
+        sidePanelToggleLabel.style.cssText = `
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            user-select: none;
+        `;
+
+        chrome.storage.local.get([sidePanelStorageKey], (result) => {
+            const enabled = result[sidePanelStorageKey] !== false;
+            sidePanelToggle.checked = enabled;
+        });
+
+        sidePanelToggle.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            chrome.storage.local.set({ [sidePanelStorageKey]: enabled }, () => {
+                console.log('Side panel open setting saved:', enabled);
+            });
+        });
+
+        chrome.storage.onChanged.addListener((changes, areaName) => {
+            if (areaName === 'local' && changes[sidePanelStorageKey]) {
+                sidePanelToggle.checked = changes[sidePanelStorageKey].newValue !== false;
+            }
+        });
+
+        sidePanelToggleContainer.appendChild(sidePanelToggle);
+        sidePanelToggleContainer.appendChild(sidePanelToggleLabel);
+        settingsPanel.appendChild(sidePanelToggleContainer);
         
         settingButton.addEventListener('click', () => {
             settingsPanelVisible = !settingsPanelVisible;
@@ -6621,6 +6674,31 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             hideFloatingWindow();
         } else {
             showFloatingWindow();
+        }
+    }
+
+    // Show QA panel as minimized floating ball (used when extension icon is clicked)
+    function showFloatingMinimized() {
+        if (!floatingWindow) {
+            createFloatingWindow();
+        }
+
+        localStorage.setItem('cp-window-minimized', 'true');
+
+        if (floatingWindow) {
+            floatingWindow.style.display = 'none';
+            floatingWindow.style.transition = '';
+            floatingWindow.style.transform = '';
+            floatingWindow.style.opacity = '';
+            isWindowVisible = false;
+        }
+
+        showFloatingBall();
+
+        try {
+            updateFloatingWindowContent();
+        } catch (error) {
+            console.error('Failed to update floating window content:', error);
         }
     }
     
@@ -6764,7 +6842,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 floatingBall.style.boxShadow = '0 4px 20px rgba(255,255,255,0.1)';
             });
             
-            document.body.appendChild(floatingBall);
+            const mountTarget = document.body || document.documentElement;
+            mountTarget.appendChild(floatingBall);
         } else {
             floatingBall.style.display = 'flex';
             floatingBall.style.animation = 'bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
@@ -13282,6 +13361,11 @@ ${address.cityStateZip}</div>
         if (message.type === 'TOGGLE_FLOATING_WINDOW') {
             toggleFloatingWindow();
             sendResponse({success: true});
+        }
+
+        if (message.type === 'SHOW_FLOATING_MINIMIZED') {
+            showFloatingMinimized();
+            sendResponse({ success: true });
         }
         
         return true;
