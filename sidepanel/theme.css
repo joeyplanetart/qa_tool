@@ -204,12 +204,35 @@ body {
   padding: 8px 12px;
   background: var(--color-primary-light);
   border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  user-select: none;
+}
+
+.product-context-card.collapsed .product-context-header {
+  border-bottom: none;
+}
+
+.product-context-card.collapsed .product-context-body {
+  display: none;
 }
 
 .product-context-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   font-weight: 600;
   color: var(--color-primary-dark);
+}
+
+.product-context-toggle-icon {
+  display: inline-block;
+  font-size: 9px;
+  transition: transform 0.2s ease;
+}
+
+.product-context-card.collapsed .product-context-toggle-icon {
+  transform: rotate(-90deg);
 }
 
 .product-context-actions {

@@ -3,13 +3,23 @@ const ProductContextModule = {
     _lastStateKey: null,
     _refreshTimer: null,
     _refreshing: false,
+    collapsed: true,
 
     init() {
-        document.getElementById('btn-refresh-product-context')?.addEventListener('click', () => {
+        this.collapsed = sessionStorage.getItem('productContextCollapsed') !== 'false';
+
+        document.getElementById('product-context-header')?.addEventListener('click', (e) => {
+            if (e.target.closest('.product-context-actions')) return;
+            this.setCollapsed(!this.collapsed);
+        });
+
+        document.getElementById('btn-refresh-product-context')?.addEventListener('click', (e) => {
+            e.stopPropagation();
             this.refresh({ immediate: true });
         });
 
-        document.getElementById('btn-insert-product-context')?.addEventListener('click', () => {
+        document.getElementById('btn-insert-product-context')?.addEventListener('click', (e) => {
+            e.stopPropagation();
             this.insertIntoChatInput();
         });
 
@@ -64,6 +74,15 @@ const ProductContextModule = {
     getSnapshotKey(snapshot) {
         if (!snapshot?.isProductPage || !snapshot.fields?.length) return 'hidden';
         return `${snapshot.url}::${snapshot.fields.map((f) => `${f.label}=${f.value}`).join('|')}`;
+    },
+
+    setCollapsed(collapsed, options = {}) {
+        this.collapsed = collapsed;
+        const card = document.getElementById('product-context-card');
+        if (card) card.classList.toggle('collapsed', collapsed);
+        if (options.save !== false) {
+            sessionStorage.setItem('productContextCollapsed', collapsed ? 'true' : 'false');
+        }
     },
 
     hideCard() {
@@ -174,6 +193,7 @@ const ProductContextModule = {
         this._lastStateKey = stateKey;
         this.snapshot = snapshot;
         card.classList.remove('hidden');
+        this.setCollapsed(this.collapsed, { save: false });
 
         const rows = snapshot.fields.map((field) => {
             const valueHtml = field.link

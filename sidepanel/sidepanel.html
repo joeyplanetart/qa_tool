@@ -25,9 +25,9 @@
           <div class="chat-search-bar">
             <input type="search" id="chat-search" placeholder="搜索当前对话内容..." />
           </div>
-          <div id="product-context-card" class="product-context-card hidden">
-            <div class="product-context-header">
-              <span class="product-context-title">📦 当前产品信息</span>
+          <div id="product-context-card" class="product-context-card hidden collapsed">
+            <div class="product-context-header" id="product-context-header" title="点击收起/展开">
+              <span class="product-context-title"><span class="product-context-toggle-icon">▼</span> 📦 当前产品信息</span>
               <div class="product-context-actions">
                 <button id="btn-insert-product-context" class="btn-text" title="插入到输入框">插入</button>
                 <button id="btn-refresh-product-context" class="btn-text" title="刷新">↻</button>
