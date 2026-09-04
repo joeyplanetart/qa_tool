@@ -28,6 +28,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     
     let floatingWindow = null;
     let floatingWindowHost = null;
+    let floatingWindowShadow = null;
     let isWindowVisible = false;
     
     // Helper function to extract CP fields from design objects
@@ -6150,6 +6151,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         `;
         
         const shadow = floatingWindowHost.attachShadow({ mode: 'open' });
+        floatingWindowShadow = shadow;
         const isolationStyle = document.createElement('style');
         isolationStyle.textContent = `
             *, *::before, *::after { box-sizing: border-box; }
@@ -10312,9 +10314,11 @@ ${address.cityStateZip}</div>
     
     // Create search panel HTML
     // Toast notification function
-    function showToastNotification(message, type = 'info') {
-        // Remove existing toast if any
-        const existingToast = document.getElementById('cp-toast-notification');
+    function showToastNotification(message, type = 'info', duration = 3000) {
+        const toastRoot = floatingWindowShadow || document;
+        const existingToast = toastRoot.getElementById
+            ? toastRoot.getElementById('cp-toast-notification')
+            : document.getElementById('cp-toast-notification');
         if (existingToast) {
             existingToast.remove();
         }
@@ -10346,17 +10350,19 @@ ${address.cityStateZip}</div>
             color: white;
             padding: 12px 20px;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(255,255,255,0.1);
-            z-index: 10001;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            z-index: ${floatingWindowShadow ? 20000 : 10001};
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 14px;
             font-weight: 500;
             max-width: 400px;
+            pointer-events: none;
             animation: slideInDown 0.3s ease-out;
         `;
         
         // Add animation keyframes
-        if (!document.getElementById('cp-toast-style')) {
+        const styleParent = floatingWindowShadow || document.head;
+        if (!styleParent.querySelector('#cp-toast-style')) {
             const style = document.createElement('style');
             style.id = 'cp-toast-style';
             style.textContent = `
@@ -10381,12 +10387,13 @@ ${address.cityStateZip}</div>
                     }
                 }
             `;
-            document.head.appendChild(style);
+            styleParent.appendChild(style);
         }
         
-        document.body.appendChild(toast);
+        const appendTarget = floatingWindowShadow || document.body;
+        appendTarget.appendChild(toast);
         
-        // Auto remove after 3 seconds
+        // Auto remove after duration
         setTimeout(() => {
             toast.style.animation = 'slideOutUp 0.3s ease-out';
             setTimeout(() => {
@@ -10394,7 +10401,7 @@ ${address.cityStateZip}</div>
                     toast.remove();
                 }
             }, 300);
-        }, 3000);
+        }, duration);
     }
     
     // Detect current environment from URL
@@ -10425,8 +10432,8 @@ ${address.cityStateZip}</div>
             branch: detectedBranch
         });
         
-        if (!response.success) {
-            throw new Error(response.error || 'Failed to approve image');
+        if (!response?.success) {
+            throw new Error(response?.error || 'Failed to approve image');
         }
         
         console.log('✅ Image approved successfully:', imageId);
@@ -10451,8 +10458,8 @@ ${address.cityStateZip}</div>
             branch: detectedBranch
         });
         
-        if (!response.success) {
-            throw new Error(response.error || 'Failed to block image');
+        if (!response?.success) {
+            throw new Error(response?.error || 'Failed to block image');
         }
         
         console.log('🚫 Image blocked successfully:', imageId);
