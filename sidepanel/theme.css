@@ -780,6 +780,9 @@ body {
 .qrcode-btn-row .btn-primary,
 .qrcode-btn-row .btn-secondary {
   flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 8px 6px;
 }
 
 .qrcode-display {

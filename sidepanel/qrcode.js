@@ -5,6 +5,10 @@ const QrcodeModule = {
             this.generateQRCode(text);
         });
 
+        document.getElementById('btn-regenerate-qrcode')?.addEventListener('click', () => {
+            this.loadFromCurrentTab();
+        });
+
         document.getElementById('btn-clear-qrcode')?.addEventListener('click', () => {
             const input = document.getElementById('qrcode-input');
             const display = document.getElementById('qrcode-display');
@@ -24,15 +28,28 @@ const QrcodeModule = {
     },
 
     onShow() {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            const input = document.getElementById('qrcode-input');
-            if (!input || input.value.trim()) return;
-            const currentUrl = tabs[0]?.url || '';
-            if (currentUrl && !currentUrl.startsWith('chrome')) {
-                input.value = currentUrl;
-                this.generateQRCode(currentUrl);
+        const input = document.getElementById('qrcode-input');
+        if (!input || input.value.trim()) return;
+        this.loadFromCurrentTab();
+    },
+
+    async loadFromCurrentTab() {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        const currentUrl = tabs[0]?.url || '';
+        const input = document.getElementById('qrcode-input');
+
+        if (!currentUrl || currentUrl.startsWith('chrome')) {
+            if (input) input.value = '';
+            const display = document.getElementById('qrcode-display');
+            if (display) {
+                display.innerHTML = '<div class="qrcode-placeholder qrcode-error">当前标签页无可用地址</div>';
             }
-        });
+            return false;
+        }
+
+        if (input) input.value = currentUrl;
+        this.generateQRCode(currentUrl);
+        return true;
     },
 
     generateQRCode(text) {
