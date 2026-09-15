@@ -48,8 +48,8 @@ AND cmd = 'SELECT';
 在浏览器 Console 中运行以下代码测试：
 
 ```javascript
-const supabaseUrl = 'https://hgjmoyhmlanlrgbvttax.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhnam1veWhtbGFubHJnYnZ0dGF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNTI2MTIsImV4cCI6MjA3NjgyODYxMn0.iaZarnzuQMBNoPDj4iyhMqmJ08x-OXWiAhZF7RiOleI';
+const supabaseUrl = 'https://<your-project-ref>.supabase.co';
+const supabaseAnonKey = '<your-supabase-anon-key>';
 
 // 测试1: 列出存储桶根目录
 fetch(`${supabaseUrl}/storage/v1/object/list/sync-images?limit=10`, {

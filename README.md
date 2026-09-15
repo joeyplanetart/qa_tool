@@ -184,8 +184,8 @@
 确保您有以下文件：
 - `manifest.json` - 插件配置文件
 - `content.js` - 内容脚本，负责页面数据提取
-- `popup.html` - 弹出窗口界面
-- `popup.js` - 弹出窗口逻辑
+- `sidepanel/` - 侧边栏界面（AI 助手、知识库、二维码、翻译等工具）
+- `services/` - 侧边栏共用的服务（LLM 适配、RAG 检索与索引、存储、Token 统计）
 - `background.js` - 后台脚本，处理跨域请求
 - 图标文件（icon16.png, icon48.png, icon128.png等）
 
@@ -232,8 +232,7 @@
   - 浮动窗口UI
   - 订单/店铺搜索界面
   - 图片审核界面
-- `popup.html` - 浏览器工具栏弹出窗口界面
-- `popup.js` - 弹出窗口逻辑和登录状态检测
+- `sidepanel/sidepanel.html` - 浏览器侧边栏界面（点击工具栏图标打开）
 - `background.js` - 后台服务脚本，负责：
   - 跨域API请求代理
   - Admin系统数据获取

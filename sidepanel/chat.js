@@ -174,11 +174,15 @@ const ChatModule = {
             el.classList.toggle('hidden-by-search', !match);
             if (match) {
                 const bubble = el.querySelector('.message-bubble');
-                const highlighted = msg.content.replace(
-                    new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'),
-                    '<mark>$1</mark>'
-                );
-                if (bubble) bubble.innerHTML = highlighted;
+                if (bubble) {
+                    // 先转义 HTML 再做高亮，避免消息内容被当作 HTML 注入
+                    const escaped = this.escapeHtml(msg.content);
+                    const escapedQuery = this.escapeHtml(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    bubble.innerHTML = escaped.replace(
+                        new RegExp(`(${escapedQuery})`, 'gi'),
+                        '<mark>$1</mark>'
+                    );
+                }
             }
         });
     },

@@ -16,8 +16,8 @@ chrome.storage.local.set({
 
 // 可选：同时配置 Supabase 设置（如果需要覆盖默认值）
 // chrome.storage.local.set({
-//   supabaseUrl: 'https://hgjmoyhmlanlrgbvttax.supabase.co',
-//   supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhnam1veWhtbGFubHJnYnZ0dGF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNTI2MTIsImV4cCI6MjA3NjgyODYxMn0.iaZarnzuQMBNoPDj4iyhMqmJ08x-OXWiAhZF7RiOleI',
+//   supabaseUrl: 'https://<your-project-ref>.supabase.co',
+//   supabaseAnonKey: '<your-supabase-anon-key>',
 //   supabaseBucket: 'sync-images'
 // }, () => {
 //   console.log('✅ Supabase 配置成功！');

@@ -684,6 +684,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log('🎁 Background: Generate Gift Certificates request:', request);
         
         const { gcNumber, gcAmount, notes, siteIds, environment } = request;
+        if (!Array.isArray(siteIds) || !siteIds.length) {
+            sendResponse({ success: false, error: '缺少 siteIds' });
+            return true;
+        }
         const env = environment || 'stage'; // 使用传递的环境，默认 stage
         const branch = CONFIG.BRANCH.CURRENT;
         
@@ -796,6 +800,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log('🎟️ Background: Generate Promo Code request:', request);
         
         const { pcId, salePercent, voucherMaxValue, dateStr, description, siteIds, environment } = request;
+        if (!Array.isArray(siteIds) || !siteIds.length) {
+            sendResponse({ success: false, error: '缺少 siteIds' });
+            return true;
+        }
         const env = environment || 'stage';
         const branch = CONFIG.BRANCH.CURRENT;
         
@@ -1166,14 +1174,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'OPEN_QA_PANEL') {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             const activeTab = tabs[0];
-            if (activeTab?.id) {
-                chrome.tabs.sendMessage(activeTab.id, { type: 'TOGGLE_FLOATING_WINDOW' }).catch(() => {
-                    sendResponse({ success: false, error: '请在支持的 Cafepress 页面上使用' });
-                });
-                sendResponse({ success: true });
-            } else {
+            if (!activeTab?.id) {
                 sendResponse({ success: false, error: '未找到活动标签页' });
+                return;
             }
+            chrome.tabs.sendMessage(activeTab.id, { type: 'TOGGLE_FLOATING_WINDOW' })
+                .then(() => sendResponse({ success: true }))
+                .catch(() => sendResponse({ success: false, error: '请在支持的 Cafepress 页面上使用' }));
         });
         return true;
     }
@@ -1218,4 +1225,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         return true;
     }
+
+    // 未识别的消息类型：显式返回失败，避免调用方永久挂起
+    sendResponse({ success: false, error: `未知的消息类型: ${request.type}` });
+    return false;
 });

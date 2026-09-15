@@ -196,11 +196,21 @@ const LLMProviders = {
                             const text = parsed.delta?.text;
                             if (text) onChunk(text);
                         }
-                        if (parsed.type === 'message_delta' && parsed.usage) {
-                            usage = TokenUtils.parseUsage({ usage: parsed.usage }, 'anthropic');
+                        // input_tokens 只在 message_start 中出现，必须先记下来
+                        if (parsed.type === 'message_start' && parsed.message?.usage) {
+                            usage = TokenUtils.parseUsage(parsed.message, 'anthropic') || usage;
                         }
-                        if (parsed.type === 'message_stop' && parsed.message?.usage) {
-                            usage = TokenUtils.parseUsage(parsed.message, 'anthropic');
+                        // message_delta 的 usage 只带 output_tokens，需与已记录的 input 合并
+                        if (parsed.type === 'message_delta' && parsed.usage) {
+                            const deltaUsage = TokenUtils.parseUsage({ usage: parsed.usage }, 'anthropic');
+                            if (deltaUsage) {
+                                const promptTokens = usage?.promptTokens || 0;
+                                usage = {
+                                    promptTokens,
+                                    completionTokens: deltaUsage.completionTokens,
+                                    totalTokens: promptTokens + deltaUsage.completionTokens
+                                };
+                            }
                         }
                     } catch (e) {
                         // skip
