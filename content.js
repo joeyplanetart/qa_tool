@@ -982,10 +982,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                         // Save immediately
                                         chrome.storage.local.set(extractedData, function() {
                                             console.log('✅ Product options saved from enhanced script parsing');
-                                            chrome.runtime.sendMessage({
-                                                type: 'PRODUCT_INFO_FOUND',
-                                                data: extractedData
-                                            }).catch(() => {});
                                         });
                                         
                                         return true;
@@ -1307,10 +1303,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             
             chrome.storage.local.set(extractedData, function() {
                 console.log('✅ Product options saved from window.product_options');
-                chrome.runtime.sendMessage({
-                    type: 'PRODUCT_INFO_FOUND',
-                    data: extractedData
-                }).catch(() => {});
             });
             
             return true;
@@ -1434,12 +1426,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         console.log('Saved data keys:', Object.keys(extractedData));
                     }
                     
-                    chrome.runtime.sendMessage({
-                        type: 'PRODUCT_INFO_FOUND',
-                        data: extractedData
-                    }).catch((error) => {
-                        console.log('Message send failed (normal if popup closed):', error);
-                    });
                 });
                 
                 if (pollInterval) clearInterval(pollInterval);
@@ -1491,12 +1477,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         console.log('Saved data keys:', Object.keys(extractedData));
                     }
                     
-                    chrome.runtime.sendMessage({
-                        type: 'PRODUCT_INFO_FOUND',
-                        data: extractedData
-                    }).catch((error) => {
-                        console.log('Message send failed (normal if popup closed):', error);
-                    });
                 });
                 
                 if (pollInterval) clearInterval(pollInterval);
@@ -1587,10 +1567,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         // Save immediately
                         chrome.storage.local.set(extractedData, function() {
                             console.log(`✓ Product options (${variation}) saved to storage successfully`);
-                            chrome.runtime.sendMessage({
-                                type: 'PRODUCT_INFO_FOUND',
-                                data: extractedData
-                            }).catch(() => {});
                         });
                         
                         if (pollInterval) clearInterval(pollInterval);
@@ -1661,10 +1637,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 
                                 chrome.storage.local.set(extractedData, function() {
                                     console.log(`✅ Product options saved from global variable: ${varName}`);
-                                    chrome.runtime.sendMessage({
-                                        type: 'PRODUCT_INFO_FOUND',
-                                        data: extractedData
-                                    }).catch(() => {});
                                 });
                                 
                                 if (pollInterval) clearInterval(pollInterval);
@@ -1683,10 +1655,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 foundProductOptions = true;
                 chrome.storage.local.set(extractedData, function() {
                     console.log('✓ Product info updated in storage via comprehensive search');
-                    chrome.runtime.sendMessage({
-                        type: 'PRODUCT_INFO_FOUND',
-                        data: extractedData
-                    }).catch(() => {});
                 });
                 if (pollInterval) clearInterval(pollInterval);
                 return;
@@ -1737,10 +1705,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 
                                 chrome.storage.local.set(extractedData, function() {
                                     console.log('✓ Product options saved via polling (getCurrDesignObject)');
-                                    chrome.runtime.sendMessage({
-                                        type: 'PRODUCT_INFO_FOUND',
-                                        data: extractedData
-                                    }).catch(() => {});
                                 });
                                 
                                 return;
@@ -1850,10 +1814,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         
                         chrome.storage.local.set(extractedData, function() {
                             console.log('✓ Product options saved via polling');
-                            chrome.runtime.sendMessage({
-                                type: 'PRODUCT_INFO_FOUND',
-                                data: extractedData
-                            }).catch(() => {});
                         });
                         
                         clearInterval(pollInterval);
@@ -1880,13 +1840,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 updateFloatingWindowContent();
             });
             
-            // Send message to popup (if popup is open)
-            chrome.runtime.sendMessage({
-                type: 'PRODUCT_INFO_FOUND',
-                data: extractedData
-            }).catch(() => {
-                // Ignore error, popup might not be open
-            });
             
             return extractedData;
         } else {
@@ -3744,10 +3697,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 
                 chrome.storage.local.set(updatedData, function() {
                     console.log('✅ Product options refreshed, default_sku fingerprint:', fingerprint);
-                    chrome.runtime.sendMessage({
-                        type: 'PRODUCT_INFO_FOUND',
-                        data: updatedData
-                    }).catch(() => {});
                     updateFloatingWindowContent();
                 });
             }
@@ -12139,143 +12088,6 @@ ${address.cityStateZip}</div>
                 </div>
             </div>
         `;
-    }
-    
-    function getEnvironmentInfo(currentUrl) {
-        // Extract product path and parameters from current URL
-        let productPath = '';
-        let siteType = ''; // 'US', 'CA', 'UK', 'AU'
-        
-        // Determine site type and extract path
-        if (currentUrl.includes('cafus-cpsw-web.pre.planetart.com') || 
-            currentUrl.includes('cafus-cpsw-web.stage.planetart.com') || 
-            currentUrl.includes('cafepress.com')) {
-            siteType = 'US';
-            
-            if (currentUrl.includes('cafus-cpsw-web.pre.planetart.com')) {
-                const match = currentUrl.match(/cafus-cpsw-web\.pre\.planetart\.com(\/.*)/);
-                if (match) productPath = match[1];
-            } else if (currentUrl.includes('cafus-cpsw-web.stage.planetart.com')) {
-                const match = currentUrl.match(/cafus-cpsw-web\.stage\.planetart\.com(\/.*)/);
-                if (match) productPath = match[1];
-            } else if (currentUrl.includes('cafepress.com')) {
-                const match = currentUrl.match(/cafepress\.com(\/.*)/);
-                if (match) productPath = match[1];
-            }
-        }
-        else if (currentUrl.includes('cafca-cpsw-web.pre.planetart.com') || 
-                 currentUrl.includes('cafca-cpsw-web.stage.planetart.com') || 
-                 currentUrl.includes('cafepress.ca')) {
-            siteType = 'CA';
-            
-            if (currentUrl.includes('cafca-cpsw-web.pre.planetart.com')) {
-                const match = currentUrl.match(/cafca-cpsw-web\.pre\.planetart\.com(\/.*)/);
-                if (match) productPath = match[1];
-            } else if (currentUrl.includes('cafca-cpsw-web.stage.planetart.com')) {
-                const match = currentUrl.match(/cafca-cpsw-web\.stage\.planetart\.com(\/.*)/);
-                if (match) productPath = match[1];
-            } else if (currentUrl.includes('cafepress.ca')) {
-                const match = currentUrl.match(/cafepress\.ca(\/.*)/);
-                if (match) productPath = match[1];
-            }
-        }
-        else if (currentUrl.includes('cafuk-cpsw-web.pre.planetart.com') || 
-                 currentUrl.includes('cafuk-cpsw-web.stage.planetart.com') || 
-                 currentUrl.includes('cafepress.co.uk')) {
-            siteType = 'UK';
-            
-            if (currentUrl.includes('cafuk-cpsw-web.pre.planetart.com')) {
-                const match = currentUrl.match(/cafuk-cpsw-web\.pre\.planetart\.com(\/.*)/);
-                if (match) productPath = match[1];
-            } else if (currentUrl.includes('cafuk-cpsw-web.stage.planetart.com')) {
-                const match = currentUrl.match(/cafuk-cpsw-web\.stage\.planetart\.com(\/.*)/);
-                if (match) productPath = match[1];
-            } else if (currentUrl.includes('cafepress.co.uk')) {
-                const match = currentUrl.match(/cafepress\.co\.uk(\/.*)/);
-                if (match) productPath = match[1];
-            }
-        }
-        else if (currentUrl.includes('cafau-cpsw-web.pre.planetart.com') || 
-                 currentUrl.includes('cafau-cpsw-web.stage.planetart.com') || 
-                 currentUrl.includes('cafepress.com.au')) {
-            siteType = 'AU';
-            
-            if (currentUrl.includes('cafau-cpsw-web.pre.planetart.com')) {
-                const match = currentUrl.match(/cafau-cpsw-web\.pre\.planetart\.com(\/.*)/);
-                if (match) productPath = match[1];
-            } else if (currentUrl.includes('cafau-cpsw-web.stage.planetart.com')) {
-                const match = currentUrl.match(/cafau-cpsw-web\.stage\.planetart\.com(\/.*)/);
-                if (match) productPath = match[1];
-            } else if (currentUrl.includes('cafepress.com.au')) {
-                const match = currentUrl.match(/cafepress\.com\.au(\/.*)/);
-                if (match) productPath = match[1];
-            }
-        }
-        else {
-            // Not a supported environment
-            return null;
-        }
-        
-        // Extract search parameters
-        const urlObj = new URL(currentUrl);
-        const searchParams = urlObj.search;
-        const fullPath = productPath + searchParams;
-        
-        // Generate environments based on site type using unified config
-        const config = CONFIG.getSiteConfig(siteType);
-        if (!config) return null;
-        
-        const environments = [
-            {
-                name: 'Pre',
-                url: `https://${config.PRE}${fullPath}`,
-                current: currentUrl.includes(config.PRE)
-            },
-            {
-                name: 'Stage', 
-                url: `https://${config.STAGE}${fullPath}`,
-                current: currentUrl.includes(config.STAGE)
-            },
-            {
-                name: 'Live',
-                url: `https://${config.LIVE}${fullPath}`,
-                current: currentUrl.includes(config.LIVE)
-            }
-        ];
-        
-        return environments;
-    }
-    
-    function createInfoRow(label, value) {
-        return `
-            <div style="
-                margin-bottom: 8px;
-                font-size: 8px;
-                display: flex;
-                justify-content: space-between;
-                align-items: flex-start;
-            ">
-                <span style="color: #fff; opacity: 0.7; margin-right: 10px; user-select: text; cursor: text;">${label}</span>
-                <span style="color: #ffeb3b; opacity: 0.8; user-select: text; cursor: text; word-break: break-all; text-align: right; max-width: 70%;">${value || 'Unknown'}</span>
-            </div>
-        `;
-    }
-    
-    function formatTimestamp(isoString) {
-        if (!isoString) return 'Unknown';
-        try {
-            const date = new Date(isoString);
-            const now = new Date();
-            const diffMs = now - date;
-            const diffSecs = Math.floor(diffMs / 1000);
-            const diffMins = Math.floor(diffSecs / 60);
-            
-            if (diffSecs < 60) return 'Just now';
-            if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-            return date.toLocaleString('en-US');
-        } catch (e) {
-            return 'Unknown';
-        }
     }
     
     // Check if window should be auto-opened (pinned state)
