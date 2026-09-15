@@ -212,6 +212,25 @@ function handleCookieLookup(sendResponse, url, cookieName) {
     }
 }
 
+// 统一的 Admin 请求：带上 cookies，并统一 401/403 与其它非 2xx 的错误映射。
+// 成功时返回解析后的 body（text 或 json）；失败时抛 Error。
+// buildError 用于覆盖默认错误文案（仍会收到已读取的 body 预览）。
+async function adminFetch(url, options = {}, config = {}) {
+    const { parse = 'text', buildError } = config;
+    const response = await fetch(url, { credentials: 'include', ...options });
+
+    if (!response.ok) {
+        const bodyPreview = (await response.text().catch(() => '')).substring(0, 200);
+        if (buildError) throw buildError(response, bodyPreview);
+        if (response.status === 401 || response.status === 403) {
+            throw new Error('Unauthorized - Please login via SSO first');
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return parse === 'json' ? response.json() : response.text();
+}
+
 // Handle order fetch requests from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (COOKIE_LOOKUPS[request.type]) {
@@ -226,25 +245,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const adminUrl = request.url || `${CONFIG.ADMIN.LIVE}${CONFIG.API_ENDPOINTS.ORDER_TAB_OVERVIEW}?order_id=${request.orderId}`;
         console.log('Background: Admin URL:', adminUrl);
         
-        fetch(adminUrl, {
+        adminFetch(adminUrl, {
             method: 'GET',
-            credentials: 'include',
             headers: {
-                'Accept': 'text/html',
+                'Accept': 'text/html'
             }
-        })
-        .then(response => {
-            console.log('Background: Response status:', response.status);
-            console.log('Background: Response ok:', response.ok);
-            
-            if (!response.ok) {
-                if (response.status === 401 || response.status === 403) {
-                    throw new Error('Unauthorized - Please login via SSO first');
-                }
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            return response.text();
         })
         .then(html => {
             console.log('Background: HTML received, length:', html.length);
@@ -441,9 +446,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (email) formData.append('email', email);
         if (swCustomerId) formData.append('sw_customer_id', swCustomerId);
         
-        fetch(apiUrl, {
+        adminFetch(apiUrl, {
             method: 'POST',
-            credentials: 'include',
             headers: {
                 'Accept': 'application/json, text/javascript, */*; q=0.01',
                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -452,19 +456,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 'Referer': `${adminBaseUrl}/cstools/cp/cup_tool.php`
             },
             body: formData.toString()
-        })
-        .then(response => {
-            console.log('Background: Response status:', response.status);
-            
-            if (!response.ok) {
-                if (response.status === 401 || response.status === 403) {
-                    throw new Error('Unauthorized - Please login via SSO first');
-                }
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            return response.json();
-        })
+        }, { parse: 'json' })
         .then(data => {
             console.log('Background: API response data:', data);
             
@@ -546,9 +538,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
         console.log('FormData string:', formData.toString());
         
-        fetch(apiUrl, {
+        adminFetch(apiUrl, {
             method: 'POST',
-            credentials: 'include',
             headers: {
                 'Accept': '*/*',
                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -557,32 +548,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 'Referer': `${adminBaseUrl}/orders/order_tab_index.php?order_id=${orderId}`
             },
             body: formData.toString()
+        }, {
+            buildError: (response) => new Error(
+                response.status === 401 || response.status === 403
+                    ? `Unauthorized (${response.status}) - Please login via SSO first`
+                    : `HTTP ${response.status}: ${response.statusText}`
+            )
         })
-        .then(async response => {
-            console.log('========== CANCEL ORDER RESPONSE DEBUG ==========');
-            console.log('Background: Response status:', response.status);
-            console.log('Background: Response statusText:', response.statusText);
-            console.log('Background: Response ok:', response.ok);
-            console.log('Background: Response content-type:', response.headers.get('content-type'));
-            
-            if (!response.ok) {
-                // Get response body for debugging
-                const responseText = await response.text();
-                console.error('Background: Error response body (first 1000 chars):', responseText.substring(0, 1000));
-                
-                if (response.status === 401 || response.status === 403) {
-                    throw new Error(`Unauthorized (${response.status}) - Please login via SSO first`);
-                }
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            // Get response as text
-            const responseText = await response.text();
+        .then(responseText => {
             console.log('Background: Response body:', responseText);
-            
-            return { success: true, result: responseText };
-        })
-        .then(data => {
+
+            const data = { success: true, result: responseText };
             console.log('Background: Cancel order response:', JSON.stringify(data, null, 2));
             console.log('✅ Cancel order success!');
             
@@ -643,9 +619,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             formData.append('site_id', siteId);
             
             try {
-                const response = await fetch(url, {
+                const responseText = await adminFetch(url, {
                     method: 'POST',
-                    credentials: 'include',
                     headers: {
                         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                         'Content-Type': 'application/x-www-form-urlencoded',
@@ -655,19 +630,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     body: formData.toString()
                 });
                 
-                console.log(`Site ${siteId} Response status:`, response.status);
-                
-                if (!response.ok) {
-                    const responseText = await response.text();
-                    console.error(`Site ${siteId} Error response:`, responseText.substring(0, 500));
-                    
-                    if (response.status === 401 || response.status === 403) {
-                        throw new Error('Unauthorized - Please login via SSO first');
-                    }
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const responseText = await response.text();
                 console.log(`✅ Site ${siteId} success, response length:`, responseText.length);
                 
                 return {
@@ -769,9 +731,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             formData.append('shopping_cart_description_override', description);
             
             try {
-                const response = await fetch(apiUrl, {
+                const responseText = await adminFetch(apiUrl, {
                     method: 'POST',
-                    credentials: 'include',
                     headers: {
                         'Accept': '*/*',
                         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -782,19 +743,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     body: formData.toString()
                 });
                 
-                console.log(`Site ${siteId} Response status:`, response.status);
-                
-                if (!response.ok) {
-                    const responseText = await response.text();
-                    console.error(`Site ${siteId} Error response:`, responseText.substring(0, 500));
-                    
-                    if (response.status === 401 || response.status === 403) {
-                        throw new Error('Unauthorized - Please login via SSO first');
-                    }
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const responseText = await response.text();
                 console.log(`✅ Site ${siteId} success, response length:`, responseText.length);
                 
                 return {
