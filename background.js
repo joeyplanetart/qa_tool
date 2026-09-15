@@ -188,86 +188,34 @@ async function handleTranslateStream(port, request) {
     }
 }
 
+// 单个 cookie 取值的消息类型 → cookie 名
+const COOKIE_LOOKUPS = {
+    GET_PHPSESSID: 'PHPSESSID',
+    GET_CART_ID: 'cart_id',
+    GET_NO_TRACKING: 'NO_TRACKING'
+};
+
+// 读取单个 cookie 并以 {success, value} 响应。
+// 形状不可变：调用方检查 response.success && response.value
+function handleCookieLookup(sendResponse, url, cookieName) {
+    try {
+        chrome.cookies.getAll({ url }, (cookies) => {
+            if (chrome.runtime.lastError) {
+                sendResponse({ success: false, value: null, error: chrome.runtime.lastError.message });
+                return;
+            }
+            const found = (cookies || []).find((cookie) => cookie.name === cookieName);
+            sendResponse({ success: !!found, value: found ? found.value : null });
+        });
+    } catch (err) {
+        sendResponse({ success: false, value: null, error: err.message });
+    }
+}
+
 // Handle order fetch requests from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.type === 'GET_PHPSESSID') {
-        console.log('🔍 Background: Getting PHPSESSID cookie');
-        
-        const url = request.url || sender.url;
-        
-        chrome.cookies.getAll({ url: url }, (cookies) => {
-            const phpSessionCookie = cookies.find(cookie => cookie.name === 'PHPSESSID');
-            
-            if (phpSessionCookie) {
-                console.log('✅ Background: PHPSESSID found:', phpSessionCookie.value);
-                sendResponse({
-                    success: true,
-                    value: phpSessionCookie.value
-                });
-            } else {
-                console.log('ℹ️ Background: No PHPSESSID cookie found');
-                sendResponse({
-                    success: false,
-                    value: null
-                });
-            }
-        });
-        
-        // Return true to indicate async response
-        return true;
-    }
-    
-    if (request.type === 'GET_CART_ID') {
-        console.log('🔍 Background: Getting cart_id cookie');
-        
-        const url = request.url || sender.url;
-        
-        chrome.cookies.getAll({ url: url }, (cookies) => {
-            const cartIdCookie = cookies.find(cookie => cookie.name === 'cart_id');
-            
-            if (cartIdCookie) {
-                console.log('✅ Background: cart_id found:', cartIdCookie.value);
-                sendResponse({
-                    success: true,
-                    value: cartIdCookie.value
-                });
-            } else {
-                console.log('ℹ️ Background: No cart_id cookie found');
-                sendResponse({
-                    success: false,
-                    value: null
-                });
-            }
-        });
-        
-        // Return true to indicate async response
-        return true;
-    }
-    
-    if (request.type === 'GET_NO_TRACKING') {
-        console.log('🔍 Background: Getting NO_TRACKING cookie');
-        
-        const url = request.url || sender.url;
-        
-        chrome.cookies.getAll({ url: url }, (cookies) => {
-            const noTrackingCookie = cookies.find(cookie => cookie.name === 'NO_TRACKING');
-            
-            if (noTrackingCookie) {
-                console.log('✅ Background: NO_TRACKING found:', noTrackingCookie.value);
-                sendResponse({
-                    success: true,
-                    value: noTrackingCookie.value
-                });
-            } else {
-                console.log('ℹ️ Background: No NO_TRACKING cookie found');
-                sendResponse({
-                    success: false,
-                    value: null
-                });
-            }
-        });
-        
-        // Return true to indicate async response
+    if (COOKIE_LOOKUPS[request.type]) {
+        handleCookieLookup(sendResponse, request.url || sender.url, COOKIE_LOOKUPS[request.type]);
         return true;
     }
     
@@ -329,16 +277,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const branch = request.branch || CONFIG.BRANCH.CURRENT;
         const statusNo = action === 'approve' ? 1 : -1; // 1 for approve, -1 for block
         
-        // Temporarily set the branch for this request
-        const originalBranch = CONFIG.BRANCH.CURRENT;
-        CONFIG.BRANCH.CURRENT = branch;
-        
-        // Determine Admin API URL based on environment using unified config
-        const apiUrl = CONFIG.getAdminApiUrl(environment, CONFIG.API_ENDPOINTS.APPROVE_IMAGE);
-        const adminBaseUrl = CONFIG.getAdminBaseUrl(environment);
-        
-        // Restore original branch
-        CONFIG.BRANCH.CURRENT = originalBranch;
+        // 用显式 branch 构造域名，避免临时改写全局 CONFIG.BRANCH.CURRENT
+        const adminBaseUrl = CONFIG.buildAdminDomain(environment, branch);
+        const apiUrl = adminBaseUrl + CONFIG.API_ENDPOINTS.APPROVE_IMAGE;
         
         console.log('========== APPROVE/BLOCK REQUEST DEBUG ==========');
         console.log(`Environment: ${environment}`);
@@ -485,16 +426,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const environment = request.environment || 'pre'; // Default to pre (Live API not available yet)
         const branch = request.branch || CONFIG.BRANCH.CURRENT;
         
-        // Temporarily set the branch for this request
-        const originalBranch = CONFIG.BRANCH.CURRENT;
-        CONFIG.BRANCH.CURRENT = branch;
-        
-        // Determine Admin API URL based on environment using unified config
-        const apiUrl = CONFIG.getAdminApiUrl(environment, CONFIG.API_ENDPOINTS.SELLER_STORE);
-        const adminBaseUrl = CONFIG.getAdminBaseUrl(environment);
-        
-        // Restore original branch
-        CONFIG.BRANCH.CURRENT = originalBranch;
+        // 用显式 branch 构造域名，避免临时改写全局 CONFIG.BRANCH.CURRENT
+        const adminBaseUrl = CONFIG.buildAdminDomain(environment, branch);
+        const apiUrl = adminBaseUrl + CONFIG.API_ENDPOINTS.SELLER_STORE;
         
         console.log(`Environment: ${environment}`);
         console.log(`Branch: ${branch}`);
@@ -580,16 +514,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const environment = request.environment || 'pre';
         const branch = request.branch || CONFIG.BRANCH.CURRENT;
         
-        // Temporarily set the branch for this request
-        const originalBranch = CONFIG.BRANCH.CURRENT;
-        CONFIG.BRANCH.CURRENT = branch;
-        
-        // Determine Admin API URL based on environment using unified config
-        const apiUrl = CONFIG.getAdminApiUrl(environment, CONFIG.API_ENDPOINTS.EDIT_ORDER_AJAX);
-        const adminBaseUrl = CONFIG.getAdminBaseUrl(environment);
-        
-        // Restore original branch
-        CONFIG.BRANCH.CURRENT = originalBranch;
+        // 用显式 branch 构造域名，避免临时改写全局 CONFIG.BRANCH.CURRENT
+        const adminBaseUrl = CONFIG.buildAdminDomain(environment, branch);
+        const apiUrl = adminBaseUrl + CONFIG.API_ENDPOINTS.EDIT_ORDER_AJAX;
         
         console.log('========== CANCEL ORDER REQUEST DEBUG ==========');
         console.log(`Environment: ${environment}`);
@@ -699,14 +626,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log(`Notes: ${notes}`);
         console.log(`Site IDs: ${siteIds.join(', ')}`);
         
-        // Temporarily set the branch for this request
-        const originalBranch = CONFIG.BRANCH.CURRENT;
-        CONFIG.BRANCH.CURRENT = branch;
-        
         const adminBaseUrl = CONFIG.getAdminBaseUrl(env);
-        
-        // Restore original branch
-        CONFIG.BRANCH.CURRENT = originalBranch;
         
         // Generate gift certificates for all site IDs
         const promises = siteIds.map(async (siteId) => {
@@ -817,14 +737,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log(`Description: ${description}`);
         console.log(`Site IDs: ${siteIds.join(', ')}`);
         
-        // Temporarily set the branch for this request
-        const originalBranch = CONFIG.BRANCH.CURRENT;
-        CONFIG.BRANCH.CURRENT = branch;
-        
         const adminBaseUrl = CONFIG.getAdminBaseUrl(env);
-        
-        // Restore original branch
-        CONFIG.BRANCH.CURRENT = originalBranch;
         
         const apiUrl = `${adminBaseUrl}/catalog/promos/promos_edit.php`;
         
@@ -942,47 +855,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 console.log('Cookie names:', cookies.map(c => c.name).join(', '));
             }
             sendResponse(cookies);
-        });
-        
-        // Return true to indicate async response
-        return true;
-    }
-    
-    // Handle CLEAR_COOKIES request
-    if (request.type === 'CLEAR_COOKIES') {
-        console.log('🗑️ Background: Clearing cookies for URL:', request.url);
-        
-        const url = request.url;
-        
-        chrome.cookies.getAll({ url: url }, async (cookies) => {
-            console.log(`Found ${cookies.length} cookies to clear`);
-            
-            let cleared = 0;
-            let failed = 0;
-            
-            for (const cookie of cookies) {
-                try {
-                    const cookieUrl = `http${cookie.secure ? 's' : ''}://${cookie.domain}${cookie.path}`;
-                    await chrome.cookies.remove({
-                        url: cookieUrl,
-                        name: cookie.name
-                    });
-                    cleared++;
-                    console.log(`✅ Cleared cookie: ${cookie.name}`);
-                } catch (error) {
-                    failed++;
-                    console.error(`❌ Failed to clear cookie ${cookie.name}:`, error);
-                }
-            }
-            
-            console.log(`🍪 Cookie clearing complete: ${cleared} cleared, ${failed} failed`);
-            
-            sendResponse({
-                success: true,
-                cleared: cleared,
-                failed: failed,
-                total: cookies.length
-            });
         });
         
         // Return true to indicate async response
