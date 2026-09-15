@@ -58,7 +58,7 @@
         "*://simplytoimpress.com/*",
         "*://admin.planetart.com/*"
       ],
-      "js": ["config.js", "content.js"],
+      "js": ["config.js", "content-modules/csv-utils.js", "content-modules/environment-switcher.js", "content-modules/ptn-test-links.js", "content.js"],
       "run_at": "document_idle"
     }
   ],

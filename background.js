@@ -51,7 +51,7 @@ async function showMinimizedFloatingPanel(tabId) {
     try {
         await chrome.scripting.executeScript({
             target: { tabId },
-            files: ['config.js', 'content.js']
+            files: ['config.js', 'content-modules/csv-utils.js', 'content-modules/environment-switcher.js', 'content-modules/ptn-test-links.js', 'content.js']
         });
         await new Promise((resolve) => setTimeout(resolve, 300));
         await chrome.tabs.sendMessage(tabId, { type: 'SHOW_FLOATING_MINIMIZED' });
