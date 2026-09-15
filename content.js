@@ -3192,10 +3192,12 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         return null;
     }
     
-    function createListPageProductBadge(badgeContent, badgeEnabled) {
+    // 统一的商品 ID badge：三处调用点共用样式 / hover / 点击反馈，
+    // 差异仅在 badgeClass、显示内容与复制文本（getCopyText）。
+    function createProductBadge({ badgeClass, content, enabled, getCopyText }) {
         const badge = document.createElement('div');
-        badge.className = 'cp-product-id-badge';
-        badge.textContent = badgeContent;
+        badge.className = badgeClass;
+        badge.textContent = content;
         badge.style.cssText = `
             position: absolute;
             bottom: 5px;
@@ -3218,8 +3220,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             cursor: pointer;
             user-select: text;
             transition: background-color 0.2s ease, transform 0.1s ease;
-            display: ${badgeEnabled ? 'block' : 'none'};
-            visibility: ${badgeEnabled ? 'visible' : 'hidden'};
+            display: ${enabled ? 'block' : 'none'};
+            visibility: ${enabled ? 'visible' : 'hidden'};
         `;
         
         badge.addEventListener('mouseenter', function() {
@@ -3236,8 +3238,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             e.preventDefault();
             e.stopPropagation();
             
+            const textToCopy = getCopyText(badge);
+            
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(badge.textContent).then(() => {
+                navigator.clipboard.writeText(textToCopy).then(() => {
                     const originalText = badge.textContent;
                     const originalBackground = badge.style.background;
                     badge.textContent = 'Copied!';
@@ -3248,7 +3252,16 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         badge.style.background = originalBackground || 'rgba(119, 165, 233, 0.4)';
                         badge.style.transform = 'scale(1)';
                     }, 1000);
-                }).catch(err => console.error('Failed to copy:', err));
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                });
+            } else {
+                // Fallback: select text
+                const range = document.createRange();
+                range.selectNodeContents(badge);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
             }
         });
         
@@ -3261,6 +3274,15 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         });
         
         return badge;
+    }
+
+    function createListPageProductBadge(badgeContent, badgeEnabled) {
+        return createProductBadge({
+            badgeClass: 'cp-product-id-badge',
+            content: badgeContent,
+            enabled: badgeEnabled,
+            getCopyText: (badge) => badge.textContent
+        });
     }
 
     function createCpbDecorationBadge(decorationInfo, badgeEnabled) {
@@ -3326,7 +3348,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         return badge;
     }
 
-    function attachCpbDecorationBadge(productContainer, link, badge) {
+    // 统一把 badge 挂到商品容器上：优先定位祖先，否则退回图片父节点 / 链接父节点。
+    function attachBadgeToContainer(productContainer, link, badge, badgeClass) {
         let imageContainer = null;
         const productImage = productContainer.querySelector('img');
 
@@ -3342,68 +3365,20 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 ancestor = ancestor.parentElement;
             }
 
-            if (imageContainer) {
-                const containerStyle = window.getComputedStyle(imageContainer);
-                if (containerStyle.position === 'static') {
-                    imageContainer.style.position = 'relative';
-                }
+            if (imageContainer && window.getComputedStyle(imageContainer).position === 'static') {
+                imageContainer.style.position = 'relative';
             }
         } else {
             imageContainer = productContainer;
-            const containerStyle = window.getComputedStyle(imageContainer);
-            if (containerStyle.position === 'static') {
+            if (window.getComputedStyle(imageContainer).position === 'static') {
                 imageContainer.style.position = 'relative';
             }
         }
 
-        if (imageContainer && !imageContainer.querySelector('.cp-cpb-decoration-badge')) {
+        const selector = '.' + badgeClass;
+        if (imageContainer && !imageContainer.querySelector(selector)) {
             imageContainer.appendChild(badge);
-        } else if (link && link.parentElement && !link.parentElement.querySelector('.cp-cpb-decoration-badge')) {
-            const parent = link.parentElement;
-            if (window.getComputedStyle(parent).position === 'static') {
-                parent.style.position = 'relative';
-            }
-            parent.appendChild(badge);
-        }
-    }
-    
-    function attachBadgeToProductContainer(productContainer, link, badge) {
-        let imageContainer = null;
-        const productImage = productContainer.querySelector('img');
-        
-        if (productImage) {
-            imageContainer = productImage.parentElement;
-            let ancestor = imageContainer;
-            let foundPositioned = false;
-            
-            while (ancestor && ancestor !== document.body) {
-                const ancestorStyle = window.getComputedStyle(ancestor);
-                if (ancestorStyle.position === 'relative' || ancestorStyle.position === 'absolute') {
-                    imageContainer = ancestor;
-                    foundPositioned = true;
-                    break;
-                }
-                ancestor = ancestor.parentElement;
-            }
-            
-            if (!foundPositioned) {
-                imageContainer = productImage.parentElement;
-                const containerStyle = window.getComputedStyle(imageContainer);
-                if (containerStyle.position === 'static') {
-                    imageContainer.style.position = 'relative';
-                }
-            }
-        } else {
-            imageContainer = productContainer;
-            const containerStyle = window.getComputedStyle(imageContainer);
-            if (containerStyle.position === 'static') {
-                imageContainer.style.position = 'relative';
-            }
-        }
-        
-        if (imageContainer && !imageContainer.querySelector('.cp-product-id-badge')) {
-            imageContainer.appendChild(badge);
-        } else if (link && link.parentElement && !link.parentElement.querySelector('.cp-product-id-badge')) {
+        } else if (link && link.parentElement && !link.parentElement.querySelector(selector)) {
             const parent = link.parentElement;
             if (window.getComputedStyle(parent).position === 'static') {
                 parent.style.position = 'relative';
@@ -3478,7 +3453,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 });
                 if (badgeContent) {
                     const badge = createListPageProductBadge(badgeContent, badgeEnabled);
-                    attachBadgeToProductContainer(productContainer, link, badge);
+                    attachBadgeToContainer(productContainer, link, badge, 'cp-product-id-badge');
                 }
             }
 
@@ -3486,7 +3461,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 const decorationInfo = getCpbDecorationInfo(item);
                 if (decorationInfo) {
                     const decorationBadge = createCpbDecorationBadge(decorationInfo, badgeEnabled);
-                    attachCpbDecorationBadge(productContainer, link, decorationBadge);
+                    attachBadgeToContainer(productContainer, link, decorationBadge, 'cp-cpb-decoration-badge');
                 }
             }
 
@@ -3979,79 +3954,11 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             const img = designItem.querySelector('img');
             
             // Create Image ID badge
-            const badge = document.createElement('div');
-            badge.className = 'cp-design-image-id-badge';
-            badge.textContent = `Image ID: ${imageId}`;
-            
-            // Badge style - positioned at the bottom left of the image container
-            badge.style.cssText = `
-                position: absolute;
-                bottom: 5px;
-                left: 5px;
-                background: rgba(119, 165, 233, 0.4);
-                color: #333;
-                padding: 6px 10px;
-                border-radius: 4px;
-                font-size: 10px;
-                font-weight: bold;
-                z-index: 1001;
-                pointer-events: auto;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                line-height: 1.4;
-                white-space: pre-line;
-                text-align: left;
-                max-width: 150px;
-                word-wrap: break-word;
-                cursor: pointer;
-                user-select: text;
-                transition: background-color 0.2s ease, transform 0.1s ease;
-                display: ${badgeEnabled ? 'block' : 'none'};
-                visibility: ${badgeEnabled ? 'visible' : 'hidden'};
-            `;
-            
-            // Hover effect
-            badge.addEventListener('mouseenter', function() {
-                badge.style.background = 'rgba(119, 165, 233, 0.6)';
-                badge.style.transform = 'scale(1.02)';
-            });
-            
-            badge.addEventListener('mouseleave', function() {
-                badge.style.background = 'rgba(119, 165, 233, 0.4)';
-                badge.style.transform = 'scale(1)';
-            });
-            
-            // Click handler to copy Image ID
-            badge.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const textToCopy = imageId;
-                
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(textToCopy).then(() => {
-                        // Show temporary feedback
-                        const originalText = badge.textContent;
-                        const originalBackground = badge.style.background;
-                        badge.textContent = 'Copied!';
-                        badge.style.background = 'rgba(76, 175, 80, 0.8)';
-                        badge.style.transform = 'scale(1.05)';
-                        setTimeout(() => {
-                            badge.textContent = originalText;
-                            badge.style.background = originalBackground || 'rgba(119, 165, 233, 0.4)';
-                            badge.style.transform = 'scale(1)';
-                        }, 1000);
-                    }).catch(err => {
-                        console.error('Failed to copy:', err);
-                    });
-                } else {
-                    // Fallback: select text
-                    const range = document.createRange();
-                    range.selectNodeContents(badge);
-                    const selection = window.getSelection();
-                    selection.removeAllRanges();
-                    selection.addRange(range);
-                }
+            const badge = createProductBadge({
+                badgeClass: 'cp-design-image-id-badge',
+                content: `Image ID: ${imageId}`,
+                enabled: badgeEnabled,
+                getCopyText: () => imageId
             });
             
             // Prevent badge clicks from triggering other events
@@ -4809,117 +4716,52 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             }
             
             // Create product ID badge - unified style for both CYO and regular products
-            const badge = document.createElement('div');
-            badge.className = 'cp-product-id-badge';
-            badge.textContent = badgeContent;
-            
             // Get badge display setting synchronously (we already checked it before creating badge)
             // But apply it immediately to avoid flash
             const badgeEnabled = await isBadgeDisplayEnabled();
-            
-            // Unified badge style for both CYO and regular products to ensure consistency
-            badge.style.cssText = `
-                position: absolute;
-                bottom: 5px;
-                left: 5px;
-                background: rgba(119, 165, 233, 0.4);
-                color: #333;
-                padding: 6px 10px;
-                border-radius: 4px;
-                font-size: 10px;
-                font-weight: bold;
-                z-index: 1001;
-                pointer-events: auto;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                line-height: 1.4;
-                white-space: pre-line;
-                text-align: left;
-                max-width: 150px;
-                word-wrap: break-word;
-                cursor: pointer;
-                user-select: text;
-                transition: background-color 0.2s ease, transform 0.1s ease;
-                display: ${badgeEnabled ? 'block' : 'none'};
-                visibility: ${badgeEnabled ? 'visible' : 'hidden'};
-            `;
-            
-            // Unified hover effect for both CYO and regular products
-            badge.addEventListener('mouseenter', function() {
-                badge.style.background = 'rgba(119, 165, 233, 0.6)';
-                badge.style.transform = 'scale(1.02)';
-            });
-            
-            badge.addEventListener('mouseleave', function() {
-                badge.style.background = 'rgba(119, 165, 233, 0.4)';
-                badge.style.transform = 'scale(1)';
-            });
-            
-            // Add click handler to prevent navigation and enable copying
-            badge.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Get stored values from badge attributes
-                const storedIdentifier = badge.getAttribute('data-identifier');
-                const storedMatchedDesignId = badge.getAttribute('data-matched-design-id');
-                
-                // Calculate DesignId - use matched designId if available, otherwise use stored identifier
-                let designId = storedMatchedDesignId;
-                if (!designId && storedIdentifier) {
-                    // If stored identifier is a number, it might be productId - add offset
-                    if (!isNaN(storedIdentifier)) {
-                        designId = (parseInt(storedIdentifier) + 100000000000).toString();
-                    } else {
-                        designId = storedIdentifier;
+
+            const badge = createProductBadge({
+                badgeClass: 'cp-product-id-badge',
+                content: badgeContent,
+                enabled: badgeEnabled,
+                getCopyText: (badge) => {
+                    // Get stored values from badge attributes
+                    const storedIdentifier = badge.getAttribute('data-identifier');
+                    const storedMatchedDesignId = badge.getAttribute('data-matched-design-id');
+                    
+                    // Calculate DesignId - use matched designId if available, otherwise use stored identifier
+                    let designId = storedMatchedDesignId;
+                    if (!designId && storedIdentifier) {
+                        // If stored identifier is a number, it might be productId - add offset
+                        if (!isNaN(storedIdentifier)) {
+                            designId = (parseInt(storedIdentifier) + 100000000000).toString();
+                        } else {
+                            designId = storedIdentifier;
+                        }
                     }
-                }
-                
-                // Read current badge content to get all information (including updated values)
-                const badgeText = badge.textContent;
-                const lines = badgeText.split('\n');
-                
-                // Build text to copy with all available information
-                let textToCopy = badgeText.split('\n')[0]; // Use first line as ID
-                if (designId) {
-                    textToCopy += `\nDesignId: ${designId}`;
-                }
-                
-                // Extract PTN, ProductID, and OptionID from badge text if available
-                for (let line of lines) {
-                    if (line.includes('PTN:')) {
-                        textToCopy += `\n${line.trim()}`;
-                    } else if (line.includes('ProductID:')) {
-                        textToCopy += `\n${line.trim()}`;
-                    } else if (line.includes('OptionID:')) {
-                        textToCopy += `\n${line.trim()}`;
+                    
+                    // Read current badge content to get all information (including updated values)
+                    const badgeText = badge.textContent;
+                    const lines = badgeText.split('\n');
+                    
+                    // Build text to copy with all available information
+                    let textToCopy = badgeText.split('\n')[0]; // Use first line as ID
+                    if (designId) {
+                        textToCopy += `\nDesignId: ${designId}`;
                     }
-                }
-                
-                // Unified click feedback for both CYO and regular products
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(textToCopy).then(() => {
-                        // Show temporary feedback - unified style for all products
-                        const originalText = badge.textContent;
-                        const originalBackground = badge.style.background;
-                        badge.textContent = 'Copied!';
-                        badge.style.background = 'rgba(76, 175, 80, 0.8)';
-                        badge.style.transform = 'scale(1.05)';
-                        setTimeout(() => {
-                            badge.textContent = originalText;
-                            badge.style.background = originalBackground || 'rgba(119, 165, 233, 0.4)';
-                            badge.style.transform = 'scale(1)';
-                        }, 1000);
-                    }).catch(err => {
-                        console.error('Failed to copy:', err);
-                    });
-                } else {
-                    // Fallback: select text
-                    const range = document.createRange();
-                    range.selectNodeContents(badge);
-                    const selection = window.getSelection();
-                    selection.removeAllRanges();
-                    selection.addRange(range);
+                    
+                    // Extract PTN, ProductID, and OptionID from badge text if available
+                    for (let line of lines) {
+                        if (line.includes('PTN:')) {
+                            textToCopy += `\n${line.trim()}`;
+                        } else if (line.includes('ProductID:')) {
+                            textToCopy += `\n${line.trim()}`;
+                        } else if (line.includes('OptionID:')) {
+                            textToCopy += `\n${line.trim()}`;
+                        }
+                    }
+                    
+                    return textToCopy;
                 }
             });
             
