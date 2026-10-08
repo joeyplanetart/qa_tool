@@ -32,31 +32,45 @@ async function isSidePanelEnabled() {
     return result[key] !== false;
 }
 
+const CONTENT_SCRIPT_FILES = [
+    'config.js',
+    'content-modules/csv-utils.js',
+    'content-modules/environment-switcher.js',
+    'content-modules/ptn-test-links.js',
+    'content.js'
+];
+
+function isContentScriptConnectionError(error) {
+    const message = error?.message || '';
+    return message.includes('Receiving end does not exist')
+        || message.includes('Could not establish connection');
+}
+
+async function sendMessageToTabContentScript(tabId, payload) {
+    try {
+        await chrome.tabs.sendMessage(tabId, payload);
+        return;
+    } catch (error) {
+        if (!isContentScriptConnectionError(error)) {
+            throw error;
+        }
+    }
+
+    await chrome.scripting.executeScript({
+        target: { tabId },
+        files: CONTENT_SCRIPT_FILES
+    });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await chrome.tabs.sendMessage(tabId, payload);
+}
+
 async function showMinimizedFloatingPanel(tabId) {
     if (!tabId) return;
 
     try {
-        await chrome.tabs.sendMessage(tabId, { type: 'SHOW_FLOATING_MINIMIZED' });
-        return;
+        await sendMessageToTabContentScript(tabId, { type: 'SHOW_FLOATING_MINIMIZED' });
     } catch (error) {
-        const message = error?.message || '';
-        const needsInject = message.includes('Receiving end does not exist')
-            || message.includes('Could not establish connection');
-        if (!needsInject) {
-            console.log('SHOW_FLOATING_MINIMIZED failed:', message);
-            return;
-        }
-    }
-
-    try {
-        await chrome.scripting.executeScript({
-            target: { tabId },
-            files: ['config.js', 'content-modules/csv-utils.js', 'content-modules/environment-switcher.js', 'content-modules/ptn-test-links.js', 'content.js']
-        });
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        await chrome.tabs.sendMessage(tabId, { type: 'SHOW_FLOATING_MINIMIZED' });
-    } catch (injectError) {
-        console.log('Could not inject content script for floating panel:', injectError);
+        console.log('Could not inject content script for floating panel:', error?.message || error);
     }
 }
 
@@ -81,8 +95,10 @@ function showFloatingPanelForWindow(windowId, tabId) {
 async function applySidePanelBehavior() {
     const enabled = await isSidePanelEnabled();
     try {
-        await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: enabled });
-        console.log('Side panel openPanelOnActionClick:', enabled);
+        // Always handle toolbar clicks in action.onClicked so we can show the floating ball.
+        // chrome.sidePanel.onOpened is Chrome 141+ only; relying on it breaks older browsers.
+        await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
+        console.log('Side panel enabled (manual open on icon click):', enabled);
     } catch (error) {
         console.log('setPanelBehavior failed:', error);
     }
@@ -109,12 +125,24 @@ if (chrome.sidePanel.onOpened) {
     });
 }
 
-// When side panel disabled, icon click only shows minimized floating ball
 chrome.action.onClicked.addListener(async (tab) => {
     const enabled = await isSidePanelEnabled();
-    if (enabled) return;
 
-    if (isSupportedTabUrl(tab.url) && tab.id) {
+    if (enabled && tab?.id) {
+        try {
+            await chrome.sidePanel.open({ tabId: tab.id });
+        } catch (error) {
+            try {
+                if (tab.windowId) {
+                    await chrome.sidePanel.open({ windowId: tab.windowId });
+                }
+            } catch (fallbackError) {
+                console.log('sidePanel.open failed:', fallbackError?.message || fallbackError);
+            }
+        }
+    }
+
+    if (isSupportedTabUrl(tab?.url) && tab?.id) {
         showMinimizedFloatingPanel(tab.id);
     }
 });
@@ -992,16 +1020,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     if (request.type === 'OPEN_QA_PANEL') {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            const activeTab = tabs[0];
-            if (!activeTab?.id) {
+        (async () => {
+            let tabId = sender.tab?.id;
+            if (!tabId) {
+                const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+                tabId = tabs[0]?.id;
+            }
+            if (!tabId) {
                 sendResponse({ success: false, error: '未找到活动标签页' });
                 return;
             }
-            chrome.tabs.sendMessage(activeTab.id, { type: 'TOGGLE_FLOATING_WINDOW' })
-                .then(() => sendResponse({ success: true }))
-                .catch(() => sendResponse({ success: false, error: '请在支持的 Cafepress 页面上使用' }));
-        });
+            const tab = await chrome.tabs.get(tabId);
+            if (!isSupportedTabUrl(tab?.url)) {
+                sendResponse({ success: false, error: '请在支持的 Cafepress 页面上使用' });
+                return;
+            }
+            try {
+                await sendMessageToTabContentScript(tabId, { type: 'TOGGLE_FLOATING_WINDOW' });
+                sendResponse({ success: true });
+            } catch (error) {
+                sendResponse({ success: false, error: '请在支持的 Cafepress 页面上使用' });
+            }
+        })();
         return true;
     }
 
