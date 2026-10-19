@@ -2426,6 +2426,195 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         console.log(`STI PLP: processed ${processedProducts.size} product badges`);
     }
 
+    function isPcrusSite() {
+        return CONFIG.detectRegion(window.location.href) === 'PCRUS';
+    }
+
+    function isPcrusProductDetailPage() {
+        if (!isPcrusSite() || isCartPage()) return false;
+        return /^\/product\/[^/]+-\d+\/?$/i.test(window.location.pathname);
+    }
+
+    function isPcrusBadgePage() {
+        if (!isPcrusSite() || isCartPage()) return false;
+        return isPcrusProductDetailPage();
+    }
+
+    function getPcrusExploreMoreGiftsSection() {
+        const titleCandidates = document.querySelectorAll('.container-pla .pla-title h3, .container-pla h3');
+        for (const el of titleCandidates) {
+            const text = (el.textContent || '').trim();
+            if (!/explore more gifts/i.test(text)) continue;
+            const section = el.closest('.container-pla');
+            if (section) return section;
+        }
+        return null;
+    }
+
+    function parsePcrusProductLink(href) {
+        if (!href) return null;
+        try {
+            const path = new URL(href, window.location.origin).pathname;
+            const b2cMatch = path.match(/^\/b2c\/product-(\d+)-design-(\d+)\/?$/i);
+            if (b2cMatch) {
+                return {
+                    product_id: b2cMatch[1],
+                    design_id: b2cMatch[2],
+                    item_number: null
+                };
+            }
+            const productMatch = path.match(/^\/product\/[^/]+-(\d+)\/?$/i);
+            if (productMatch) {
+                return {
+                    product_id: null,
+                    design_id: null,
+                    item_number: productMatch[1]
+                };
+            }
+        } catch (e) {
+            return null;
+        }
+        return null;
+    }
+
+    function getPcrusPlaGa4Data(card) {
+        const raw = card?.getAttribute?.('data-pla-ga4');
+        if (!raw) return null;
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function buildPcrusBadgeItem(card, link) {
+        const href = link?.getAttribute('href') || '';
+        const parsed = parsePcrusProductLink(href);
+        const ga4 = getPcrusPlaGa4Data(card);
+        const item = {
+            design_id: parsed?.design_id ?? null,
+            product_id: parsed?.product_id ?? null,
+            item_number: parsed?.item_number ?? null,
+            sku: ga4?.sku ?? ga4?.item_id ?? null
+        };
+
+        if (!item.design_id && ga4?.item_id != null) {
+            item.design_id = ga4.item_id;
+        }
+        if (!item.product_id && ga4?.parent_item_id != null) {
+            item.product_id = ga4.parent_item_id;
+        }
+
+        if (!item.design_id && !item.product_id && !item.item_number && !item.sku) {
+            return null;
+        }
+        return item;
+    }
+
+    function buildPcrusBadgeContent(item) {
+        if (!item) return '';
+        const lines = [];
+        const addLine = (label, value) => {
+            if (value !== undefined && value !== null && value !== '') {
+                lines.push(`${label}: ${value}`);
+            }
+        };
+
+        addLine('DesignID', item.design_id);
+        addLine('ProductID', item.product_id);
+        addLine('Item#', item.item_number);
+        addLine('SKU', item.sku);
+        addLine('SiteID', CONFIG.getSiteId('PCRUS'));
+        return lines.join('\n');
+    }
+
+    function getPcrusBadgeMountPoint(card) {
+        if (!card) return null;
+        return card.querySelector('.stackable-image-container') ||
+            card.querySelector('.design-image') ||
+            card;
+    }
+
+    function attachPcrusBadgeToCard(card, badge) {
+        const mountPoint = getPcrusBadgeMountPoint(card);
+        if (!mountPoint) return false;
+
+        if (mountPoint.querySelector('.cp-product-id-badge')) {
+            return true;
+        }
+
+        if (window.getComputedStyle(mountPoint).position === 'static') {
+            mountPoint.style.position = 'relative';
+        }
+
+        mountPoint.appendChild(badge);
+        return true;
+    }
+
+    function getPcrusExploreMoreProductCards(section) {
+        return Array.from(section.querySelectorAll('.container-designs .container-design, .pla-list .container-design'));
+    }
+
+    async function displayPcrusProductBadges() {
+        if (isCartPage()) {
+            removeAllProductBadges();
+            return;
+        }
+        if (!isPcrusBadgePage()) {
+            return;
+        }
+
+        resetCpBadgeCachesIfUrlChanged();
+
+        const section = getPcrusExploreMoreGiftsSection();
+        if (!section) {
+            console.log('PCRUS badges: EXPLORE MORE GIFTS section not found yet');
+            return;
+        }
+
+        const badgeEnabled = await isBadgeDisplayEnabled();
+        if (!badgeEnabled) {
+            updateBadgeVisibility(false);
+            return;
+        }
+
+        const productCards = getPcrusExploreMoreProductCards(section);
+        if (productCards.length === 0) {
+            console.log('PCRUS badges: no product cards in EXPLORE MORE GIFTS yet');
+            return;
+        }
+
+        const processedProducts = new Set();
+
+        productCards.forEach(card => {
+            const link = card.querySelector('.design-image a[href*="/product/"], .design-image a[href*="/b2c/product-"], .design-title a[href*="/product/"], .design-title a[href*="/b2c/product-"]') ||
+                card.querySelector('a[href*="/product/"], a[href*="/b2c/product-"]');
+            if (!link) return;
+
+            const href = link.getAttribute('href') || '';
+            const productKey = `${href}-${Math.round(card.getBoundingClientRect().top)}`;
+            if (processedProducts.has(productKey)) return;
+
+            if (card.querySelector('.cp-product-id-badge')) {
+                processedProducts.add(productKey);
+                return;
+            }
+
+            const item = buildPcrusBadgeItem(card, link);
+            if (!item) return;
+
+            const badgeContent = buildPcrusBadgeContent(item);
+            if (!badgeContent) return;
+
+            const badge = createListPageProductBadge(badgeContent, badgeEnabled);
+            if (attachPcrusBadgeToCard(card, badge)) {
+                processedProducts.add(productKey);
+            }
+        });
+
+        console.log(`PCRUS EXPLORE MORE GIFTS: processed ${processedProducts.size} product badges`);
+    }
+
     function parseJsArrayAssignment(content, variableName) {
         if (!content || !variableName) return null;
 
@@ -5023,7 +5212,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             return;
         }
         
-        const shouldShowListBadges = isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage();
+        const shouldShowListBadges = isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage() || isPcrusBadgePage();
         
         // Initial check
         if (shouldShowListBadges) {
@@ -5031,6 +5220,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
                 displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
                 displayStiusProductBadges().catch(err => console.error('Error displaying STI product IDs:', err));
+                displayPcrusProductBadges().catch(err => console.error('Error displaying PCRUS product IDs:', err));
                 displayCategoryFilterIds(); // Also display category filter IDs
             }, 1000);
             
@@ -5041,6 +5231,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
                         displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
                         displayStiusProductBadges().catch(err => console.error('Error displaying STI product IDs:', err));
+                        displayPcrusProductBadges().catch(err => console.error('Error displaying PCRUS product IDs:', err));
                         displayCategoryFilterIds();
                     }, 500);
                 }, { once: true });
@@ -5082,6 +5273,14 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     }, delay);
                 });
             }
+
+            if (isPcrusBadgePage()) {
+                [500, 1000, 2000, 4000, 6000, 8000, 10000, 15000].forEach(delay => {
+                    setTimeout(() => {
+                        displayPcrusProductBadges().catch(err => console.error('Error displaying PCRUS EXPLORE MORE GIFTS badges:', err));
+                    }, delay);
+                });
+            }
         }
         
         // Observe DOM changes for dynamically loaded products
@@ -5090,7 +5289,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 removeAllProductBadges();
                 return;
             }
-            if (isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage()) {
+            if (isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage() || isPcrusBadgePage()) {
                 let shouldUpdate = false;
                 mutations.forEach((mutation) => {
                     mutation.addedNodes.forEach((node) => {
@@ -5099,8 +5298,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             if (node.querySelectorAll && (
                                 node.querySelectorAll('a[href*="/+"]').length > 0 ||
                                 node.querySelectorAll('a[href*="/business/product-"]').length > 0 ||
+                                node.querySelectorAll('a[href*="/b2c/product-"]').length > 0 ||
                                 node.querySelectorAll('.design-item-wrapper[data-id]').length > 0 ||
-                                node.querySelectorAll('.category_thumb[data-design-id]').length > 0
+                                node.querySelectorAll('.category_thumb[data-design-id]').length > 0 ||
+                                node.querySelectorAll('.container-design.uucd-design').length > 0
                             )) {
                                 shouldUpdate = true;
                             }
@@ -5110,7 +5311,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                                 node.classList.contains('design-item-wrapper') ||
                                 node.classList.contains('product-item-card') ||
                                 node.classList.contains('category_thumb') ||
-                                node.classList.contains('ornament-thumbs')
+                                node.classList.contains('ornament-thumbs') ||
+                                node.classList.contains('container-pla') ||
+                                node.classList.contains('container-design') ||
+                                node.classList.contains('pla-list')
                             )) {
                                 shouldUpdate = true;
                             }
@@ -5126,10 +5330,14 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                             if (node.textContent && /explore more designs/i.test(node.textContent)) {
                                 shouldUpdate = true;
                             }
+                            if (node.textContent && /explore more gifts/i.test(node.textContent)) {
+                                shouldUpdate = true;
+                            }
                             // Also check if the node itself is a product link
                             if (node.tagName === 'A') {
                                 const href = node.getAttribute('href') || '';
-                                if (href.includes('/+') || href.includes('/business/product-')) {
+                                if (href.includes('/+') || href.includes('/business/product-') ||
+                                    href.includes('/b2c/product-') || /\/product\/[^/]+-\d+/.test(href)) {
                                     shouldUpdate = true;
                                 }
                             }
@@ -5142,6 +5350,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
                         displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
                         displayStiusProductBadges().catch(err => console.error('Error displaying STI product IDs:', err));
+                        displayPcrusProductBadges().catch(err => console.error('Error displaying PCRUS product IDs:', err));
                         displayCategoryFilterIds();
                     }, 300);
                 }
@@ -5163,11 +5372,12 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     removeAllProductBadges();
                     return;
                 }
-                if (isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage()) {
+                if (isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage() || isPcrusBadgePage()) {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
                         displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
                         displayStiusProductBadges().catch(err => console.error('Error displaying STI product IDs:', err));
+                        displayPcrusProductBadges().catch(err => console.error('Error displaying PCRUS product IDs:', err));
                         displayCategoryFilterIds();
                     }, 500);
                 }
@@ -6273,6 +6483,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 } else if (isStiusBadgePage()) {
                     setTimeout(() => {
                         displayStiusProductBadges().catch(err => console.error('Error refreshing STI badges:', err));
+                    }, 100);
+                } else if (isPcrusBadgePage()) {
+                    setTimeout(() => {
+                        displayPcrusProductBadges().catch(err => console.error('Error refreshing PCRUS badges:', err));
                     }, 100);
                 }
             });
