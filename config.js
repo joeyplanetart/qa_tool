@@ -26,6 +26,8 @@ const CONFIG = {
         AU: 'cafau',
         CPB: 'cpbus',
         PCRUS: 'pcrus',
+        PMALLUS: 'pmallus',
+        TRUS: 'trus',
         STIUS: 'stius'
     },
     
@@ -70,6 +72,18 @@ const CONFIG = {
                 STAGE: `${this.REGION_PREFIX.PCRUS}-${branch}.${this.BASE_DOMAIN.STAGE}`,
                 LIVE: 'www.personalcreations.com',
                 LIVE_ALT: 'personalcreations.com'
+            },
+            PMALLUS: {
+                PRE: null,
+                STAGE: null,
+                LIVE: 'www.personalizationmall.com',
+                LIVE_ALT: 'personalizationmall.com'
+            },
+            TRUS: {
+                PRE: null,
+                STAGE: null,
+                LIVE: 'www.thingsremembered.com',
+                LIVE_ALT: 'thingsremembered.com'
             },
             STIUS: {
                 PRE: `${this.REGION_PREFIX.STIUS}-${branch}.${this.BASE_DOMAIN.PRE}`,
@@ -116,6 +130,9 @@ const CONFIG = {
         AU: '171',
         CPB: '169',
         PCRUS: '163',
+        // Legacy PMALL storefront store IDs on live (until PlanetArt site_id is mapped)
+        PMALLUS: '9',
+        TRUS: '106',
         STIUS: '1'
     },
     
@@ -158,6 +175,10 @@ const CONFIG = {
             /^cpbus-.*\.stage\.planetart\.com$/,
             /^pcrus-.*\.pre\.planetart\.com$/,
             /^pcrus-.*\.stage\.planetart\.com$/,
+            /^pmallus-.*\.pre\.planetart\.com$/,
+            /^pmallus-.*\.stage\.planetart\.com$/,
+            /^trus-.*\.pre\.planetart\.com$/,
+            /^trus-.*\.stage\.planetart\.com$/,
             /^stius-.*\.pre\.planetart\.com$/,
             /^stius-.*\.stage\.planetart\.com$/,
             /^(www\.)?cafepress\.com$/,
@@ -165,6 +186,8 @@ const CONFIG = {
             /^(www\.)?cafepress\.co\.uk$/,
             /^(www\.)?cafepress\.com\.au$/,
             /^(www\.)?personalcreations\.com$/,
+            /^(www\.)?personalizationmall\.com$/,
+            /^(www\.)?thingsremembered\.com$/,
             /^(www\.)?simplytoimpress\.com$/
         ];
         
@@ -449,6 +472,18 @@ const CONFIG = {
             /personalcreations\.com/.test(url)) {
             return 'PCRUS';
         }
+
+        // PMALLUS (Personalization Mall — live legacy storefront)
+        if (/pmallus-[^.]+\.(pre|stage)\.planetart\.com/.test(url) ||
+            /personalizationmall\.com/.test(url)) {
+            return 'PMALLUS';
+        }
+
+        // TRUS (Things Remembered — live legacy storefront)
+        if (/trus-[^.]+\.(pre|stage)\.planetart\.com/.test(url) ||
+            /thingsremembered\.com/.test(url)) {
+            return 'TRUS';
+        }
         
         // STIUS (Simply to Impress US)
         if (/stius-[^.]+\.(pre|stage)\.planetart\.com/.test(url) ||
@@ -490,6 +525,8 @@ const CONFIG = {
         if (!region) return 'ENV';
         if (region === 'CPB') return 'CPBUS';
         if (region === 'PCRUS') return 'PCRUS';
+        if (region === 'PMALLUS') return 'PMALL';
+        if (region === 'TRUS') return 'TR';
         if (region === 'STIUS') return 'STIUS';
         return 'CAF' + region;
     },
@@ -777,6 +814,22 @@ const CONFIG = {
                             live: 'https://www.personalcreations.com/',
                             pre: 'https://pcrus-master.pre.planetart.com/',
                             stage: 'https://pcrus-master.stage.planetart.com/'
+                        }
+                    },
+                    {
+                        title: 'pmallus',
+                        urls: {
+                            live: 'https://www.personalizationmall.com/',
+                            pre: null,
+                            stage: null
+                        }
+                    },
+                    {
+                        title: 'trus',
+                        urls: {
+                            live: 'https://www.thingsremembered.com/',
+                            pre: null,
+                            stage: null
                         }
                     },
                     {

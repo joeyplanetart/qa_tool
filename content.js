@@ -1987,7 +1987,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     // CP homepage (e.g. https://www.cafepress.com/)
     function isCartPage() {
         const path = window.location.pathname.replace(/\/+$/, '').toLowerCase();
-        return path === '/cart' || path === '/business/cart';
+        return path === '/cart' ||
+            path === '/business/cart' ||
+            path === '/cart.aspx' ||
+            path === '/checkout.aspx';
     }
     
     function isCpHomePage() {
@@ -2442,18 +2445,107 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         console.log(`STI PLP: processed ${processedProducts.size} product badges`);
     }
 
+    const ACQUIRED_B2C_REGIONS = ['PCRUS', 'PMALLUS', 'TRUS'];
+
+    function getAcquiredB2cRegion() {
+        const region = CONFIG.detectRegion(window.location.href);
+        return ACQUIRED_B2C_REGIONS.includes(region) ? region : null;
+    }
+
     function isPcrusSite() {
-        return CONFIG.detectRegion(window.location.href) === 'PCRUS';
+        return getAcquiredB2cRegion() !== null;
+    }
+
+    function isPmallLegacyProductDetailPage() {
+        if (isCartPage()) return false;
+        const path = window.location.pathname;
+        if (/-p\d+\.prod$/i.test(path) || /-i\d+\.item$/i.test(path)) {
+            return true;
+        }
+        try {
+            const params = new URL(window.location.href).searchParams;
+            return !!(params.get('productid') || params.get('productID'));
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function isPcrusUcdProductDetailPage() {
+        return /^\/product\/[^/]+-\d+\/?$/i.test(window.location.pathname);
     }
 
     function isPcrusProductDetailPage() {
         if (!isPcrusSite() || isCartPage()) return false;
-        return /^\/product\/[^/]+-\d+\/?$/i.test(window.location.pathname);
+        return isPcrusUcdProductDetailPage() || isPmallLegacyProductDetailPage();
     }
 
     function isPcrusBadgePage() {
-        if (!isPcrusSite() || isCartPage()) return false;
-        return isPcrusProductDetailPage();
+        if (getAcquiredB2cRegion() !== 'PCRUS' || isCartPage()) return false;
+        return isPcrusUcdProductDetailPage();
+    }
+
+    function parsePmallLegacyProductUrl(url) {
+        const href = url || window.location.href;
+        try {
+            const parsed = new URL(href, window.location.origin);
+            const path = parsed.pathname;
+            const search = parsed.searchParams;
+            let productId = search.get('productid') || search.get('productID');
+            const prodMatch = path.match(/-p(\d+)\.prod$/i);
+            if (prodMatch) productId = productId || prodMatch[1];
+            const itemMatch = path.match(/-i(\d+)\.item$/i);
+            return {
+                product_id: productId,
+                item_id: itemMatch ? itemMatch[1] : null,
+                sdest_id: search.get('sdestid')
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function extractPmallLegacyProductInfoFromDom() {
+        const trigger = document.querySelector('#personalizeBtn, #btnPersonalize, [data-productid][data-itemid]');
+        const fromUrl = parsePmallLegacyProductUrl(window.location.href) || {};
+        const productId = trigger?.getAttribute('data-productid') || fromUrl.product_id;
+        const itemId = trigger?.getAttribute('data-itemid') || fromUrl.item_id;
+        const storeId = trigger?.getAttribute('data-storeid');
+        const categoryId = trigger?.getAttribute('data-categoryid');
+        const itemSku = document.querySelector('.item-sku')?.textContent?.trim();
+        const sdestId = trigger?.getAttribute('data-sdestid') || fromUrl.sdest_id;
+
+        if (!productId && !itemId && !itemSku) {
+            return null;
+        }
+
+        return {
+            platform: 'pmall-legacy',
+            product_id: productId,
+            item_id: itemId,
+            item_sku: itemSku,
+            store_id: storeId,
+            category_id: categoryId,
+            sdest_id: sdestId
+        };
+    }
+
+    function enrichPmallLegacyExtractedData(extractedData) {
+        const legacy = extractPmallLegacyProductInfoFromDom();
+        if (!legacy) return extractedData;
+
+        extractedData.productsData = {
+            ...(extractedData.productsData || {}),
+            ...legacy,
+            full_object: legacy
+        };
+
+        if (legacy.product_id) {
+            extractedData.cpProductId = String(legacy.product_id);
+        }
+        if (legacy.item_id) {
+            extractedData.designId = String(legacy.item_id);
+        }
+        return extractedData;
     }
 
     function getPcrusExploreMoreGiftsSection() {
@@ -2517,8 +2609,12 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     function finalizeExtractedProductData(extractedData) {
         if (!extractedData || !isPcrusProductDetailPage()) return extractedData;
 
+        if (isPmallLegacyProductDetailPage()) {
+            return enrichPmallLegacyExtractedData(extractedData);
+        }
+
         const options = extractedData.productsData?.full_object || readProductOptionsFromPageContext();
-        if (options) {
+        if (options && options.platform !== 'pmall-legacy') {
             enrichPcrusFromProductOptions(extractedData, options);
         }
 
@@ -2604,7 +2700,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         addLine('ProductID', item.product_id);
         addLine('Item#', item.item_number);
         addLine('SKU', item.sku);
-        addLine('SiteID', CONFIG.getSiteId('PCRUS'));
+        addLine('SiteID', CONFIG.getSiteId(getAcquiredB2cRegion()));
         return lines.join('\n');
     }
 
@@ -3784,7 +3880,48 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         };
     }
 
+    function isPmallLegacyProductData(result) {
+        return result?.productsData?.platform === 'pmall-legacy';
+    }
+
+    function buildPmallLegacyProductInfoHtml(result) {
+        const info = result.productsData || {};
+        const region = getAcquiredB2cRegion();
+        let html = `
+            <div id="floating-product-info-card" style="
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                overflow: hidden;
+                margin-bottom: 10px;
+                padding: 10px 15px;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            ">
+                <div style="
+                    font-size: 14px;
+                    font-weight: bold;
+                    margin-bottom: 8px;
+                    color: #ffeb3b;
+                    text-align: left;
+                ">Product Info</div>
+        `;
+
+        html += createInfoItem('Item #:', formatProductInfoField(info.item_sku));
+        html += createInfoItem('Product ID:', formatProductInfoField(info.product_id ?? result.cpProductId));
+        html += createInfoItem('Item ID:', formatProductInfoField(info.item_id ?? result.designId));
+        html += createInfoItem('Category ID:', formatProductInfoField(info.category_id));
+        html += createInfoItem('Store ID:', formatProductInfoField(info.store_id));
+        html += createInfoItem('SDEST ID:', formatProductInfoField(info.sdest_id));
+        html += createInfoItem('Site ID:', region ? CONFIG.getSiteId(region) : 'N/A');
+        html += `</div>`;
+        return html;
+    }
+
     function buildPcrusProductInfoHtml(result) {
+        if (isPmallLegacyProductData(result)) {
+            return buildPmallLegacyProductInfoHtml(result);
+        }
+
         let html = `
             <div id="floating-product-info-card" style="
                 background: rgba(255, 255, 255, 0.1);
@@ -3829,7 +3966,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             html += createInfoItem('Stock:', `<span style="color: ${stockColor};">${stockStatus}</span>`);
         }
 
-        html += createInfoItem('Site ID:', CONFIG.getSiteId('PCRUS'));
+        const region = getAcquiredB2cRegion() || 'PCRUS';
+        html += createInfoItem('Site ID:', CONFIG.getSiteId(region));
         html += `</div>`;
         return html;
     }
@@ -3862,7 +4000,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 (result.productsData && result.productsData.full_object) ||
                 result.designId ||
                 result.cpProductId ||
-                result.productsData?.pcrus_item_number
+                result.productsData?.pcrus_item_number ||
+                result.productsData?.product_id ||
+                result.productsData?.item_sku
             ) : (
                 (result.designerName && result.designerName !== 'Not found') ||
                 (result.designId && result.designId !== 'Not found') ||
@@ -3894,11 +4034,22 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             push('SKU ID', cpbInfo?.sku_id);
             push('Design Group ID', cpbInfo?.design_group_id);
             push('Site ID', CONFIG.getSiteId('CPB'));
+        } else if (isPcrusPdp && isPmallLegacyProductData(result)) {
+            const legacy = result.productsData || {};
+            const region = getAcquiredB2cRegion();
+            push('Item #', legacy.item_sku);
+            push('Product ID', legacy.product_id ?? result.cpProductId);
+            push('Item ID', legacy.item_id ?? result.designId);
+            push('Category ID', legacy.category_id);
+            push('Store ID', legacy.store_id);
+            push('SDEST ID', legacy.sdest_id);
+            push('Site ID', region ? CONFIG.getSiteId(region) : 'N/A');
         } else if (isPcrusPdp) {
             const pcrusInfo = extractPcrusProductInfoFromOptions(
                 result.productsData?.full_object,
                 result.productsData
             );
+            const region = getAcquiredB2cRegion() || 'PCRUS';
             push('Item #', pcrusInfo?.item_number);
             push('Category ID', pcrusInfo?.category_id ?? result.productsData?.category_id);
             push('Design ID', pcrusInfo?.design_id ?? result.designId);
@@ -3915,7 +4066,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             if (pcrusInfo?.is_out_of_stock !== undefined) {
                 push('Stock', pcrusInfo.is_out_of_stock ? 'Out of Stock' : 'In Stock');
             }
-            push('Site ID', CONFIG.getSiteId('PCRUS'));
+            push('Site ID', CONFIG.getSiteId(region));
         } else {
             push('Designer', result.designerName, result.designerLink);
             push('Design ID', result.designId);
@@ -7168,7 +7319,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     (result.productsData && result.productsData.full_object) ||
                     result.designId ||
                     result.cpProductId ||
-                    result.productsData?.pcrus_item_number
+                    result.productsData?.pcrus_item_number ||
+                    result.productsData?.product_id ||
+                    result.productsData?.item_sku
                 ) : (
                     (result.designerName && result.designerName !== 'Not found') ||
                     (result.designId && result.designId !== 'Not found') ||
