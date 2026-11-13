@@ -1848,6 +1848,9 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         attemptSearch();
         
         finalizeExtractedProductData(extractedData);
+        if (isPhotoProductDetailPage()) {
+            enrichPhotoExtractedData(extractedData);
+        }
 
         // Store all extracted data
         if (extractedData.designerName || extractedData.designId || extractedData.cpProductId || extractedData.productsData) {
@@ -2443,6 +2446,140 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         });
 
         console.log(`STI PLP: processed ${processedProducts.size} product badges`);
+    }
+
+    function isPhotoSite() {
+        return CONFIG.detectRegion(window.location.href) === 'PHOTOUS';
+    }
+
+    function readPhotoProductDetailToolData() {
+        try {
+            const script = document.createElement('script');
+            script.textContent = `
+                (function() {
+                    try {
+                        if (typeof product_detail_tool_data !== 'undefined') {
+                            document.documentElement.setAttribute(
+                                'data-cp-photo-pdp-tool',
+                                JSON.stringify(product_detail_tool_data)
+                            );
+                        }
+                    } catch (e) {}
+                })();
+            `;
+            document.documentElement.appendChild(script);
+            script.remove();
+
+            const attr = document.documentElement.getAttribute('data-cp-photo-pdp-tool');
+            document.documentElement.removeAttribute('data-cp-photo-pdp-tool');
+            if (!attr) return null;
+            return JSON.parse(attr);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function readPhotoPageViewBeacon() {
+        const el = document.getElementById('page-view-beacon');
+        if (!el?.textContent) return null;
+        try {
+            return JSON.parse(el.textContent);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function isPhotoProductDetailPage() {
+        if (!isPhotoSite() || isCartPage()) return false;
+
+        const beacon = readPhotoPageViewBeacon();
+        if (beacon?.page_type === 'pdp') return true;
+
+        if (readPhotoProductDetailToolData()) return true;
+
+        return /-p-\d+/i.test(window.location.pathname);
+    }
+
+    function extractPhotoProductInfoFromPage() {
+        const toolData = readPhotoProductDetailToolData();
+        const beacon = readPhotoPageViewBeacon();
+        const designFromUrl = window.location.pathname.match(/-p-(\d+)/i);
+
+        const primaryDesign = toolData?.designs?.[0];
+        const primaryOption = toolData?.options?.[0];
+        const designId = toolData?.init_design_id ??
+            primaryDesign?.design_id ??
+            beacon?.design_id ??
+            (designFromUrl ? designFromUrl[1] : null);
+
+        if (!designId && !toolData && !beacon) {
+            return null;
+        }
+
+        return {
+            platform: 'photo-pa',
+            design_id: designId,
+            option_id: toolData?.option_id ?? primaryOption?.id,
+            category_id: toolData?.category_id ?? beacon?.category_id,
+            theme_id: toolData?.theme_id ?? beacon?.theme_id,
+            product_type_id: toolData?.product_type_id ?? primaryOption?.product_type_id,
+            design_group_id: primaryOption?.design_group_id,
+            variant_id: toolData?.variant_id,
+            product_id: beacon?.product_id
+        };
+    }
+
+    function enrichPhotoExtractedData(extractedData) {
+        const photoInfo = extractPhotoProductInfoFromPage();
+        if (!photoInfo) return extractedData;
+
+        extractedData.productsData = {
+            ...(extractedData.productsData || {}),
+            ...photoInfo,
+            full_object: photoInfo
+        };
+
+        if (photoInfo.design_id != null) {
+            extractedData.designId = String(photoInfo.design_id);
+        }
+        if (photoInfo.option_id != null) {
+            extractedData.cpProductId = String(photoInfo.option_id);
+        }
+        return extractedData;
+    }
+
+    function buildPhotoProductInfoHtml(result) {
+        const info = result.productsData || {};
+        let html = `
+            <div id="floating-product-info-card" style="
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                overflow: hidden;
+                margin-bottom: 10px;
+                padding: 10px 15px;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            ">
+                <div style="
+                    font-size: 14px;
+                    font-weight: bold;
+                    margin-bottom: 8px;
+                    color: #ffeb3b;
+                    text-align: left;
+                ">Product Info</div>
+        `;
+
+        html += createInfoItem('Design ID:', formatProductInfoField(info.design_id ?? result.designId));
+        html += createInfoItem('Option ID:', formatProductInfoField(info.option_id ?? result.cpProductId));
+        html += createInfoItem('Category ID:', formatProductInfoField(info.category_id));
+        html += createInfoItem('Theme ID:', formatProductInfoField(info.theme_id));
+        html += createInfoItem('Product Type ID:', formatProductInfoField(info.product_type_id));
+        html += createInfoItem('Design Group ID:', formatProductInfoField(info.design_group_id));
+        html += createInfoItem('Variant ID:', formatProductInfoField(info.variant_id));
+        html += createInfoItem('Product ID:', formatProductInfoField(info.product_id));
+        html += createInfoItem('Site ID:', CONFIG.getSiteId('PHOTOUS'));
+        html += `</div>`;
+        return html;
     }
 
     const ACQUIRED_B2C_REGIONS = ['PCRUS', 'PMALLUS', 'TRUS'];
@@ -3972,28 +4109,39 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         return html;
     }
 
+    function isPhotoProductData(result) {
+        return result?.productsData?.platform === 'photo-pa';
+    }
+
     function isProductPageUrl(currentUrl) {
         const isCpbPdp = isCpbProductDetailPage();
         const isPcrusPdp = isPcrusProductDetailPage();
+        const isPhotoPdp = isPhotoProductDetailPage();
         return currentUrl.match(/\/\+[^/]*,\d+/) !== null ||
             currentUrl.match(/\/mf\/\d+\/[^?]*\?productId=\d+/) !== null ||
             currentUrl.match(/\/mf\/\d+\/[^?]*\?fromProductId=\d+/) !== null ||
             currentUrl.match(/\/designer\/[^/]+/) !== null ||
             currentUrl.match(/\/shopdetail\/[^/]+\.\d+/) !== null ||
             isCpbPdp ||
-            isPcrusPdp;
+            isPcrusPdp ||
+            isPhotoPdp;
     }
 
     function buildProductInfoSnapshot(result, currentUrl) {
         const url = currentUrl || window.location.href;
         const isCpbPdp = isCpbProductDetailPage();
         const isPcrusPdp = isPcrusProductDetailPage();
+        const isPhotoPdp = isPhotoProductDetailPage();
         const isProductPage = isProductPageUrl(url);
         const fields = [];
 
         const hasValidProductData = isProductPage && result && (
             isCpbPdp ? (
                 (result.productsData && result.productsData.full_object) ||
+                result.designId ||
+                result.cpProductId
+            ) : isPhotoPdp ? (
+                isPhotoProductData(result) ||
                 result.designId ||
                 result.cpProductId
             ) : isPcrusPdp ? (
@@ -4034,6 +4182,17 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             push('SKU ID', cpbInfo?.sku_id);
             push('Design Group ID', cpbInfo?.design_group_id);
             push('Site ID', CONFIG.getSiteId('CPB'));
+        } else if (isPhotoPdp) {
+            const info = result.productsData || {};
+            push('Design ID', info.design_id ?? result.designId);
+            push('Option ID', info.option_id ?? result.cpProductId);
+            push('Category ID', info.category_id);
+            push('Theme ID', info.theme_id);
+            push('Product Type ID', info.product_type_id);
+            push('Design Group ID', info.design_group_id);
+            push('Variant ID', info.variant_id);
+            push('Product ID', info.product_id);
+            push('Site ID', CONFIG.getSiteId('PHOTOUS'));
         } else if (isPcrusPdp && isPmallLegacyProductData(result)) {
             const legacy = result.productsData || {};
             const region = getAcquiredB2cRegion();
@@ -4129,7 +4288,11 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         // CP product detail: /+xxx,yyy
         // CPB product detail: /business/product-{productId}-design-{designId} or /business/product-{productId}?did={designId}
         // PCRUS product detail: /product/{slug}-{itemNumber}
-        return /\/\+[^,]*,\d+/.test(currentUrl) || isCpbProductDetailPage() || isPcrusProductDetailPage();
+        // PHOTOUS PDP: product_detail_tool_data / page-view-beacon / *-p-{designId}
+        return /\/\+[^,]*,\d+/.test(currentUrl) ||
+            isCpbProductDetailPage() ||
+            isPcrusProductDetailPage() ||
+            isPhotoProductDetailPage();
     }
     
     let lastDefaultSkuFingerprint = null;
@@ -7301,18 +7464,24 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             // 6. /business/product-{productId}-design-{designId} or /business/product-{productId}?did={designId} - CPB product detail page
             const isCpbPdp = isCpbProductDetailPage();
             const isPcrusPdp = isPcrusProductDetailPage();
+            const isPhotoPdp = isPhotoProductDetailPage();
             const isProductPage = currentUrl.match(/\/\+[^/]*,\d+/) !== null || 
                                   currentUrl.match(/\/mf\/\d+\/[^?]*\?productId=\d+/) !== null ||
                                   currentUrl.match(/\/mf\/\d+\/[^?]*\?fromProductId=\d+/) !== null ||
                                   currentUrl.match(/\/designer\/[^/]+/) !== null ||
                                   currentUrl.match(/\/shopdetail\/[^/]+\.\d+/) !== null ||
                                   isCpbPdp ||
-                                  isPcrusPdp;
+                                  isPcrusPdp ||
+                                  isPhotoPdp;
             
             // Check if we have valid product data (not just "Not found")
             const hasValidProductData = isProductPage && result && (
                 isCpbPdp ? (
                     (result.productsData && result.productsData.full_object) ||
+                    result.designId ||
+                    result.cpProductId
+                ) : isPhotoPdp ? (
+                    isPhotoProductData(result) ||
                     result.designId ||
                     result.cpProductId
                 ) : isPcrusPdp ? (
@@ -7351,6 +7520,8 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             if (hasValidProductData) {
                 if (isCpbPdp) {
                     productInfoHtml += buildCpbProductInfoHtml(result);
+                } else if (isPhotoPdp) {
+                    productInfoHtml += buildPhotoProductInfoHtml(result);
                 } else if (isPcrusPdp) {
                     productInfoHtml += buildPcrusProductInfoHtml(result);
                 } else {

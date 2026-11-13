@@ -28,6 +28,7 @@ const CONFIG = {
         PCRUS: 'pcrus',
         PMALLUS: 'pmallus',
         TRUS: 'trus',
+        PHOTOUS: 'photo',
         STIUS: 'stius'
     },
     
@@ -85,6 +86,12 @@ const CONFIG = {
                 LIVE: 'www.thingsremembered.com',
                 LIVE_ALT: 'thingsremembered.com'
             },
+            PHOTOUS: {
+                PRE: `${this.REGION_PREFIX.PHOTOUS}-${branch}.${this.BASE_DOMAIN.PRE}`,
+                STAGE: `${this.REGION_PREFIX.PHOTOUS}-${branch}.${this.BASE_DOMAIN.STAGE}`,
+                LIVE: 'www.photoaffections.com',
+                LIVE_ALT: 'photoaffections.com'
+            },
             STIUS: {
                 PRE: `${this.REGION_PREFIX.STIUS}-${branch}.${this.BASE_DOMAIN.PRE}`,
                 STAGE: `${this.REGION_PREFIX.STIUS}-${branch}.${this.BASE_DOMAIN.STAGE}`,
@@ -133,6 +140,7 @@ const CONFIG = {
         // Legacy PMALL storefront store IDs on live (until PlanetArt site_id is mapped)
         PMALLUS: '9',
         TRUS: '106',
+        PHOTOUS: '2',
         STIUS: '1'
     },
     
@@ -179,6 +187,8 @@ const CONFIG = {
             /^pmallus-.*\.stage\.planetart\.com$/,
             /^trus-.*\.pre\.planetart\.com$/,
             /^trus-.*\.stage\.planetart\.com$/,
+            /^photo-.*\.pre\.planetart\.com$/,
+            /^photo-.*\.stage\.planetart\.com$/,
             /^stius-.*\.pre\.planetart\.com$/,
             /^stius-.*\.stage\.planetart\.com$/,
             /^(www\.)?cafepress\.com$/,
@@ -188,6 +198,7 @@ const CONFIG = {
             /^(www\.)?personalcreations\.com$/,
             /^(www\.)?personalizationmall\.com$/,
             /^(www\.)?thingsremembered\.com$/,
+            /^(www\.)?photoaffections\.com$/,
             /^(www\.)?simplytoimpress\.com$/
         ];
         
@@ -214,6 +225,7 @@ const CONFIG = {
         const cpbPattern = /^cpbus-([^.]+)\.(pre|stage)\.planetart\.com$/;
         const pcrusPattern = /^pcrus-([^.]+)\.(pre|stage)\.planetart\.com$/;
         const stiusPattern = /^stius-([^.]+)\.(pre|stage)\.planetart\.com$/;
+        const photoPattern = /^photo-([^.]+)\.(pre|stage)\.planetart\.com$/;
         const adminPattern = /^admin-([^.]+)\.(pre|stage)\.planetart\.com$/;
         
         let match = hostname.match(preStagePattern);
@@ -232,6 +244,11 @@ const CONFIG = {
         }
         
         match = hostname.match(stiusPattern);
+        if (match) {
+            return match[1];
+        }
+
+        match = hostname.match(photoPattern);
         if (match) {
             return match[1];
         }
@@ -484,6 +501,12 @@ const CONFIG = {
             /thingsremembered\.com/.test(url)) {
             return 'TRUS';
         }
+
+        // PHOTOUS (Photo Affections)
+        if (/photo-[^.]+\.(pre|stage)\.planetart\.com/.test(url) ||
+            /photoaffections\.com/.test(url)) {
+            return 'PHOTOUS';
+        }
         
         // STIUS (Simply to Impress US)
         if (/stius-[^.]+\.(pre|stage)\.planetart\.com/.test(url) ||
@@ -527,6 +550,7 @@ const CONFIG = {
         if (region === 'PCRUS') return 'PCRUS';
         if (region === 'PMALLUS') return 'PMALL';
         if (region === 'TRUS') return 'TR';
+        if (region === 'PHOTOUS') return 'PA';
         if (region === 'STIUS') return 'STIUS';
         return 'CAF' + region;
     },
@@ -731,7 +755,7 @@ const CONFIG = {
                     {
                         title: 'photo',
                         urls: {
-                            live: null,
+                            live: 'https://www.photoaffections.com/',
                             pre: 'https://photo-master.pre.planetart.com/',
                             stage: 'https://photo-master.stage.planetart.com/'
                         }
