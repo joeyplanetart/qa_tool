@@ -2452,7 +2452,67 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         return CONFIG.detectRegion(window.location.href) === 'PHOTOUS';
     }
 
-    function readPhotoProductDetailToolData() {
+    let photoToolDataCacheUrl = null;
+    let photoToolDataCache = undefined;
+    let photoToolDataInlineBlockedForUrl = null;
+
+    function parsePhotoProductDetailToolDataFromScriptTags() {
+        const scripts = document.querySelectorAll('script:not([src])');
+        for (const script of scripts) {
+            const text = script.textContent;
+            if (!text || !text.includes('product_detail_tool_data')) continue;
+
+            const eqIdx = text.indexOf('product_detail_tool_data');
+            const assignIdx = text.indexOf('=', eqIdx);
+            if (assignIdx === -1) continue;
+
+            let start = assignIdx + 1;
+            while (start < text.length && /\s/.test(text[start])) start += 1;
+            if (text[start] !== '{') continue;
+
+            let depth = 0;
+            let inString = false;
+            let quote = null;
+            let escaped = false;
+            for (let i = start; i < text.length; i++) {
+                const ch = text[i];
+                if (inString) {
+                    if (escaped) {
+                        escaped = false;
+                        continue;
+                    }
+                    if (ch === '\\') {
+                        escaped = true;
+                        continue;
+                    }
+                    if (ch === quote) {
+                        inString = false;
+                        quote = null;
+                    }
+                    continue;
+                }
+                if (ch === '"' || ch === "'") {
+                    inString = true;
+                    quote = ch;
+                    continue;
+                }
+                if (ch === '{') depth += 1;
+                else if (ch === '}') {
+                    depth -= 1;
+                    if (depth === 0) {
+                        try {
+                            return JSON.parse(text.slice(start, i + 1));
+                        } catch (e) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    function tryReadPhotoProductDetailToolDataViaInlineScript() {
         try {
             const script = document.createElement('script');
             script.textContent = `
@@ -2479,6 +2539,36 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
         }
     }
 
+    function readPhotoProductDetailToolData() {
+        if (!isPhotoSite()) return null;
+
+        const pageUrl = window.location.href;
+        if (photoToolDataCacheUrl === pageUrl) {
+            return photoToolDataCache === undefined ? null : photoToolDataCache;
+        }
+
+        photoToolDataCacheUrl = pageUrl;
+        photoToolDataCache = undefined;
+
+        const fromScriptTag = parsePhotoProductDetailToolDataFromScriptTags();
+        if (fromScriptTag) {
+            photoToolDataCache = fromScriptTag;
+            return fromScriptTag;
+        }
+
+        if (photoToolDataInlineBlockedForUrl !== pageUrl) {
+            const fromInline = tryReadPhotoProductDetailToolDataViaInlineScript();
+            if (fromInline) {
+                photoToolDataCache = fromInline;
+                return fromInline;
+            }
+            photoToolDataInlineBlockedForUrl = pageUrl;
+        }
+
+        photoToolDataCache = null;
+        return null;
+    }
+
     function readPhotoPageViewBeacon() {
         const el = document.getElementById('page-view-beacon');
         if (!el?.textContent) return null;
@@ -2494,8 +2584,6 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
 
         const beacon = readPhotoPageViewBeacon();
         if (beacon?.page_type === 'pdp') return true;
-
-        if (readPhotoProductDetailToolData()) return true;
 
         return /-p-\d+/i.test(window.location.pathname);
     }
@@ -12886,7 +12974,9 @@ ${address.cityStateZip}</div>
         }
 
         if (message.type === 'GET_PRODUCT_INFO') {
-            extractProductInfo();
+            if (isProductDetailPage()) {
+                extractProductInfo();
+            }
             chrome.storage.local.get(
                 ['url', 'designerName', 'designerLink', 'designId', 'cpProductId', 'productImageId', 'productsData'],
                 (storageResult) => {
