@@ -2098,6 +2098,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
     let cpbDecorationLookupCache = null;
     let cpbSimpleFilterItemsCache = null;
     let stiusQfItemsLookupCache = null;
+    let photoQfItemsLookupCache = null;
     let lastCpBadgePageUrl = '';
 
     function resetCpBadgeCachesIfUrlChanged() {
@@ -2109,6 +2110,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             cpbDecorationLookupCache = null;
             cpbSimpleFilterItemsCache = null;
             stiusQfItemsLookupCache = null;
+            photoQfItemsLookupCache = null;
         }
     }
 
@@ -2450,6 +2452,170 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
 
     function isPhotoSite() {
         return CONFIG.detectRegion(window.location.href) === 'PHOTOUS';
+    }
+
+    function isPhotoBadgePage() {
+        if (!isPhotoSite() || isCartPage()) return false;
+        if (document.getElementById('category_thumb_wrapper')) return true;
+
+        const scripts = document.querySelectorAll('script');
+        for (const scriptEl of scripts) {
+            const content = scriptEl.textContent || scriptEl.innerHTML || '';
+            if (content.includes('QFDATAJSON') &&
+                (content.includes('category_thumb_wrapper') || content.includes('\"items\"'))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function mapPhotoQfRawItem(rawItem, idx) {
+        if (!rawItem || !idx) return null;
+
+        const designId = rawItem[idx.ID];
+        if (designId === undefined || designId === null) return null;
+
+        return {
+            design_id: designId,
+            design_group_id: rawItem[idx.DESIGN_GROUP_ID],
+            product_id: rawItem[idx.PRODUCT_ID],
+            product_type_id: rawItem[idx.PRODUCT_TYPE_ID],
+            category_id: rawItem[idx.CATEGORY_ID],
+            variant_id: rawItem[idx.VARIANT_ID],
+            related_design_id: rawItem[idx.RELATED_DESIGN_ID],
+            seo_url: rawItem[idx.SEO_URL] || ''
+        };
+    }
+
+    function buildPhotoQfLookupFromData(data) {
+        const lookup = new Map();
+        if (!data || !Array.isArray(data.items) || !data.structure_indexes) {
+            return lookup;
+        }
+
+        const idx = data.structure_indexes;
+        data.items.forEach((rawItem) => {
+            const mapped = mapPhotoQfRawItem(rawItem, idx);
+            if (!mapped) return;
+            lookup.set(String(mapped.design_id), mapped);
+        });
+        return lookup;
+    }
+
+    function loadPhotoQfDataLookup() {
+        if (photoQfItemsLookupCache) {
+            return photoQfItemsLookupCache;
+        }
+
+        // Prefer parsing inline script text — PA Pre CSP blocks injected scripts.
+        try {
+            const scripts = document.querySelectorAll('script:not([src])');
+            for (const scriptEl of scripts) {
+                const content = scriptEl.textContent || scriptEl.innerHTML;
+                if (!content || !content.includes('QFDATAJSON')) continue;
+
+                const parsed = parseJsObjectAssignment(content, 'QFDATAJSON');
+                if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+                    const lookup = buildPhotoQfLookupFromData(parsed);
+                    if (lookup.size > 0) {
+                        photoQfItemsLookupCache = lookup;
+                        return lookup;
+                    }
+                }
+            }
+        } catch (e) {
+            console.log('Error parsing PA QFDATAJSON from script tags:', e);
+        }
+
+        photoQfItemsLookupCache = new Map();
+        return photoQfItemsLookupCache;
+    }
+
+    function buildPhotoBadgeContent(item) {
+        if (!item) return '';
+
+        const lines = [];
+        const addLine = (label, value) => {
+            if (value !== undefined && value !== null && value !== '') {
+                lines.push(`${label}: ${value}`);
+            }
+        };
+
+        addLine('DesignID', item.design_id);
+        addLine('DesignGroupID', item.design_group_id);
+        addLine('ProductTypeID', item.product_type_id);
+        addLine('CategoryID', item.category_id);
+        if (item.variant_id !== undefined && item.variant_id !== null && item.variant_id !== '') {
+            addLine('VariantID', item.variant_id);
+        }
+        if (item.product_id) {
+            addLine('ProductID', item.product_id);
+        }
+        if (item.related_design_id) {
+            addLine('RelatedDesignID', item.related_design_id);
+        }
+        return lines.join('\n');
+    }
+
+    async function displayPhotoProductBadges() {
+        if (isCartPage()) {
+            removeAllProductBadges();
+            return;
+        }
+        if (!isPhotoBadgePage()) {
+            return;
+        }
+
+        resetCpBadgeCachesIfUrlChanged();
+        cleanupStiusMisplacedBadges();
+
+        const badgeEnabled = await isBadgeDisplayEnabled();
+        if (!badgeEnabled) {
+            updateBadgeVisibility(false);
+            return;
+        }
+
+        const lookup = loadPhotoQfDataLookup();
+        const productCards = getStiusBadgeProductCards();
+
+        if (productCards.length === 0) {
+            console.log('PA badges: no product cards found yet');
+            return;
+        }
+
+        if (!lookup || lookup.size === 0) {
+            console.log('PA badges: QFDATAJSON not ready yet');
+            return;
+        }
+
+        const processedProducts = new Set();
+
+        productCards.forEach((card) => {
+            const designId = card.getAttribute('data-design-id');
+            if (!designId || processedProducts.has(designId)) return;
+
+            if (card.querySelector('.cp-product-id-badge')) {
+                processedProducts.add(designId);
+                return;
+            }
+
+            let item = lookup.get(String(designId));
+            if (!item) {
+                const link = card.querySelector('.thumb_wrapper a[href], a[href]');
+                item = link ? findStiusItemForLink(link, lookup) : null;
+            }
+            if (!item) return;
+
+            const badgeContent = buildPhotoBadgeContent(item);
+            if (!badgeContent) return;
+
+            const badge = createListPageProductBadge(badgeContent, badgeEnabled);
+            if (attachStiusBadgeToThumb(card, badge)) {
+                processedProducts.add(designId);
+            }
+        });
+
+        console.log(`PA PLP: processed ${processedProducts.size} product badges`);
     }
 
     let photoToolDataCacheUrl = null;
@@ -5802,7 +5968,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
             return;
         }
         
-        const shouldShowListBadges = isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage() || isPcrusBadgePage();
+        const shouldShowListBadges = isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage() || isPcrusBadgePage() || isPhotoBadgePage();
         
         // Initial check
         if (shouldShowListBadges) {
@@ -5811,6 +5977,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
                 displayStiusProductBadges().catch(err => console.error('Error displaying STI product IDs:', err));
                 displayPcrusProductBadges().catch(err => console.error('Error displaying PCRUS product IDs:', err));
+                displayPhotoProductBadges().catch(err => console.error('Error displaying PA product IDs:', err));
                 displayCategoryFilterIds(); // Also display category filter IDs
             }, 1000);
             
@@ -5822,6 +5989,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
                         displayStiusProductBadges().catch(err => console.error('Error displaying STI product IDs:', err));
                         displayPcrusProductBadges().catch(err => console.error('Error displaying PCRUS product IDs:', err));
+                        displayPhotoProductBadges().catch(err => console.error('Error displaying PA product IDs:', err));
                         displayCategoryFilterIds();
                     }, 500);
                 }, { once: true });
@@ -5871,6 +6039,14 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     }, delay);
                 });
             }
+
+            if (isPhotoBadgePage()) {
+                [500, 1000, 2000, 4000, 6000, 8000, 10000, 15000].forEach(delay => {
+                    setTimeout(() => {
+                        displayPhotoProductBadges().catch(err => console.error('Error displaying PA PLP badges:', err));
+                    }, delay);
+                });
+            }
         }
         
         // Observe DOM changes for dynamically loaded products
@@ -5879,7 +6055,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 removeAllProductBadges();
                 return;
             }
-            if (isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage() || isPcrusBadgePage()) {
+            if (isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage() || isPcrusBadgePage() || isPhotoBadgePage()) {
                 let shouldUpdate = false;
                 mutations.forEach((mutation) => {
                     mutation.addedNodes.forEach((node) => {
@@ -5941,6 +6117,7 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                         displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
                         displayStiusProductBadges().catch(err => console.error('Error displaying STI product IDs:', err));
                         displayPcrusProductBadges().catch(err => console.error('Error displaying PCRUS product IDs:', err));
+                        displayPhotoProductBadges().catch(err => console.error('Error displaying PA product IDs:', err));
                         displayCategoryFilterIds();
                     }, 300);
                 }
@@ -5962,12 +6139,13 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                     removeAllProductBadges();
                     return;
                 }
-                if (isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage() || isPcrusBadgePage()) {
+                if (isCpProductBadgePage() || isCpbBadgePage() || isStiusBadgePage() || isPcrusBadgePage() || isPhotoBadgePage()) {
                     setTimeout(() => {
                         displayProductIdsOnListPage().catch(err => console.error('Error displaying product IDs:', err));
                         displayCpbProductBadges().catch(err => console.error('Error displaying CPB product IDs:', err));
                         displayStiusProductBadges().catch(err => console.error('Error displaying STI product IDs:', err));
                         displayPcrusProductBadges().catch(err => console.error('Error displaying PCRUS product IDs:', err));
+                        displayPhotoProductBadges().catch(err => console.error('Error displaying PA product IDs:', err));
                         displayCategoryFilterIds();
                     }, 500);
                 }
@@ -7077,6 +7255,10 @@ if (typeof CONFIG !== 'undefined' && !CONFIG.isSupportedHostname(window.location
                 } else if (isPcrusBadgePage()) {
                     setTimeout(() => {
                         displayPcrusProductBadges().catch(err => console.error('Error refreshing PCRUS badges:', err));
+                    }, 100);
+                } else if (isPhotoBadgePage()) {
+                    setTimeout(() => {
+                        displayPhotoProductBadges().catch(err => console.error('Error refreshing PA badges:', err));
                     }, 100);
                 }
             });
